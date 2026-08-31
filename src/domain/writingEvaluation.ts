@@ -44,7 +44,7 @@ export const writingTaskEvaluationSchema = z
 
 export const writingEvaluationInputSchema = z
   .object({
-    attemptId: z.string().uuid(),
+    attemptId: z.uuid(),
     overallBand: bandScoreSchema,
     summary: z.string().trim().min(1).max(4_000),
     task1: writingTaskEvaluationSchema,

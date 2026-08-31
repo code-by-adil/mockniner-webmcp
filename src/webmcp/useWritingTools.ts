@@ -19,7 +19,7 @@ const getWritingSubmissionInputSchema = {
 
 const attachWritingEvaluationInputSchema = z.toJSONSchema(
   writingEvaluationInputSchema,
-  { target: 'draft-7' },
+  { target: 'draft-07' },
 )
 
 function describeValidationError(error: z.ZodError): string {
@@ -54,7 +54,7 @@ export function createWritingToolDefinitions({
       execute: async (input, { signal }) => {
         throwIfCancelled(signal)
         const parsed = z
-          .object({ attemptId: z.string().uuid().optional() })
+          .object({ attemptId: z.uuid().optional() })
           .strict()
           .safeParse(input)
         if (!parsed.success) {

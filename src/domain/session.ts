@@ -83,7 +83,7 @@ export const initialSession: ExamSession = {
 }
 
 const sectionSchema = z.enum(['listening', 'reading', 'writing', 'speaking'])
-const timestampSchema = z.string().datetime({ offset: true })
+const timestampSchema = z.iso.datetime({ offset: true })
 
 const examSessionSchema: z.ZodType<ExamSession> = z
   .strictObject({

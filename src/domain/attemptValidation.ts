@@ -9,7 +9,7 @@ import type {
 } from "./types";
 import { writingEvaluationInputSchema } from "./writingEvaluation";
 
-const timestampSchema = z.string().datetime({ offset: true });
+const timestampSchema = z.iso.datetime({ offset: true });
 const bandScoreSchema = z
   .number()
   .min(0)
@@ -41,7 +41,7 @@ const objectiveResultSchema: z.ZodType<ObjectiveResult> = z
 export const objectiveSubmissionSchema: z.ZodType<ObjectiveSubmission> =
   z
     .strictObject({
-      attemptId: z.string().uuid(),
+      attemptId: z.uuid(),
       contentKey: z.string().min(1),
       section: z.enum(["listening", "reading"]),
       answers: answerMapSchema,
@@ -72,7 +72,7 @@ const writingTaskSchema = z.strictObject({
 });
 
 export const writingSubmissionSchema: z.ZodType<WritingSubmission> = z.strictObject({
-  attemptId: z.string().uuid(),
+  attemptId: z.uuid(),
   contentKey: z.string().min(1),
   tasks: z.tuple([
     z.strictObject({
@@ -98,7 +98,7 @@ export const writingEvaluationSchema: z.ZodType<WritingEvaluation> =
 export const speakingSubmissionSchema: z.ZodType<SpeakingSubmission> =
   z
     .strictObject({
-      attemptId: z.string().uuid(),
+      attemptId: z.uuid(),
       promptCount: z.number().int().nonnegative(),
       recordedCount: z.number().int().nonnegative(),
       recordingIds: z.array(z.string().min(1)),

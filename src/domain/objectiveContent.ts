@@ -542,7 +542,7 @@ export function parseObjectiveContentDocument(input: unknown): ObjectiveContentD
 
 export function getObjectiveContentJsonSchema() {
   return z.toJSONSchema(objectiveContentDocumentSchema, {
-    target: "draft-7",
+    target: "draft-07",
   });
 }
 

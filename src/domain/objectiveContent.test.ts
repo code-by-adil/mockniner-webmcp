@@ -60,6 +60,7 @@ describe("canonical IELTS objective JSON", () => {
 
   it("exports the same contract as JSON Schema for future agent tools", () => {
     const schema = getObjectiveContentJsonSchema();
+    expect(schema.$schema).toBe("http://json-schema.org/draft-07/schema#");
     expect(schema.type).toBe("object");
     expect(schema.properties).toHaveProperty("parts");
     expect(schema.required).toEqual(
