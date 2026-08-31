@@ -48,6 +48,7 @@ export const writingContentDocumentSchema = z.strictObject({
     .max(100)
     .regex(/^[a-z0-9][a-z0-9._-]*$/),
   section: z.literal("writing"),
+  source: z.literal("agent").optional(),
   name: text,
   tasks: z.tuple([writingTask1Schema, writingTask2Schema]),
 });

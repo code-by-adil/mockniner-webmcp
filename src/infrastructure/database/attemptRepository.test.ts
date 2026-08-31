@@ -5,6 +5,7 @@ import type { WritingEvaluation } from '@/domain/types'
 import { migrateDatabase } from './migrations'
 import {
   readObjectiveAttempt,
+  readLearningSummary,
   readWritingAttempt,
   saveObjectiveAttempt,
   saveWritingAttempt,
@@ -108,6 +109,23 @@ describe('local attempt repository', () => {
     expect(attempt?.status).toBe('evaluated')
   })
 
+  it('reads a submitted Writing attempt before it has an evaluation', async () => {
+    const submission = await saveWritingAttempt(database, {
+      contentKey: 'local-writing-v1',
+      tasks: [
+        { task: writingDocument.tasks[0], response: 'Task one answer.', wordCount: 3 },
+        { task: writingDocument.tasks[1], response: 'Task two answer.', wordCount: 3 },
+      ],
+      startedAt: '2026-08-31T10:00:00.000Z',
+      submittedAt: '2026-08-31T11:00:00.000Z',
+    })
+
+    await expect(readWritingAttempt(database, submission.attemptId)).resolves.toEqual({
+      submission,
+      evaluation: null,
+    })
+  })
+
   it('rejects corrupted JSON instead of casting it into the domain', async () => {
     const submission = await saveObjectiveAttempt(database, {
       section: 'reading',
@@ -133,5 +151,79 @@ describe('local attempt repository', () => {
     await expect(
       readObjectiveAttempt(database, submission.attemptId),
     ).rejects.toThrow()
+  })
+
+  it('builds a bounded learning summary without exposing responses or answer keys', async () => {
+    await saveObjectiveAttempt(database, {
+      section: 'reading',
+      contentKey: 'reading-one',
+      answers: { 1: 'TRUE' },
+      result: {
+        section: 'reading', raw: 30, total: 40, band: 7, answered: 40,
+        correctQuestionIds: Array.from({ length: 30 }, (_, index) => index + 1),
+      },
+      startedAt: '2026-08-31T10:00:00.000Z',
+      submittedAt: '2026-08-31T11:00:00.000Z',
+    })
+    await saveObjectiveAttempt(database, {
+      section: 'reading',
+      contentKey: 'reading-two',
+      answers: { 1: 'FALSE' },
+      result: {
+        section: 'reading', raw: 27, total: 40, band: 6.5, answered: 40,
+        correctQuestionIds: Array.from({ length: 27 }, (_, index) => index + 1),
+      },
+      startedAt: '2026-09-01T10:00:00.000Z',
+      submittedAt: '2026-09-01T11:00:00.000Z',
+    })
+    const writing = await saveWritingAttempt(database, {
+      contentKey: 'writing-one',
+      tasks: [
+        { task: writingDocument.tasks[0], response: 'Private response one.', wordCount: 3 },
+        { task: writingDocument.tasks[1], response: 'Private response two.', wordCount: 3 },
+      ],
+      startedAt: '2026-09-01T12:00:00.000Z',
+      submittedAt: '2026-09-01T13:00:00.000Z',
+    })
+    const taskEvaluation = {
+      band: 7,
+      taskAchievement: 7,
+      coherenceCohesion: 6.5,
+      lexicalResource: 6,
+      grammaticalRange: 5.5,
+      feedback: 'Private feedback.',
+      annotations: [],
+    }
+    await saveWritingEvaluation(database, {
+      attemptId: writing.attemptId,
+      overallBand: 6.5,
+      summary: 'Private evaluation summary.',
+      task1: taskEvaluation,
+      task2: taskEvaluation,
+      evaluatedAt: '2026-09-01T13:05:00.000Z',
+    })
+
+    const summary = await readLearningSummary(database, 1)
+
+    expect(summary.totalAttempts).toBe(3)
+    expect(summary.sections.reading).toMatchObject({
+      attemptCount: 2,
+      recentAverageBand: 6.5,
+      recent: [{ contentKey: 'reading-two', band: 6.5 }],
+    })
+    expect(summary.sections.writing).toMatchObject({
+      attemptCount: 1,
+      evaluatedCount: 1,
+      recentAverageOverallBand: 6.5,
+      recentAverageCriteria: {
+        taskAchievement: 7,
+        coherenceCohesion: 6.5,
+        lexicalResource: 6,
+        grammaticalRange: 5.5,
+      },
+    })
+    expect(JSON.stringify(summary)).not.toContain('Private response')
+    expect(JSON.stringify(summary)).not.toContain('Private feedback')
+    expect(JSON.stringify(summary)).not.toContain('Private evaluation summary')
   })
 })

@@ -99,7 +99,6 @@ describe('exam application commands', () => {
 
   it('validates, persists, and activates one content document through one command', async () => {
     const harness = createHarness()
-    harness.commands.start('section', 'writing')
     const replacement = {
       ...writingDocument,
       contentKey: 'agent-writing-v1',
@@ -110,6 +109,21 @@ describe('exam application commands', () => {
     expect(harness.saveAndActivate).toHaveBeenCalledWith(replacement)
     expect(harness.getContent().writing).toEqual(replacement)
     expect(harness.getState()).toEqual(initialSession)
+  })
+
+  it('protects an active attempt from practice-set replacement', async () => {
+    const harness = createHarness()
+    harness.commands.start('section', 'writing')
+    harness.commands.setWritingDraft(1, 'Unsaved learner response')
+
+    await expect(
+      harness.commands.installContent({
+        ...writingDocument,
+        contentKey: 'agent-writing-v1',
+      }),
+    ).rejects.toMatchObject({ code: 'ACTIVE_ATTEMPT' })
+    expect(harness.saveAndActivate).not.toHaveBeenCalled()
+    expect(harness.getState().writingDrafts[1]).toBe('Unsaved learner response')
   })
 
   it('rejects invalid content before persistence or activation', async () => {

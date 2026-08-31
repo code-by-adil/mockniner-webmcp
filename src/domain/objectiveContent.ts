@@ -346,6 +346,7 @@ const objectiveContentDocumentBase = {
   schemaVersion: z.literal(1),
   contentKey: z.string().trim().min(1).max(100).regex(/^[a-z0-9][a-z0-9._-]*$/),
   name: shortText,
+  source: z.literal("agent").optional(),
 };
 
 export const objectiveContentDocumentSchema = z.discriminatedUnion("section", [

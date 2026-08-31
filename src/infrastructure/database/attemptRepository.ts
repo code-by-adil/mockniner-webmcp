@@ -6,6 +6,11 @@ import type {
   WritingSubmittedTask,
 } from '@/domain/types'
 import type {
+  LearningSummary,
+  ObjectiveLearningSummary,
+  WritingCriteriaSummary,
+} from '@/domain/learningSummary'
+import type {
   SaveObjectiveAttemptInput,
   SaveWritingAttemptInput,
 } from '@/application/attemptWriter'
@@ -33,6 +38,172 @@ type ObjectiveSubmissionRow = AttemptRow & {
 type WritingSubmissionRow = AttemptRow & {
   submissionJson: string
   evaluationJson: string | null
+}
+
+type AttemptCountRow = {
+  section: AttemptRow['section']
+  status: AttemptRow['status']
+  attemptCount: number
+}
+
+type ObjectiveLearningRow = {
+  id: string
+  contentKey: string
+  submittedAt: string
+  resultJson: string
+}
+
+type WritingLearningRow = {
+  id: string
+  contentKey: string
+  status: AttemptRow['status']
+  submittedAt: string
+  evaluationJson: string | null
+}
+
+function roundedAverage(values: number[]): number | null {
+  if (values.length === 0) return null
+  return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10
+}
+
+function averageCriteria(values: WritingCriteriaSummary[]): WritingCriteriaSummary | null {
+  if (values.length === 0) return null
+  return {
+    taskAchievement: roundedAverage(values.map((value) => value.taskAchievement))!,
+    coherenceCohesion: roundedAverage(values.map((value) => value.coherenceCohesion))!,
+    lexicalResource: roundedAverage(values.map((value) => value.lexicalResource))!,
+    grammaticalRange: roundedAverage(values.map((value) => value.grammaticalRange))!,
+  }
+}
+
+function evaluationCriteria(
+  evaluation: WritingEvaluation,
+): WritingCriteriaSummary {
+  return {
+    taskAchievement: (evaluation.task1.taskAchievement + evaluation.task2.taskAchievement) / 2,
+    coherenceCohesion: (evaluation.task1.coherenceCohesion + evaluation.task2.coherenceCohesion) / 2,
+    lexicalResource: (evaluation.task1.lexicalResource + evaluation.task2.lexicalResource) / 2,
+    grammaticalRange: (evaluation.task1.grammaticalRange + evaluation.task2.grammaticalRange) / 2,
+  }
+}
+
+async function readObjectiveLearningSummary(
+  database: SQLocal,
+  section: 'listening' | 'reading',
+  attemptCount: number,
+  recentLimit: number,
+): Promise<ObjectiveLearningSummary> {
+  const rows = await database.sql<ObjectiveLearningRow>`
+    SELECT
+      attempts.id,
+      attempts.content_key AS contentKey,
+      attempts.submitted_at AS submittedAt,
+      objective_submissions.result_json AS resultJson
+    FROM attempts
+    INNER JOIN objective_submissions
+      ON objective_submissions.attempt_id = attempts.id
+    WHERE attempts.section = ${section}
+    ORDER BY attempts.submitted_at DESC
+    LIMIT ${recentLimit}
+  `
+  const recent = rows.map((row) => {
+    const result = parseStoredObjectiveResult(row.resultJson)
+    if (result.section !== section) {
+      throw new Error(`The stored ${section} result has the wrong section.`)
+    }
+    return {
+      attemptId: row.id,
+      contentKey: row.contentKey,
+      band: result.band,
+      raw: result.raw,
+      total: result.total,
+      answered: result.answered,
+      submittedAt: row.submittedAt,
+    }
+  })
+  return {
+    attemptCount,
+    recentAverageBand: roundedAverage(recent.map((attempt) => attempt.band)),
+    recent,
+  }
+}
+
+export async function readLearningSummary(
+  database: SQLocal,
+  recentLimit: number,
+): Promise<LearningSummary> {
+  const countRows = await database.sql<AttemptCountRow>`
+    SELECT section, status, COUNT(*) AS attemptCount
+    FROM attempts
+    GROUP BY section, status
+  `
+  const counts = new Map(
+    countRows.map((row) => [`${row.section}:${row.status}`, Number(row.attemptCount)]),
+  )
+  const statusCount = (
+    section: AttemptRow['section'],
+    status: AttemptRow['status'],
+  ) => counts.get(`${section}:${status}`) ?? 0
+  const count = (section: AttemptRow['section']) =>
+    statusCount(section, 'submitted') + statusCount(section, 'evaluated')
+
+  const [listening, reading, writingRows] = await Promise.all([
+    readObjectiveLearningSummary(database, 'listening', count('listening'), recentLimit),
+    readObjectiveLearningSummary(database, 'reading', count('reading'), recentLimit),
+    database.sql<WritingLearningRow>`
+      SELECT
+        attempts.id,
+        attempts.content_key AS contentKey,
+        attempts.status,
+        attempts.submitted_at AS submittedAt,
+        writing_evaluations.evaluation_json AS evaluationJson
+      FROM attempts
+      LEFT JOIN writing_evaluations
+        ON writing_evaluations.attempt_id = attempts.id
+      WHERE attempts.section = 'writing'
+      ORDER BY attempts.submitted_at DESC
+      LIMIT ${recentLimit}
+    `,
+  ])
+
+  const writingRecent = writingRows.map((row) => {
+    const evaluation = row.evaluationJson
+      ? parseStoredWritingEvaluation(row.evaluationJson)
+      : null
+    if (evaluation?.attemptId !== row.id) {
+      throw new Error('The stored Writing evaluation does not match its attempt.')
+    }
+    return {
+      attemptId: row.id,
+      contentKey: row.contentKey,
+      status: row.status,
+      ...(evaluation
+        ? {
+            overallBand: evaluation.overallBand,
+            criteria: evaluationCriteria(evaluation),
+          }
+        : {}),
+      submittedAt: row.submittedAt,
+    }
+  })
+  const evaluated = writingRecent.filter((attempt) => attempt.overallBand !== undefined)
+  const writing = {
+    attemptCount: count('writing'),
+    evaluatedCount: statusCount('writing', 'evaluated'),
+    recentAverageOverallBand: roundedAverage(evaluated.map((attempt) => attempt.overallBand!)),
+    recentAverageCriteria: averageCriteria(evaluated.map((attempt) => attempt.criteria!)),
+    recent: writingRecent,
+  }
+
+  return {
+    totalAttempts: [...counts.values()].reduce((sum, value) => sum + value, 0),
+    sections: {
+      listening,
+      reading,
+      writing,
+      speaking: { attemptCount: count('speaking') },
+    },
+  }
 }
 
 export async function saveObjectiveAttempt(
@@ -188,7 +359,7 @@ export async function readWritingAttempt(
   if (
     submission.attemptId !== row.id ||
     submission.contentKey !== row.contentKey ||
-    evaluation?.attemptId !== row.id
+    (evaluation && evaluation.attemptId !== row.id)
   ) {
     throw new Error('The stored Writing record does not match its attempt.')
   }

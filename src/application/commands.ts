@@ -69,6 +69,15 @@ export type ExamApplicationCommands = {
   reset: () => void
 }
 
+export class ActiveAttemptError extends Error {
+  readonly code = 'ACTIVE_ATTEMPT'
+
+  constructor() {
+    super('Finish or leave the current attempt before installing a new practice set.')
+    this.name = 'ActiveAttemptError'
+  }
+}
+
 function requireActiveSection(state: ExamSession, section: SectionKey): void {
   if (state.view !== 'exam' || state.currentSection !== section) {
     throw new Error(`${section} is not the active exam section.`)
@@ -82,6 +91,15 @@ function requireVisibleSection(state: ExamSession, section: SectionKey): void {
   ) {
     throw new Error(`${section} is not the visible exam section.`)
   }
+}
+
+function hasActiveAttempt(state: ExamSession): boolean {
+  if (state.view === 'exam' || state.view === 'transition') return true
+  return Boolean(
+    state.view === 'home' &&
+    state.currentSection &&
+    !state.completedSections.includes(state.currentSection),
+  )
 }
 
 export function createExamApplicationCommands({
@@ -130,6 +148,7 @@ export function createExamApplicationCommands({
       dispatch({ type: 'TICK', section })
     },
     async installContent(input) {
+      if (hasActiveAttempt(getState())) throw new ActiveAttemptError()
       const document = parsePracticeContentDocument(input)
       await (await getContentStore()).saveAndActivate(document)
       setContent(replaceActiveContent(getContent(), document))

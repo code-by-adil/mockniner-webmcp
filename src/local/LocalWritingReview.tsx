@@ -28,6 +28,9 @@ export function LocalWritingReview({
       <WritingReviewView
         essay={submittedTask.response}
         scoreData={taskEvaluation}
+        evaluationSummary={evaluation.summary}
+        overallBand={evaluation.overallBand}
+        evaluatedAt={evaluation.evaluatedAt}
         onClose={onExit}
         taskOptions={[
           { id: 1, label: 'Task 1' },

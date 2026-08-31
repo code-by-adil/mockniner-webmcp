@@ -42,18 +42,24 @@ describe('Writing WebMCP tools', () => {
     const tools = createWritingToolDefinitions({
       readWritingAttempt: async () => ({ submission, evaluation: null }),
       attachWritingEvaluation: vi.fn(),
+      getCurrentWritingAttemptId: () => attemptId,
     })
     const tool = tools.find((item) => item.name === 'get_writing_submission')!
 
     const result = await tool.execute({}, toolOptions())
 
     const parsed = result as {
-      submission: WritingSubmission
-      evaluationStatus: string
+      ok: true
+      data: {
+        submission: WritingSubmission
+        evaluationStatus: string
+        canAttachEvaluation: boolean
+      }
     }
-    expect(parsed.submission.attemptId).toBe(attemptId)
-    expect(parsed.submission.tasks[0].response).toBe('Task one answer.')
-    expect(parsed.evaluationStatus).toBe('awaiting_evaluation')
+    expect(parsed.data.submission.attemptId).toBe(attemptId)
+    expect(parsed.data.submission.tasks[0].response).toBe('Task one answer.')
+    expect(parsed.data.evaluationStatus).toBe('awaiting_evaluation')
+    expect(parsed.data.canAttachEvaluation).toBe(true)
     expect(tool.annotations).toMatchObject({ readOnlyHint: true, untrustedContentHint: true })
   })
 
@@ -66,6 +72,7 @@ describe('Writing WebMCP tools', () => {
     const tools = createWritingToolDefinitions({
       readWritingAttempt: async () => ({ submission, evaluation: null }),
       attachWritingEvaluation,
+      getCurrentWritingAttemptId: () => attemptId,
     })
     const tool = tools.find((item) => item.name === 'attach_writing_evaluation')!
 
@@ -73,9 +80,9 @@ describe('Writing WebMCP tools', () => {
 
     expect(attachWritingEvaluation).toHaveBeenCalledWith(evaluationInput)
     expect(result).toMatchObject({
-      status: 'attached',
-      attemptId,
-      visibleView: 'writing_review',
+      ok: true,
+      data: { status: 'attached', attemptId },
+      sideEffect: { visibleView: 'writing_review' },
     })
   })
 
@@ -83,11 +90,105 @@ describe('Writing WebMCP tools', () => {
     const tools = createWritingToolDefinitions({
       readWritingAttempt: async () => ({ submission, evaluation: null }),
       attachWritingEvaluation: vi.fn(),
+      getCurrentWritingAttemptId: () => attemptId,
     })
     const tool = tools.find((item) => item.name === 'attach_writing_evaluation')!
 
     await expect(
       tool.execute({ ...evaluationInput, overallBand: 7.3 }, toolOptions()),
-    ).rejects.toThrow('overallBand: Band scores must use whole or half-band increments.')
+    ).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: 'INVALID_EVALUATION',
+        issues: [{ path: 'overallBand' }],
+      },
+    })
+  })
+
+  it('rejects corrections that do not quote the immutable submission', async () => {
+    const attachWritingEvaluation = vi.fn()
+    const tools = createWritingToolDefinitions({
+      readWritingAttempt: async () => ({ submission, evaluation: null }),
+      attachWritingEvaluation,
+      getCurrentWritingAttemptId: () => attemptId,
+    })
+    const tool = tools.find((item) => item.name === 'attach_writing_evaluation')!
+
+    await expect(tool.execute({
+      ...evaluationInput,
+      task1: {
+        ...taskEvaluation,
+        annotations: [{
+          id: 'invented-quote',
+          taskNumber: 1,
+          originalText: 'Words the learner never wrote.',
+          suggestion: 'A valid replacement.',
+          explanation: 'This should not be attachable.',
+          type: 'grammar',
+        }],
+      },
+    }, toolOptions())).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: 'INVALID_ANNOTATION',
+        retryable: true,
+        issues: [{ path: 'task1.annotations.0.originalText' }],
+      },
+    })
+    expect(attachWritingEvaluation).not.toHaveBeenCalled()
+  })
+
+  it('requires annotation task identity and offsets to agree with the quote', async () => {
+    const attachWritingEvaluation = vi.fn()
+    const tools = createWritingToolDefinitions({
+      readWritingAttempt: async () => ({ submission, evaluation: null }),
+      attachWritingEvaluation,
+      getCurrentWritingAttemptId: () => attemptId,
+    })
+    const tool = tools.find((item) => item.name === 'attach_writing_evaluation')!
+
+    const result = await tool.execute({
+      ...evaluationInput,
+      task1: {
+        ...taskEvaluation,
+        annotations: [{
+          id: 'wrong-location',
+          taskNumber: 2,
+          originalText: 'Task one answer.',
+          suggestion: 'A replacement.',
+          explanation: 'The task and range must be trustworthy.',
+          type: 'coherence',
+          startOffset: 1,
+          endOffset: 17,
+        }],
+      },
+    }, toolOptions()) as { ok: false; error: { issues: Array<{ path: string }> } }
+
+    expect(result.ok).toBe(false)
+    expect(result.error.issues.map((issue) => issue.path)).toEqual([
+      'task1.annotations.0.taskNumber',
+      'task1.annotations.0.originalText',
+    ])
+    expect(attachWritingEvaluation).not.toHaveBeenCalled()
+  })
+
+  it('does not silently replace an existing evaluation', async () => {
+    const existing: WritingEvaluation = {
+      ...evaluationInput,
+      evaluatedAt: '2026-08-31T11:05:00.000Z',
+    }
+    const attachWritingEvaluation = vi.fn()
+    const tools = createWritingToolDefinitions({
+      readWritingAttempt: async () => ({ submission, evaluation: existing }),
+      attachWritingEvaluation,
+      getCurrentWritingAttemptId: () => attemptId,
+    })
+    const tool = tools.find((item) => item.name === 'attach_writing_evaluation')!
+
+    await expect(tool.execute(evaluationInput, toolOptions())).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'EVALUATION_EXISTS', retryable: false },
+    })
+    expect(attachWritingEvaluation).not.toHaveBeenCalled()
   })
 })

@@ -31,6 +31,9 @@ import {
 interface Props {
   essay: string;
   scoreData: WritingTaskEvaluation;
+  evaluationSummary?: string;
+  overallBand?: number;
+  evaluatedAt?: string;
   onClose: () => void;
   taskOptions?: Array<{
     id: 1 | 2;
@@ -77,13 +80,16 @@ function getTypeClasses(type: WritingAnnotation["type"]) {
 export const WritingReviewView: React.FC<Props> = ({
   essay,
   scoreData,
+  evaluationSummary,
+  overallBand,
+  evaluatedAt,
   onClose,
   taskOptions,
   activeTaskId,
   onTaskChange,
 }) => {
   const isMobile = useIsMobile();
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(Boolean(evaluationSummary));
   const useNativeDrawer = supportsNativeDialog();
   const showDrawer = useNativeDrawer || isDrawerOpen;
   const correctionsDialogRef = useExamNativeDialog({
@@ -291,7 +297,7 @@ export const WritingReviewView: React.FC<Props> = ({
       <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 sm:px-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-base font-semibold text-gray-800">Score</span>
+            <span className="text-base font-semibold text-gray-800">Task score</span>
             <span className="px-2 py-0.5 bg-gray-100 rounded text-sm font-bold text-gray-700">
               {scoreData.band.toFixed(1)}
             </span>
@@ -302,6 +308,46 @@ export const WritingReviewView: React.FC<Props> = ({
 
       <div className="flex-1 overflow-y-auto w-full pb-safe">
         <div className="space-y-2.5 p-3 sm:p-4 w-full">
+          {overallBand !== undefined && evaluationSummary ? (
+            <section className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                    Agent evaluation
+                  </p>
+                  <p className="mt-2 text-[13px] leading-[1.7] text-gray-700">
+                    {evaluationSummary}
+                  </p>
+                </div>
+                <div className="shrink-0 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-center">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Overall
+                  </span>
+                  <span className="text-xl font-extrabold text-emerald-700">
+                    {overallBand.toFixed(1)}
+                  </span>
+                </div>
+              </div>
+              <dl className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                {[
+                  [activeTaskId === 2 ? "Task response" : "Task achievement", scoreData.taskAchievement],
+                  ["Coherence & cohesion", scoreData.coherenceCohesion],
+                  ["Lexical resource", scoreData.lexicalResource],
+                  ["Grammatical range & accuracy", scoreData.grammaticalRange],
+                ].map(([label, value]) => (
+                  <div key={String(label)} className="rounded-lg bg-white px-3 py-2">
+                    <dt className="text-gray-500">{label}</dt>
+                    <dd className="mt-0.5 font-bold text-gray-800">{Number(value).toFixed(1)}</dd>
+                  </div>
+                ))}
+              </dl>
+              {evaluatedAt ? (
+                <p className="mt-3 text-[10px] text-emerald-800/60">
+                  Saved locally {new Date(evaluatedAt).toLocaleString()}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
           {issues.length === 0 ? (
             <div className="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center">
               <p className="text-sm text-gray-500">
@@ -364,6 +410,7 @@ export const WritingReviewView: React.FC<Props> = ({
                       </span>
                       <button
                         type="button"
+                        aria-label="Previous correction"
                         onClick={() => jumpIssue("prev")}
                         disabled={issues.length <= 1}
                         className="rounded-md p-1 text-gray-500 transition hover:bg-black/5 disabled:opacity-30"
@@ -372,6 +419,7 @@ export const WritingReviewView: React.FC<Props> = ({
                       </button>
                       <button
                         type="button"
+                        aria-label="Next correction"
                         onClick={() => jumpIssue("next")}
                         disabled={issues.length <= 1}
                         className="rounded-md p-1 text-gray-500 transition hover:bg-black/5 disabled:opacity-30"
@@ -437,6 +485,7 @@ export const WritingReviewView: React.FC<Props> = ({
           {scoreData.feedback && (
             <button
               type="button"
+              aria-label="Open agent evaluation and examiner feedback"
               onClick={() => {
                 if (isMobile) setIsDrawerOpen(true);
                 setTimeout(() => {
@@ -450,6 +499,8 @@ export const WritingReviewView: React.FC<Props> = ({
             </button>
           )}
           <button
+            type="button"
+            aria-label="Back to results"
             onClick={onClose}
             className="flex items-center gap-1 sm:gap-2 text-xs font-bold text-gray-500 hover:text-[#D40000] px-2 sm:px-3 py-1 sm:py-1.5 rounded transition-colors border border-gray-200 hover:border-[#D40000]"
           >

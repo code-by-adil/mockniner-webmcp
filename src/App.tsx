@@ -19,12 +19,13 @@ import { LocalSpeakingExam } from "@/local/LocalSpeakingExam";
 import { SECTION_ORDER } from "@/domain/exam";
 import type { ExamMode, ExamSession } from "@/domain/session";
 import type { SectionKey } from "@/domain/types";
+import type { ActiveContentDocuments } from "@/domain/contentDocument";
 import { useExamApplication } from "@/application/useExamApplication";
 import {
   useListeningAudio,
   type ListeningAudioSession,
 } from "@/application/useListeningAudio";
-import { useWritingWebMcpTools } from "@/webmcp/useWritingWebMcpTools";
+import { useWebMcpTools } from "@/webmcp/useWebMcpTools";
 
 type Section = SectionKey;
 type Mode = ExamMode;
@@ -69,10 +70,12 @@ function Home({
   onStart,
   listeningAudio,
   onRetryListeningAudio,
+  content,
 }: {
   onStart: (mode: Mode, section: Section) => void;
   listeningAudio: ListeningAudioSession;
   onRetryListeningAudio: () => void;
+  content: ActiveContentDocuments;
 }) {
   const listeningReady = listeningAudio.readyToPlay;
   return (
@@ -106,6 +109,11 @@ function Home({
             {SECTION_ORDER.map((section) => {
               const item = SECTION_META[section];
               const Icon = item.icon;
+              const activeContent = section === "speaking" ? null : content[section];
+              const isAgentCreated = Boolean(
+                activeContent &&
+                (activeContent.source === "agent" || !activeContent.contentKey.startsWith("local-")),
+              );
               return (
                 <article
                   key={section}
@@ -118,6 +126,14 @@ function Home({
                   <p className="mt-2 leading-6 text-[var(--exam-text-muted)]">
                     {item.description}
                   </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold">
+                    <span className={`rounded-full px-2 py-1 ${isAgentCreated ? "bg-[var(--exam-success-bg)] text-[var(--exam-success-fg)]" : "bg-[var(--exam-surface-muted)] text-[var(--exam-text-muted)]"}`}>
+                      {isAgentCreated ? "Agent-created" : "Built-in"}
+                    </span>
+                    <span className="text-[var(--exam-accent)]">
+                      {activeContent?.name ?? "Speaking practice"}
+                    </span>
+                  </div>
                   {section === "listening" && listeningAudio.phase !== "ready" ? (
                     <div className="mt-4 rounded border border-[var(--exam-border-muted)] bg-[var(--exam-surface-muted)] px-3 py-2 text-xs font-semibold text-[var(--exam-text-muted)]">
                       {listeningAudio.phase === "error" ? (
@@ -187,6 +203,16 @@ function Complete({
             Your answers are locked and retained locally for this practice
             attempt.
           </p>
+          {section === "writing" ? (
+            <div className="mt-6 w-full max-w-xl rounded-lg border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-5 py-4 text-left shadow-sm">
+              <p className="text-sm font-bold text-[var(--exam-text)]">
+                Ready for agent evaluation
+              </p>
+              <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">
+                Ask your agent: “Grade my latest Writing attempt.” It can read this immutable submission and return structured feedback here.
+              </p>
+            </div>
+          ) : null}
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <button
               type="button"
@@ -298,7 +324,11 @@ function Results({
 export default function App() {
   const { state, content, contentReady, commands } = useExamApplication();
   const listeningAudio = useListeningAudio(content.listening);
-  useWritingWebMcpTools(commands);
+  useWebMcpTools({
+    commands,
+    currentWritingAttemptId: state.writingSubmission?.attemptId,
+    enabled: contentReady,
+  });
   const section = state.currentSection;
   const mode = state.mode ?? "section";
 
@@ -316,6 +346,7 @@ export default function App() {
         onStart={commands.start}
         listeningAudio={listeningAudio}
         onRetryListeningAudio={listeningAudio.retry}
+        content={content}
       />
     );
   }
