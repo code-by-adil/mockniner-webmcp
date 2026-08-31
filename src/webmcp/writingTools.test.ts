@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { writingDocument } from '@/content/writing'
 import type { WritingEvaluation, WritingSubmission } from '@/domain/types'
-import { createWritingToolDefinitions } from './useWritingTools'
+import { createWritingToolDefinitions } from './writingTools'
 
 const attemptId = '22222222-2222-4222-8222-222222222222'
 const submission: WritingSubmission = {
@@ -47,7 +47,10 @@ describe('Writing WebMCP tools', () => {
 
     const result = await tool.execute({}, toolOptions())
 
-    const parsed = JSON.parse(result as string)
+    const parsed = result as {
+      submission: WritingSubmission
+      evaluationStatus: string
+    }
     expect(parsed.submission.attemptId).toBe(attemptId)
     expect(parsed.submission.tasks[0].response).toBe('Task one answer.')
     expect(parsed.evaluationStatus).toBe('awaiting_evaluation')
@@ -69,7 +72,7 @@ describe('Writing WebMCP tools', () => {
     const result = await tool.execute(evaluationInput, toolOptions())
 
     expect(attachWritingEvaluation).toHaveBeenCalledWith(evaluationInput)
-    expect(JSON.parse(result as string)).toMatchObject({
+    expect(result).toMatchObject({
       status: 'attached',
       attemptId,
       visibleView: 'writing_review',

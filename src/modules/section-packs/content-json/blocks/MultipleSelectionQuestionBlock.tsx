@@ -1,4 +1,3 @@
-import React from "react";
 import { CheckboxGroup } from "@/shared/ui/exam/CheckboxGroup";
 import type {
   ObjectiveWebBlockRendererProps,

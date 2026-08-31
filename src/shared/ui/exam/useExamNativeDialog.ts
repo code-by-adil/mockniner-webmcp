@@ -30,7 +30,10 @@ export function useExamNativeDialog({
 }: UseExamNativeDialogOptions): RefObject<HTMLDialogElement | null> {
   const ref = useRef<HTMLDialogElement | null>(null);
   const onOpenChangeRef = useRef(onOpenChange);
-  onOpenChangeRef.current = onOpenChange;
+
+  useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  }, [onOpenChange]);
 
   useLayoutEffect(() => {
     const dialog = ref.current;

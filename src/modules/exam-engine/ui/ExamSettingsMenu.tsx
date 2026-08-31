@@ -19,14 +19,11 @@ export function ExamSettingsMenu({
 }: ExamSettingsMenuProps): React.ReactElement {
   return (
     <ExamPopover>
-      <ExamPopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label="Exam settings"
-          className="exam-icon-button flex rounded-md p-2"
-        >
-          <Menu size={20} aria-hidden="true" />
-        </button>
+      <ExamPopoverTrigger
+        aria-label="Exam settings"
+        className="exam-icon-button flex rounded-md p-2"
+      >
+        <Menu size={20} aria-hidden="true" />
       </ExamPopoverTrigger>
       <ExamPopoverContent className="w-[min(18rem,calc(100vw-1rem))] border-0 bg-transparent p-0 shadow-none">
         <div className="ui-layer-exam exam-floating-surface">

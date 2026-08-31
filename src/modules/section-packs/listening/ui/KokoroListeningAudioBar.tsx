@@ -6,7 +6,7 @@ import type { StoredListeningAudioChunk } from "@/infrastructure/database/listen
 import type {
   ListeningAudioPersistedState,
   ListeningAudioUiStatus,
-} from "./ListeningAudioBar";
+} from "./listeningAudioTypes";
 
 type Props = {
   audioSession: ListeningAudioSession;
@@ -38,6 +38,69 @@ function chunkOffsetsMs(
   return offsets;
 }
 
+function getInitialChunkPosition(
+  chunks: StoredListeningAudioChunk[],
+  offsetsMs: number[],
+  currentTimeSec: number,
+): { index: number; localMs: number } {
+  const targetMs = Math.max(0, currentTimeSec * 1000);
+  let index = chunks.findIndex((chunk, chunkIndex) => {
+    const start = offsetsMs[chunkIndex] ?? 0;
+    return targetMs >= start && targetMs < start + chunk.durationMs;
+  });
+  if (index === -1) index = Math.max(0, chunks.length - 1);
+  return {
+    index,
+    localMs: Math.max(0, targetMs - (offsetsMs[index] ?? 0)),
+  };
+}
+
+function GeneratedSpeechAudio({
+  chunk,
+  audioRef,
+  onCanPlay,
+  onPlay,
+  onPause,
+  onTimeUpdate,
+  onEnded,
+  onError,
+}: {
+  chunk: StoredListeningAudioChunk;
+  audioRef: React.RefObject<HTMLAudioElement | null>;
+  onCanPlay: () => void;
+  onPlay: () => void;
+  onPause: () => void;
+  onTimeUpdate: () => void;
+  onEnded: () => void;
+  onError: () => void;
+}) {
+  const [audioUrl] = useState(() => chunk.audio
+    ? URL.createObjectURL(
+        new Blob([chunk.audio], { type: chunk.mimeType ?? "audio/wav" }),
+      )
+    : null);
+
+  useEffect(() => () => {
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+  }, [audioUrl]);
+
+  if (!audioUrl) return null;
+
+  return (
+    <audio
+      ref={audioRef}
+      src={audioUrl}
+      preload="auto"
+      onCanPlay={onCanPlay}
+      onPlay={onPlay}
+      onPause={onPause}
+      onTimeUpdate={onTimeUpdate}
+      onEnded={onEnded}
+      onError={onError}
+    />
+  );
+}
+
 export const KokoroListeningAudioBar: React.FC<Props> = ({
   audioSession,
   currentPart,
@@ -51,22 +114,30 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
 }) => {
   const chunks = audioSession.chunks;
   const offsetsMs = useMemo(() => chunkOffsetsMs(chunks), [chunks]);
+  const [initialPosition] = useState(() => getInitialChunkPosition(
+    chunks,
+    offsetsMs,
+    hydrateState?.currentTimeSec ?? 0,
+  ));
+  const initialChunk = chunks[initialPosition.index] ?? null;
+  const startsInSilence = initialChunk?.kind === "silence" && !isReviewMode;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const shouldContinueRef = useRef(!isReviewMode);
-  const hydratedRef = useRef(false);
-  const pendingSpeechSeekRef = useRef(0);
-  const silenceElapsedRef = useRef(0);
+  const pendingSpeechSeekRef = useRef(initialPosition.localMs / 1000);
+  const silenceElapsedRef = useRef(initialPosition.localMs);
   const silenceStartedAtRef = useRef<number | null>(null);
   const onPersistStateRef = useRef(onPersistState);
 
-  const [chunkIndex, setChunkIndex] = useState(0);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [chunkIndex, setChunkIndex] = useState(initialPosition.index);
   const volume = hydrateState?.volume ?? 0.85;
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [silenceRemainingMs, setSilenceRemainingMs] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(startsInSilence);
+  const [silenceRemainingMs, setSilenceRemainingMs] = useState(() =>
+    startsInSilence && initialChunk
+      ? Math.max(0, initialChunk.durationMs - initialPosition.localMs)
+      : 0,
+  );
   const [needsUserStart, setNeedsUserStart] = useState(false);
-  const [isWaitingForChunk, setIsWaitingForChunk] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [dismissedJumpPart, setDismissedJumpPart] = useState<number | null>(null);
   const [dismissedSilenceSequence, setDismissedSilenceSequence] = useState<number | null>(null);
@@ -79,43 +150,6 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
     onPersistStateRef.current = onPersistState;
   }, [onPersistState]);
 
-  useEffect(() => {
-    if (hydratedRef.current || chunks.length === 0) return;
-    const targetMs = Math.max(0, (hydrateState?.currentTimeSec ?? 0) * 1000);
-    const generatedDurationMs = chunks.reduce(
-      (total, chunk) => total + chunk.durationMs,
-      0,
-    );
-    if (targetMs > generatedDurationMs && audioSession.phase !== "ready") {
-      shouldContinueRef.current = false;
-      return;
-    }
-
-    let targetIndex = chunks.findIndex((chunk, index) => {
-      const start = offsetsMs[index] ?? 0;
-      return targetMs >= start && targetMs < start + chunk.durationMs;
-    });
-    if (targetIndex === -1) targetIndex = Math.max(0, chunks.length - 1);
-    const localMs = Math.max(0, targetMs - (offsetsMs[targetIndex] ?? 0));
-    pendingSpeechSeekRef.current = localMs / 1000;
-    silenceElapsedRef.current = localMs;
-    setChunkIndex(targetIndex);
-    shouldContinueRef.current = !isReviewMode;
-    hydratedRef.current = true;
-  }, [audioSession.phase, chunks, hydrateState?.currentTimeSec, isReviewMode, offsetsMs]);
-
-  useEffect(() => {
-    if (!currentChunk || currentChunk.kind !== "speech" || !currentChunk.audio) {
-      setAudioUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(
-      new Blob([currentChunk.audio], { type: currentChunk.mimeType ?? "audio/wav" }),
-    );
-    setAudioUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [currentChunk]);
-
   const advance = useCallback((): void => {
     setIsPlaying(false);
     silenceStartedAtRef.current = null;
@@ -124,24 +158,16 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
 
     if (nextChunk) {
       setChunkIndex((current) => current + 1);
-      setIsWaitingForChunk(false);
+      if (nextChunk.kind === "silence" && shouldContinueRef.current) {
+        silenceStartedAtRef.current = performance.now();
+        setSilenceRemainingMs(nextChunk.durationMs);
+        setIsPlaying(true);
+      }
       return;
     }
 
-    if (audioSession.phase === "ready") {
-      shouldContinueRef.current = false;
-      setIsWaitingForChunk(false);
-      return;
-    }
-
-    setIsWaitingForChunk(true);
-  }, [audioSession.phase, nextChunk]);
-
-  useEffect(() => {
-    if (!isWaitingForChunk || !chunks[chunkIndex + 1]) return;
-    setChunkIndex((current) => current + 1);
-    setIsWaitingForChunk(false);
-  }, [chunkIndex, chunks, isWaitingForChunk]);
+    shouldContinueRef.current = false;
+  }, [nextChunk]);
 
   const playCurrent = useCallback(async (): Promise<void> => {
     if (isReviewMode || !currentChunk) return;
@@ -169,19 +195,12 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
     }
   }, [currentChunk, isReviewMode]);
 
+  const effectiveIsPlaying = !isReviewMode && isPlaying;
   useEffect(() => {
-    if (!currentChunk || currentChunk.kind !== "silence" || !shouldContinueRef.current) {
-      return;
+    if (!effectiveIsPlaying || !currentChunk || currentChunk.kind !== "silence") return;
+    if (silenceStartedAtRef.current == null) {
+      silenceStartedAtRef.current = performance.now();
     }
-    silenceStartedAtRef.current = performance.now();
-    setSilenceRemainingMs(
-      Math.max(0, currentChunk.durationMs - silenceElapsedRef.current),
-    );
-    setIsPlaying(true);
-  }, [currentChunk]);
-
-  useEffect(() => {
-    if (!isPlaying || !currentChunk || currentChunk.kind !== "silence") return;
     const interval = window.setInterval(() => {
       const startedAt = silenceStartedAtRef.current ?? performance.now();
       const elapsed = Math.min(
@@ -208,18 +227,17 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
       }
       silenceStartedAtRef.current = null;
     };
-  }, [advance, currentChunk, currentOffsetMs, isPlaying, volume]);
+  }, [advance, currentChunk, currentOffsetMs, effectiveIsPlaying, volume]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     audio.volume = isMuted ? 0 : volume;
-  }, [audioUrl, isMuted, volume]);
+  }, [currentChunk, isMuted, volume]);
 
   useEffect(() => {
     if (!isReviewMode) return;
     shouldContinueRef.current = false;
-    setIsPlaying(false);
     audioRef.current?.pause();
   }, [isReviewMode]);
 
@@ -252,6 +270,12 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
     setChunkIndex(targetIndex);
     setDismissedJumpPart(partId);
     shouldContinueRef.current = true;
+    const targetChunk = chunks[targetIndex];
+    if (targetChunk?.kind === "silence") {
+      silenceStartedAtRef.current = performance.now();
+      setSilenceRemainingMs(targetChunk.durationMs);
+      setIsPlaying(true);
+    }
   }, [chunks]);
 
   const skipSilence = useCallback((): void => {
@@ -261,13 +285,13 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
   }, [advance, currentChunk]);
 
   const sourceError = audioError ?? audioSession.error;
-  const isLoading = !currentChunk || isWaitingForChunk;
+  const isLoading = !currentChunk;
   const status = useMemo<ListeningAudioUiStatus>(() => ({
     state: sourceError
       ? "error"
       : isLoading
         ? "loading"
-        : isPlaying
+        : effectiveIsPlaying
           ? "playing"
           : "paused",
     audioPart: currentChunk?.partId ?? null,
@@ -280,7 +304,7 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
     currentChunk,
     currentOffsetMs,
     isLoading,
-    isPlaying,
+    effectiveIsPlaying,
     sourceError,
   ]);
 
@@ -387,10 +411,10 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
   return (
     <>
       {currentChunk?.kind === "speech" ? (
-        <audio
-          ref={audioRef}
-          src={audioUrl ?? undefined}
-          preload="auto"
+        <GeneratedSpeechAudio
+          key={currentChunk.sequence}
+          chunk={currentChunk}
+          audioRef={audioRef}
           onCanPlay={handleCanPlay}
           onPlay={() => {
             setIsPlaying(true);

@@ -164,15 +164,6 @@ body {
   outline-offset: 2px;
 }
 
-.ui-layer-exam.exam-preview-boundary {
-  min-height: 0;
-  height: auto;
-}
-
-.ui-layer-exam.exam-preview-boundary.exam-preview-boundary-fullscreen {
-  height: 100%;
-}
-
 /* Portaled popovers/menus: inherit exam tokens without full-page layout. */
 .ui-layer-exam.exam-floating-surface {
   display: block;
@@ -495,160 +486,6 @@ body {
 .ui-layer-exam :where(.exam-live-speaking-shell) {
   background-color: var(--exam-surface-muted);
   color: var(--exam-text);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-stage-glow) {
-  background: linear-gradient(
-    135deg,
-    color-mix(in oklch, var(--exam-info-bg) 88%, transparent),
-    color-mix(in oklch, var(--exam-success-bg) 88%, transparent)
-  );
-}
-
-.ui-layer-exam :where(.exam-live-speaking-candidate-avatar) {
-  border-color: var(--exam-info-border);
-  background-color: var(--exam-info-bg);
-  color: var(--exam-info-fg);
-  box-shadow: var(--shadow-sm);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-examiner-avatar) {
-  border-color: var(--exam-success-border);
-  background-color: var(--exam-success-bg);
-  color: var(--exam-success-fg);
-  box-shadow: var(--shadow-sm);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-examiner-ring) {
-  border-color: color-mix(in oklch, var(--exam-success-fg) 42%, transparent);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-candidate-label) {
-  color: var(--exam-info-fg);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-examiner-label) {
-  color: var(--exam-success-fg);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-candidate-pulse) {
-  color: color-mix(in oklch, var(--exam-info-fg) 68%, transparent);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-examiner-pulse) {
-  color: color-mix(in oklch, var(--exam-success-fg) 68%, transparent);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-status-pill) {
-  border-color: var(--exam-border-muted);
-  background-color: color-mix(in oklch, var(--exam-surface) 84%, transparent);
-  color: var(--exam-text-subtle);
-  box-shadow: var(--shadow-xs);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-wave-bar) {
-  background: linear-gradient(
-    to top,
-    color-mix(in oklch, var(--exam-info-fg) 52%, transparent),
-    color-mix(in oklch, var(--exam-success-fg) 52%, transparent)
-  );
-}
-
-.ui-layer-exam :where(.exam-live-speaking-error-banner) {
-  border-color: var(--exam-danger-border);
-  background-color: var(--exam-danger-bg);
-  color: var(--exam-danger-fg);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-connecting) {
-  border-color: var(--exam-info-border);
-  background-color: var(--exam-info-bg);
-  color: var(--exam-info-fg);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-speaking-label) {
-  color: var(--exam-accent);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-end-button) {
-  color: var(--exam-danger-fg);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-end-button:hover:not(:disabled)) {
-  border-color: var(--exam-danger-border);
-  background-color: var(--exam-danger-bg);
-  color: var(--exam-danger-fg);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-transcript-panel) {
-  border-color: var(--exam-border-muted);
-  background-color: color-mix(in oklch, var(--exam-surface) 90%, transparent);
-}
-
-@media (min-width: 1280px) {
-  .ui-layer-exam :where(.exam-live-speaking-transcript-panel) {
-    background-color: transparent;
-  }
-}
-
-.ui-layer-exam :where(.exam-live-speaking-transcript-header) {
-  border-color: var(--exam-border-muted);
-}
-
-@media (min-width: 1280px) {
-  .ui-layer-exam :where(.exam-live-speaking-transcript-header) {
-    border-bottom-width: 0;
-  }
-}
-
-.ui-layer-exam :where(.exam-live-speaking-transcript-icon) {
-  color: var(--exam-info-fg);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-empty-icon-wrap) {
-  background-color: var(--exam-info-bg);
-  color: var(--exam-info-fg);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-bubble-label-user) {
-  color: var(--exam-info-fg);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-bubble-label-examiner) {
-  color: var(--exam-success-fg);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-bubble-user) {
-  border-top-right-radius: 0.25rem;
-  background-color: var(--exam-info-bg);
-  color: color-mix(in oklch, var(--exam-info-fg) 82%, var(--exam-text));
-}
-
-.ui-layer-exam :where(.exam-live-speaking-bubble-examiner) {
-  border-top-left-radius: 0.25rem;
-  background-color: var(--exam-success-bg);
-  color: color-mix(in oklch, var(--exam-success-fg) 82%, var(--exam-text));
-}
-
-.ui-layer-exam :where(.exam-live-speaking-typing-dot) {
-  background-color: var(--exam-success-fg);
-}
-
-.ui-layer-exam :where(.exam-live-speaking-primary-cta) {
-  border-radius: 9999px;
-  padding-inline: 1.5rem;
-  box-shadow: var(--shadow-md);
-}
-
-@media (min-width: 640px) {
-  .ui-layer-exam :where(.exam-live-speaking-primary-cta) {
-    padding-inline: 2.25rem;
-  }
-}
-
-.ui-layer-exam :where(.exam-live-speaking-speaking-mic) {
-  border-radius: 9999px;
-  box-shadow: var(--shadow-lg);
 }
 
 .ui-layer-exam :where(.font-sans) {
@@ -1099,7 +936,7 @@ body {
 }
 
 @media (max-width: 767px) {
-  .ui-layer-exam:not(.exam-floating-surface, .exam-preview-boundary) {
+  .ui-layer-exam:not(.exam-floating-surface) {
     min-height: 100svh;
     overflow-x: hidden;
   }

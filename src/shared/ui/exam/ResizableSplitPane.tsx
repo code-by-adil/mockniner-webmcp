@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback, useContext } from 'react';
 import { GripVertical, GripHorizontal } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { scrollIntoViewNearest } from '@/shared/ui/exam/scrollIntoViewNearest';
 
-const MOBILE_BREAKPOINT = 768;
 const MobileTopPaneHeaderContext = React.createContext<React.ReactNode>(null);
 
 export function ResizableSplitPaneMobileHeaderProvider({
@@ -17,20 +17,6 @@ export function ResizableSplitPaneMobileHeaderProvider({
       {children}
     </MobileTopPaneHeaderContext.Provider>
   );
-}
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT,
-  );
-  useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mql.addEventListener('change', onChange);
-    setIsMobile(mql.matches);
-    return () => mql.removeEventListener('change', onChange);
-  }, []);
-  return isMobile;
 }
 
 function isKeyboardFocusTarget(target: EventTarget | null): target is HTMLElement {
@@ -184,10 +170,7 @@ export const ResizableSplitPane: React.FC<Props> = ({
   }, []);
 
   useEffect(() => {
-    if (!isMobile || mobileResizable || typeof window === 'undefined') {
-      setMobileKeyboardInset(0);
-      return;
-    }
+    if (!isMobile || mobileResizable || typeof window === 'undefined') return;
 
     const visualViewport = window.visualViewport;
     if (!visualViewport) return;
@@ -212,6 +195,9 @@ export const ResizableSplitPane: React.FC<Props> = ({
     };
   }, [isMobile, mobileResizable, scrollActiveMobileFocusTargetIntoView]);
 
+  const visibleMobileKeyboardInset =
+    isMobile && !mobileResizable ? mobileKeyboardInset : 0;
+
   // --- Mobile: stacked vertical layout ---
   if (isMobile) {
     if (!mobileResizable) {
@@ -223,8 +209,8 @@ export const ResizableSplitPane: React.FC<Props> = ({
           onFocusCapture={handleMobileFocusCapture}
           onBlurCapture={handleMobileBlurCapture}
           style={{
-            paddingBottom: mobileKeyboardInset > 0 ? mobileKeyboardInset + 88 : undefined,
-            scrollPaddingBottom: mobileKeyboardInset > 0 ? mobileKeyboardInset + 120 : undefined,
+            paddingBottom: visibleMobileKeyboardInset > 0 ? visibleMobileKeyboardInset + 88 : undefined,
+            scrollPaddingBottom: visibleMobileKeyboardInset > 0 ? visibleMobileKeyboardInset + 120 : undefined,
           }}
         >
           <div className="w-full bg-white">

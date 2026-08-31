@@ -1,21 +1,12 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Check, ChevronDown } from 'lucide-react';
-import {
-  getObjectiveBlockQuestionIds,
-  type ObjectiveContentDocument,
-} from '@/domain/objectiveContent';
+import type { ObjectiveFooterPart } from '@/modules/exam-engine/footerParts';
 import {
   handleExamDialogBackdropClick,
   useExamNativeDialog,
 } from '@/shared/ui/exam/useExamNativeDialog';
 import { supportsNativeDialog } from '@/shared/ui/exam/cssAnchorPositioning';
 import { scrollIntoViewNearest } from '@/shared/ui/exam/scrollIntoViewNearest';
-
-interface ObjectiveFooterPart {
-  part: number;
-  questionNumbers: number[];
-}
 
 interface FooterBaseProps {
   currentPart: number;
@@ -377,6 +368,10 @@ export function ObjectiveExamFooter({
 
   const [activeQuestion, setActiveQuestion] = useState<number | null>(null);
   const [isMobileMinimized, setIsMobileMinimized] = useState(false);
+  const visibleActiveQuestion =
+    activeQuestion != null && currentPartQuestionSet.has(activeQuestion)
+      ? activeQuestion
+      : null;
 
   useEffect(() => {
     const syncActiveQuestion = (event: Event) => {
@@ -394,11 +389,6 @@ export function ObjectiveExamFooter({
       window.removeEventListener('pointerdown', syncActiveQuestion);
     };
   }, [currentPartQuestionSet]);
-
-  useEffect(() => {
-    if (activeQuestion == null || currentPartQuestionSet.has(activeQuestion)) return;
-    setActiveQuestion(null);
-  }, [activeQuestion, currentPartQuestionSet]);
 
   return (
     <footer
@@ -478,18 +468,10 @@ export function ObjectiveExamFooter({
           </button>
 
           <div className="relative flex min-w-0 flex-1 justify-center">
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.div
-                key={currentPart}
-                initial={{ opacity: 0, y: 15, filter: 'blur(2px)' }}
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: -15, filter: 'blur(2px)', transition: { duration: 0.15 } }}
-                transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
-                className="exam-hide-scrollbar flex items-center gap-1.5 overflow-x-auto px-0.5 sm:gap-2 sm:px-2 sm:py-2"
-              >
+              <div className="exam-hide-scrollbar flex items-center gap-1.5 overflow-x-auto px-0.5 sm:gap-2 sm:px-2 sm:py-2">
                 {currentPartQuestions.map((questionNumber) => {
                   const isAnswered = isAnsweredValue(answers[questionNumber]);
-                  const isActive = activeQuestion === questionNumber;
+                  const isActive = visibleActiveQuestion === questionNumber;
                   const chipState = isActive ? 'active' : isAnswered ? 'answered' : 'default';
                   return (
                     <button
@@ -508,8 +490,7 @@ export function ObjectiveExamFooter({
                     </button>
                   );
                 })}
-              </motion.div>
-            </AnimatePresence>
+              </div>
           </div>
 
           <button
@@ -683,13 +664,4 @@ export function WritingExamFooter({
       </div>
     </footer>
   );
-}
-
-export function buildObjectiveFooterParts(
-  document: ObjectiveContentDocument,
-): ObjectiveFooterPart[] {
-  return document.parts.map((part) => ({
-    part: part.id,
-    questionNumbers: part.blocks.flatMap(getObjectiveBlockQuestionIds),
-  }));
 }

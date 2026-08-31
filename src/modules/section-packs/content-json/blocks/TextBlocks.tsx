@@ -1,4 +1,3 @@
-import React from "react";
 import { QuestionGroupHeader } from "@/shared/ui/exam/QuestionGroupHeader";
 import type {
   ObjectiveWebBlockRendererProps,

@@ -3,13 +3,16 @@ import { Play, SkipForward, X } from "lucide-react";
 import { getListeningAudioSources } from "@/infrastructure/media/listeningAudio";
 import {
   parseListeningTimeline,
-  type ListeningAudioPersistedState,
   type NormalizedListeningTimeline,
 } from "@/infrastructure/media/listeningTimeline";
 import { formatTime } from "@/domain/exam";
 import type { ListeningContentDocument } from "@/domain/objectiveContent";
 import type { ListeningAudioSession } from "@/application/useListeningAudio";
 import { KokoroListeningAudioBar } from "./KokoroListeningAudioBar";
+import type {
+  ListeningAudioPersistedState,
+  ListeningAudioUiStatus,
+} from "./listeningAudioTypes";
 
 type ListeningSilenceRange =
   NormalizedListeningTimeline["silenceRanges"][number];
@@ -30,8 +33,6 @@ function findLastIndexLeq(starts: number[], t: number): number {
   }
   return ans;
 }
-
-export type { ListeningAudioPersistedState } from "@/infrastructure/media/listeningTimeline";
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -70,13 +71,6 @@ function clampNonNegative(value: number): number {
   return Math.max(0, value);
 }
 
-export type ListeningAudioUiStatus = {
-  state: "loading" | "playing" | "paused" | "error" | "unavailable";
-  audioPart: number | null;
-  isInSilence: boolean;
-  silenceEndSec: number | null;
-};
-
 type BundledProps = {
   audioAssetKey: string;
   currentPart: number;
@@ -106,7 +100,9 @@ const BundledListeningAudioBar: React.FC<BundledProps> = ({
   );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const pendingSeekRef = useRef<number | null>(null);
+  const pendingSeekRef = useRef<number | null>(
+    hydrateState ? clampNonNegative(hydrateState.currentTimeSec) : null,
+  );
   const hasAttemptedAutoplayRef = useRef(false);
 
   const [timeline, setTimeline] = useState<NormalizedListeningTimeline | null>(
@@ -114,17 +110,19 @@ const BundledListeningAudioBar: React.FC<BundledProps> = ({
   );
   const timelineRef = useRef<NormalizedListeningTimeline | null>(null);
 
-  const [isTimelineLoading, setIsTimelineLoading] = useState(false);
+  const [isTimelineLoading, setIsTimelineLoading] = useState(true);
   const [timelineError, setTimelineError] = useState<string | null>(null);
 
-  const [currentTimeSec, setCurrentTimeSec] = useState(0);
+  const [currentTimeSec, setCurrentTimeSec] = useState(
+    () => hydrateState ? clampNonNegative(hydrateState.currentTimeSec) : 0,
+  );
   const [audioPart, setAudioPart] = useState<number | null>(null);
   const [activeSilence, setActiveSilence] = useState<{
     start: number;
     end: number;
   } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(true);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [needsUserStart, setNeedsUserStart] = useState(false);
   const [dismissedJumpPart, setDismissedJumpPart] = useState<number | null>(
@@ -134,7 +132,7 @@ const BundledListeningAudioBar: React.FC<BundledProps> = ({
     null,
   );
 
-  const [volume, setVolume] = useState(0.85);
+  const volume = hydrateState ? clampUnitInterval(hydrateState.volume) : 0.85;
 
   const volumeRef = useRef(volume);
   const isMutedRef = useRef(isMuted);
@@ -162,17 +160,8 @@ const BundledListeningAudioBar: React.FC<BundledProps> = ({
   }, [onPersistState]);
 
   useEffect(() => {
-    hasAttemptedAutoplayRef.current = false;
-    setNeedsUserStart(false);
-    setAudioPart(null);
-    setActiveSilence(null);
-    setCurrentTimeSec(0);
-    setDismissedJumpPart(null);
-    setDismissedSilenceKey(null);
-
-    setIsTimelineLoading(true);
-    setTimelineError(null);
-    void fetch(sources.timelineUrl)
+    const controller = new AbortController();
+    void fetch(sources.timelineUrl, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
         return res.json();
@@ -183,43 +172,15 @@ const BundledListeningAudioBar: React.FC<BundledProps> = ({
         setTimeline(normalized);
       })
       .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
         setTimeline(null);
         setTimelineError(getErrorMessage(error, "Failed to load timeline"));
       })
-      .finally(() => setIsTimelineLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setIsTimelineLoading(false);
+      });
+    return () => controller.abort();
   }, [sources.timelineUrl]);
-
-  useEffect(() => {
-    if (!hydrateState) return;
-    const normalizedVolume = clampUnitInterval(hydrateState.volume);
-    const normalizedCurrentTimeSec = clampNonNegative(
-      hydrateState.currentTimeSec,
-    );
-    setVolume(normalizedVolume);
-    pendingSeekRef.current = normalizedCurrentTimeSec;
-    onPersistStateRef.current({
-      currentTimeSec: pendingSeekRef.current,
-      volume: normalizedVolume,
-    });
-
-    const audio = audioRef.current;
-    const pending = pendingSeekRef.current;
-    if (
-      audio &&
-      pending != null &&
-      Number.isFinite(pending) &&
-      audio.readyState >= 1
-    ) {
-      try {
-        audio.currentTime = Math.max(
-          0,
-          Math.min(pending, audio.duration || pending),
-        );
-        setCurrentTimeSec(audio.currentTime);
-        pendingSeekRef.current = null;
-      } catch {}
-    }
-  }, [hydrateState]);
 
   useEffect(() => {
     const status: ListeningAudioUiStatus = {
@@ -412,10 +373,6 @@ const BundledListeningAudioBar: React.FC<BundledProps> = ({
     audio.crossOrigin = "anonymous";
     audio.preload = "metadata";
     audio.volume = isMutedRef.current ? 0 : volumeRef.current;
-    setIsLoadingAudio(true);
-    setAudioError(null);
-    setIsPlaying(false);
-
     const tryAutoplay = (): void => {
       if (hasAttemptedAutoplayRef.current) return;
       if (isReviewModeRef.current) return;
@@ -528,21 +485,11 @@ const BundledListeningAudioBar: React.FC<BundledProps> = ({
       audio.removeEventListener("ended", onEnded);
       try {
         audio.pause();
-      } catch {}
-    };
-  }, [sources.audioUrl]);
-
-  useEffect(() => {
-    return () => {
-      const audio = audioRef.current;
-      if (!audio) return;
-      try {
-        audio.pause();
         audio.removeAttribute("src");
         audio.load();
       } catch {}
     };
-  }, []);
+  }, [sources.audioUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -600,10 +547,7 @@ const BundledListeningAudioBar: React.FC<BundledProps> = ({
   const [isPopoutWiggling, setIsPopoutWiggling] = useState(false);
 
   useEffect(() => {
-    if (placement !== "header-popout" || !showActionsRow) {
-      setIsPopoutWiggling(false);
-      return;
-    }
+    if (placement !== "header-popout" || !showActionsRow) return;
 
     let burstCount = 0;
     let wiggleResetTimer: number | null = null;
@@ -634,7 +578,6 @@ const BundledListeningAudioBar: React.FC<BundledProps> = ({
     return () => {
       window.clearInterval(intervalId);
       if (wiggleResetTimer != null) window.clearTimeout(wiggleResetTimer);
-      setIsPopoutWiggling(false);
     };
   }, [placement, showActionsRow]);
 
@@ -751,11 +694,18 @@ export const ListeningAudioBar: React.FC<Props> = ({
   if (document.audio.type === "bundled") {
     return (
       <BundledListeningAudioBar
+        key={`bundled:${document.contentKey}`}
         {...props}
         audioAssetKey={document.audio.assetKey}
       />
     );
   }
 
-  return <KokoroListeningAudioBar {...props} audioSession={audioSession} />;
+  return (
+    <KokoroListeningAudioBar
+      key={`kokoro:${document.contentKey}`}
+      {...props}
+      audioSession={audioSession}
+    />
+  );
 };

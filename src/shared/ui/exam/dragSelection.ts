@@ -11,12 +11,14 @@ type DragOptionRecord = {
 let selectedDragValue: string | null = null;
 let activeDragGroupId: string | null = null;
 const dragOptions = new Map<string, DragOptionRecord>();
+let dragOptionsVersion = 0;
 
 function getOptionKey(groupId: string, value: string): string {
   return `${groupId}\u0000${value}`;
 }
 
 function emitDragOptionsChange(): void {
+  dragOptionsVersion += 1;
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent("exam-drag-options-change"));
 }
@@ -77,6 +79,16 @@ export function getDragOptions(groupId: string): DragOptionRecord[] {
   return Array.from(dragOptions.values()).filter(
     (option) => option.groupId === groupId,
   );
+}
+
+export function getDragOptionsVersion(): number {
+  return dragOptionsVersion;
+}
+
+export function subscribeDragOptions(listener: () => void): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  window.addEventListener("exam-drag-options-change", listener);
+  return () => window.removeEventListener("exam-drag-options-change", listener);
 }
 
 export function canAssignDragOption(

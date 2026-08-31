@@ -1,17 +1,15 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { Header } from "@/modules/exam-engine/ui/Header";
-import {
-  ObjectiveExamFooter,
-  buildObjectiveFooterParts,
-} from "@/modules/exam-engine/ui/Footer";
+import { ObjectiveExamFooter } from "@/modules/exam-engine/ui/Footer";
+import { buildObjectiveFooterParts } from "@/modules/exam-engine/footerParts";
 import { formatTime } from "@/domain/exam";
 import { ObjectivePartView } from "@/modules/section-packs/content-json/ObjectivePartView";
 import type { ObjectivePracticeRunnerProps } from "@/modules/section-packs/objective/types";
-import {
-  ListeningAudioBar,
-  type ListeningAudioPersistedState,
-  type ListeningAudioUiStatus,
-} from "./ListeningAudioBar";
+import { ListeningAudioBar } from "./ListeningAudioBar";
+import type {
+  ListeningAudioPersistedState,
+  ListeningAudioUiStatus,
+} from "./listeningAudioTypes";
 import { useTimedSubmission } from "@/modules/exam-engine/useTimedSubmission";
 import type { ListeningAudioSession } from "@/application/useListeningAudio";
 

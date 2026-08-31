@@ -5,7 +5,6 @@ import {
   supportsCssAnchorPositioning,
   supportsPopoverApi,
 } from "./cssAnchorPositioning";
-import { useExamOverlayPresence } from "./useExamOverlayPresence";
 
 interface Props {
   position: { x: number; y: number } | null;
@@ -27,16 +26,10 @@ export const HighlightMenu: React.FC<Props> = ({
   const reactId = useId().replace(/:/g, "");
   const anchorName = `${EXAM_HIGHLIGHT_MENU_ANCHOR_NAME}-${reactId}`;
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const lastPositionRef = useRef(position);
   const useNativePopover = supportsPopoverApi();
   const useAnchor = useNativePopover && supportsCssAnchorPositioning();
   const open = Boolean(position);
-  const present = useExamOverlayPresence(open);
-
-  if (position) {
-    lastPositionRef.current = position;
-  }
-  const displayPosition = position ?? lastPositionRef.current;
+  const displayPosition = position ?? { x: 0, y: 0 };
 
   useLayoutEffect(() => {
     const menu = menuRef.current;
@@ -77,7 +70,7 @@ export const HighlightMenu: React.FC<Props> = ({
     return () => menu.removeEventListener("toggle", onToggle);
   }, [open, useNativePopover]);
 
-  if (!(useNativePopover ? present : open) || !displayPosition) return null;
+  if (!useNativePopover && !open) return null;
 
   const fallbackStyle: React.CSSProperties | undefined = useAnchor
     ? undefined
@@ -103,7 +96,7 @@ export const HighlightMenu: React.FC<Props> = ({
               width: 0,
               height: 0,
               pointerEvents: "none",
-              ["anchor-name" as string]: anchorName,
+              anchorName,
             } as React.CSSProperties
           }
         />
@@ -119,7 +112,7 @@ export const HighlightMenu: React.FC<Props> = ({
           {
             ...(useAnchor
               ? ({
-                  ["position-anchor" as string]: anchorName,
+                  positionAnchor: anchorName,
                   ["--exam-highlight-menu-offset" as string]: "10px",
                 } as React.CSSProperties)
               : null),

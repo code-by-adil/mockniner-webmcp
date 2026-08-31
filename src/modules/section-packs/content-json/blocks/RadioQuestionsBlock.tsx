@@ -1,4 +1,3 @@
-import React from "react";
 import { RadioGroup } from "@/shared/ui/exam/RadioGroup";
 import type {
   ObjectiveWebBlockRendererProps,

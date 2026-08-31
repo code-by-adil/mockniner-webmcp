@@ -17,14 +17,12 @@ export type SpeakingQuestion = {
 interface Props {
   contentKey: string;
   onComplete: (input: CompleteSpeakingAttemptInput) => Promise<unknown>;
-  setLoading: (l: boolean) => void;
   questions: SpeakingQuestion[];
 }
 
 export const StandardSpeakingMode: React.FC<Props> = ({
   contentKey,
   onComplete,
-  setLoading,
   questions,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -55,7 +53,6 @@ export const StandardSpeakingMode: React.FC<Props> = ({
     finalRecordings: RecordedSpeakingResponse[],
   ) => {
     setStatus("completed");
-    setLoading(true);
     setErrorMessage(null);
 
     try {
@@ -95,10 +92,8 @@ export const StandardSpeakingMode: React.FC<Props> = ({
         "Your recordings are still available in this tab, but they could not be saved locally. Try saving again.",
       );
       setStatus("save-failed");
-    } finally {
-      setLoading(false);
     }
-  }, [attemptStartedAt, contentKey, onComplete, questionList, setLoading]);
+  }, [attemptStartedAt, contentKey, onComplete, questionList]);
 
   const handleRecordingComplete = useCallback((
     response: RecordedSpeakingResponse,

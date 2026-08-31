@@ -188,7 +188,7 @@ export function useListeningAudio(
     error: current.error,
     completedChunks: current.chunks.length,
     readyToPlay:
-      document.audio.type === "bundled" || current.chunks.length > 0,
+      document.audio.type === "bundled" || current.phase === "ready",
     retry,
   };
 }

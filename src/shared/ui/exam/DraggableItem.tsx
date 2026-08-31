@@ -12,11 +12,11 @@ import {
 import { configureExamDragDataTransfer, setExamDragSessionActive, subscribeExamDragSession } from "./examDragDrop";
 import {
   MATCHING_CHOICE_WIDTH_PX,
-  MatchingChoiceLabel,
   matchingDraggableSurfaceClass,
   mountMatchingDragGhost,
   splitMatchingChoiceLabel,
-} from "./matchingChoice";
+} from "./matchingChoiceStyles";
+import { MatchingChoiceLabel } from "./MatchingChoiceLabel";
 
 function OptionLabelContent({ text, muted = false }: { text: string; muted?: boolean }) {
   const { letter, name } = splitMatchingChoiceLabel(text);
@@ -58,7 +58,6 @@ export const DraggableItem: React.FC<Props> = ({
 }) => {
   const isDisabled = isUsed || isReviewMode;
   const dragValue = value ?? text;
-  const [, setSelectionTick] = React.useState(0);
   const [isDraggingSelf, setIsDraggingSelf] = React.useState(false);
 
   React.useEffect(() => registerDragOption({ groupId, value: dragValue, label: text, isUsed, isReviewMode }), [
@@ -69,8 +68,6 @@ export const DraggableItem: React.FC<Props> = ({
     text,
   ]);
 
-  React.useEffect(() => subscribeDragSelection(() => setSelectionTick((tick) => tick + 1)), []);
-
   React.useEffect(
     () =>
       subscribeExamDragSession((active) => {
@@ -79,10 +76,20 @@ export const DraggableItem: React.FC<Props> = ({
     [],
   );
 
+  const selectedValue = React.useSyncExternalStore(
+    subscribeDragSelection,
+    getSelectedDragValue,
+    () => null,
+  );
+  const selectedGroupId = React.useSyncExternalStore(
+    subscribeDragSelection,
+    getActiveDragGroupId,
+    () => null,
+  );
   const isSelected =
     !isDisabled &&
-    getSelectedDragValue() === dragValue &&
-    getActiveDragGroupId() === groupId;
+    selectedValue === dragValue &&
+    selectedGroupId === groupId;
 
   const handleDragStart = (event: React.DragEvent) => {
     if (isDisabled) {

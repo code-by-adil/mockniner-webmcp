@@ -1,5 +1,4 @@
 import {
-  cloneElement,
   createContext,
   useCallback,
   useContext,
@@ -46,16 +45,6 @@ function useExamPopoverContext(component: string): ExamPopoverContextValue {
     throw new Error(`${component} must be used within ExamPopover`);
   }
   return context;
-}
-
-function mergeRefs<T>(...refs: Array<Ref<T> | undefined>) {
-  return (node: T | null) => {
-    for (const ref of refs) {
-      if (!ref) continue;
-      if (typeof ref === "function") ref(node);
-      else (ref as { current: T | null }).current = node;
-    }
-  };
 }
 
 type ExamPopoverProps = {
@@ -128,13 +117,11 @@ export function ExamPopover({
 }
 
 type ExamPopoverTriggerProps = {
-  asChild?: boolean | undefined;
-  children: ReactElement<HTMLAttributes<HTMLElement>>;
+  children: ReactNode;
   className?: string | undefined;
-} & Omit<HTMLAttributes<HTMLElement>, "children">;
+} & Omit<HTMLAttributes<HTMLButtonElement>, "children">;
 
 export function ExamPopoverTrigger({
-  asChild = false,
   children,
   className,
   onClick,
@@ -143,21 +130,15 @@ export function ExamPopoverTrigger({
   const { contentId, open, setOpen, triggerRef, useNativePopover } =
     useExamPopoverContext("ExamPopoverTrigger");
 
-  const childRef = (children as { ref?: Ref<HTMLElement> }).ref;
-  const composedRef = mergeRefs(triggerRef, childRef);
-
-  const handleClick = (event: ReactMouseEvent<HTMLElement>) => {
+  const handleClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
     onClick?.(event);
-    (children.props as HTMLAttributes<HTMLElement>).onClick?.(event);
     if (event.defaultPrevented) return;
     if (!useNativePopover) setOpen(!open);
   };
 
   const shared = {
     ...props,
-    className: [className, (children.props as { className?: string }).className]
-      .filter(Boolean)
-      .join(" "),
+    className,
     "aria-expanded": open,
     "aria-haspopup": "dialog" as const,
     "data-exam-popover": "trigger",
@@ -171,15 +152,8 @@ export function ExamPopoverTrigger({
       : {}),
   };
 
-  if (asChild) {
-    return cloneElement(children, {
-      ...shared,
-      ref: composedRef,
-    } as HTMLAttributes<HTMLElement> & { ref: typeof composedRef });
-  }
-
   return (
-    <button type="button" ref={composedRef as Ref<HTMLButtonElement>} {...shared}>
+    <button type="button" ref={triggerRef as Ref<HTMLButtonElement>} {...shared}>
       {children}
     </button>
   );
@@ -238,11 +212,7 @@ export function ExamPopoverContent({
   }, [align, side, sideOffset, triggerRef]);
 
   useLayoutEffect(() => {
-    if (!open) return;
-    if (useAnchorPositioning) {
-      setFallbackStyle(undefined);
-      return;
-    }
+    if (!open || useAnchorPositioning) return;
     updateFallbackPosition();
   }, [open, updateFallbackPosition, useAnchorPositioning]);
 

@@ -24,7 +24,7 @@ import {
   useListeningAudio,
   type ListeningAudioSession,
 } from "@/application/useListeningAudio";
-import { useWritingWebMcpTools } from "@/webmcp/useWritingTools";
+import { useWritingWebMcpTools } from "@/webmcp/useWritingWebMcpTools";
 
 type Section = SectionKey;
 type Mode = ExamMode;
