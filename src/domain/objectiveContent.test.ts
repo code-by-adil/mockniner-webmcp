@@ -60,7 +60,8 @@ describe("canonical IELTS objective JSON", () => {
     const schema = getObjectiveContentJsonSchema();
     expect(schema.$schema).toBe("http://json-schema.org/draft-07/schema#");
     const serializedSchema = JSON.stringify(schema);
-    expect(serializedSchema).toContain('"audioAssetKey"');
+    expect(serializedSchema).toContain('"audio"');
+    expect(serializedSchema).toContain('"kokoro"');
     expect(serializedSchema).toContain('"parts"');
     expect(serializedSchema).toContain('"contentKey"');
     expect(serializedSchema).toContain('"local-original"');
@@ -84,7 +85,101 @@ describe("canonical IELTS objective JSON", () => {
   });
 
   it("keeps one continuous Listening recording for all four parts", () => {
-    expect(listeningDocument.audioAssetKey).toBe("local-original");
+    expect(listeningDocument.audio).toEqual({
+      type: "bundled",
+      assetKey: "local-original",
+    });
+  });
+
+  it("accepts semantic speaker turns for application-owned chunking", () => {
+    const generated = {
+      ...listeningJson,
+      contentKey: "agent-listening-kokoro-v1",
+      audio: {
+        type: "kokoro",
+        speakers: [
+          { id: "narrator", voice: "bf_emma" },
+          { id: "guest", voice: "am_fenrir" },
+        ],
+        parts: Array.from({ length: 4 }, (_, index) => ({
+          partId: index + 1,
+          segments: [
+            {
+              type: "speech",
+              speakerId: "narrator",
+              text: `You will now hear Part ${index + 1}. The application splits this turn into generation chunks.`,
+            },
+            { type: "silence", durationMs: 1_000, purpose: "question_time" },
+            {
+              type: "speech",
+              speakerId: "guest",
+              text: "Thank you. I am ready to begin.",
+            },
+          ],
+        })),
+      },
+    };
+
+    const parsed = parseObjectiveContentDocument(generated);
+    expect(parsed.section).toBe("listening");
+    if (parsed.section !== "listening") return;
+    expect(parsed.audio.type).toBe("kokoro");
+    if (parsed.audio.type !== "kokoro") return;
+    expect(parsed.audio.parts).toHaveLength(4);
+    expect(parsed.audio.parts[0]?.segments).toHaveLength(3);
+  });
+
+  it("rejects a Kokoro speaker turn that references an undeclared speaker", () => {
+    const generated = structuredClone(listeningJson) as Record<string, unknown>;
+    generated.contentKey = "agent-listening-invalid-speaker";
+    generated.audio = {
+      type: "kokoro",
+      speakers: [{ id: "narrator", voice: "bf_emma" }],
+      parts: Array.from({ length: 4 }, (_, index) => ({
+        partId: index + 1,
+        segments: [
+          {
+            type: "speech",
+            speakerId: index === 2 ? "missing" : "narrator",
+            text: "This is a short listening passage.",
+          },
+        ],
+      })),
+    };
+
+    const result = objectiveContentDocumentSchema.safeParse(generated);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.some((issue) =>
+      issue.message.includes("is not declared"),
+    )).toBe(true);
+  });
+
+  it("rejects an unbounded Kokoro generation request", () => {
+    const generated = structuredClone(listeningJson) as Record<string, unknown>;
+    generated.contentKey = "agent-listening-too-long";
+    generated.audio = {
+      type: "kokoro",
+      speakers: [{ id: "narrator", voice: "bf_emma" }],
+      parts: Array.from({ length: 4 }, (_, index) => ({
+        partId: index + 1,
+        segments: Array.from(
+          { length: index === 0 ? 16 : 1 },
+          () => ({
+            type: "speech",
+            speakerId: "narrator",
+            text: "a".repeat(4_000),
+          }),
+        ),
+      })),
+    };
+
+    const result = objectiveContentDocumentSchema.safeParse(generated);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.some((issue) =>
+      issue.message.includes("60,000 characters"),
+    )).toBe(true);
   });
 
   it("keeps Reading source material within the intended word-count range", () => {

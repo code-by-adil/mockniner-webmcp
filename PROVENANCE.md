@@ -38,9 +38,20 @@ These files replace SaaS or repository-specific dependencies:
 - `src/local/objectiveContent.ts`: adapts original demo content to MockNiner's structured renderer contract
 - `src/modules/section-packs/objective/useObjectiveSectionRuntime.ts`: renderer-local timer scheduling and submission feedback over the shared commands
 - `src/infrastructure/media/listeningAudio.ts`: static offline audio and timeline URLs
+- `src/infrastructure/media/kokoro*`: browser-local Kokoro worker orchestration over the public `kokoro-js` package
 - `src/infrastructure/database/*`: local SQLocal schema, migrations, and immutable objective, Writing, and Speaking attempt persistence
 - `src/local/LocalWritingReview.tsx`: the narrow adapter from the local immutable Writing evaluation to MockNiner's directly ported review view
 - `src/webmcp/*`: page-native Writing submission and evaluation tools over the same application command layer
 - `src/shared/observability/report-error.ts`: local handled-error reporting
 
 No authentication, subscription, production API, operational configuration, private data, secrets, or application-owned model integration is copied.
+
+## Third-party local speech engine
+
+Agent-authored Listening scripts use the Apache-2.0-licensed
+[`kokoro-js@1.2.1`](https://www.npmjs.com/package/kokoro-js) package and the
+Apache-2.0-licensed
+[`onnx-community/Kokoro-82M-v1.0-ONNX`](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX)
+model. The integration code in this repository is original application code.
+Model weights are fetched by the package at runtime and are not copied into the
+repository or production bundle.

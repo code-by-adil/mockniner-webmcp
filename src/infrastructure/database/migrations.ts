@@ -73,6 +73,32 @@ const migrations = [
       )`,
     ],
   },
+  {
+    version: 4,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS listening_audio_chunks (
+        content_key TEXT NOT NULL,
+        sequence INTEGER NOT NULL CHECK (sequence >= 0),
+        part_id INTEGER NOT NULL CHECK (part_id BETWEEN 1 AND 4),
+        segment_index INTEGER NOT NULL CHECK (segment_index >= 0),
+        kind TEXT NOT NULL CHECK (kind IN ('speech', 'silence')),
+        duration_ms INTEGER NOT NULL CHECK (duration_ms >= 0),
+        mime_type TEXT,
+        byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
+        audio BLOB,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (content_key, sequence),
+        FOREIGN KEY (content_key) REFERENCES content_documents(content_key) ON DELETE CASCADE,
+        CHECK (
+          (kind = 'speech' AND mime_type IS NOT NULL AND byte_length > 0 AND audio IS NOT NULL)
+          OR
+          (kind = 'silence' AND mime_type IS NULL AND byte_length = 0 AND audio IS NULL)
+        )
+      )`,
+      `CREATE INDEX IF NOT EXISTS listening_audio_chunks_content_sequence
+        ON listening_audio_chunks(content_key, sequence)`,
+    ],
+  },
 ] as const
 
 export async function migrateDatabase(database: SQLocal): Promise<void> {

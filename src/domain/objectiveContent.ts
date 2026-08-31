@@ -10,6 +10,48 @@ const objectiveAnswerSchema = z.union([
 ]);
 const questionId = z.number().int().min(1).max(40);
 
+export const KOKORO_VOICES = [
+  "af_heart",
+  "am_fenrir",
+  "bf_emma",
+  "bm_george",
+] as const;
+
+const kokoroVoiceSchema = z.enum(KOKORO_VOICES);
+
+const listeningAudioSchema = z.discriminatedUnion("type", [
+  z.strictObject({
+    type: z.literal("bundled"),
+    assetKey: z.literal("local-original"),
+  }),
+  z.strictObject({
+    type: z.literal("kokoro"),
+    speakers: z.array(z.strictObject({
+      id: z.string().trim().min(1).max(50).regex(/^[a-z][a-z0-9_-]*$/),
+      voice: kokoroVoiceSchema,
+    })).min(1).max(12),
+    parts: z.array(z.strictObject({
+      partId: z.number().int().min(1).max(4),
+      segments: z.array(z.discriminatedUnion("type", [
+        z.strictObject({
+          type: z.literal("speech"),
+          speakerId: z.string().trim().min(1).max(50),
+          text: z.string().trim().min(1).max(4_000),
+        }),
+        z.strictObject({
+          type: z.literal("silence"),
+          durationMs: z.number().int().min(100).max(120_000),
+          purpose: z.enum([
+            "conversation_pause",
+            "question_time",
+            "part_transition",
+          ]).optional(),
+        }),
+      ])).min(1).max(100),
+    })).length(4),
+  }),
+]);
+
 const radioOptionSchema = z.strictObject({
   value: shortText,
   label: bodyText,
@@ -310,7 +352,7 @@ export const objectiveContentDocumentSchema = z.discriminatedUnion("section", [
   z.strictObject({
     ...objectiveContentDocumentBase,
     section: z.literal("listening"),
-    audioAssetKey: z.literal("local-original"),
+    audio: listeningAudioSchema,
     parts: z.array(objectiveContentPartSchema).length(4),
   }),
   z.strictObject({
@@ -330,6 +372,67 @@ export const objectiveContentDocumentSchema = z.discriminatedUnion("section", [
       path: ["parts"],
       message: "Part IDs must be contiguous and ordered from 1.",
     });
+  }
+
+  if (document.section === "listening" && document.audio.type === "kokoro") {
+    const speakerIds = document.audio.speakers.map((speaker) => speaker.id);
+    if (new Set(speakerIds).size !== speakerIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["audio", "speakers"],
+        message: "Kokoro speaker IDs must be unique.",
+      });
+    }
+
+    const knownSpeakers = new Set(speakerIds);
+    let speechCharacters = 0;
+    let silenceDurationMs = 0;
+    document.audio.parts.forEach((audioPart, partIndex) => {
+      if (audioPart.partId !== partIndex + 1) {
+        context.addIssue({
+          code: "custom",
+          path: ["audio", "parts", partIndex, "partId"],
+          message: "Kokoro audio part IDs must be contiguous and ordered from 1.",
+        });
+      }
+
+      if (!audioPart.segments.some((segment) => segment.type === "speech")) {
+        context.addIssue({
+          code: "custom",
+          path: ["audio", "parts", partIndex, "segments"],
+          message: `Kokoro audio part ${audioPart.partId} must contain speech.`,
+        });
+      }
+
+      audioPart.segments.forEach((segment, segmentIndex) => {
+        if (segment.type === "speech") {
+          speechCharacters += segment.text.length;
+          if (!knownSpeakers.has(segment.speakerId)) {
+            context.addIssue({
+              code: "custom",
+              path: ["audio", "parts", partIndex, "segments", segmentIndex, "speakerId"],
+              message: `Kokoro speaker ${segment.speakerId} is not declared.`,
+            });
+          }
+        } else {
+          silenceDurationMs += segment.durationMs;
+        }
+      });
+    });
+    if (speechCharacters > 60_000) {
+      context.addIssue({
+        code: "custom",
+        path: ["audio", "parts"],
+        message: "A Kokoro listening script cannot exceed 60,000 characters.",
+      });
+    }
+    if (silenceDurationMs > 1_800_000) {
+      context.addIssue({
+        code: "custom",
+        path: ["audio", "parts"],
+        message: "A Kokoro listening script cannot exceed 30 minutes of silence.",
+      });
+    }
   }
 
   const allQuestionIds: number[] = [];
@@ -463,6 +566,13 @@ export type ListeningContentDocument = Extract<
   ObjectiveContentDocument,
   { section: "listening" }
 >;
+export type ListeningAudioDefinition = ListeningContentDocument["audio"];
+export type KokoroListeningAudio = Extract<
+  ListeningAudioDefinition,
+  { type: "kokoro" }
+>;
+export type KokoroListeningSegment = KokoroListeningAudio["parts"][number]["segments"][number];
+export type KokoroVoice = (typeof KOKORO_VOICES)[number];
 export type ReadingContentDocument = Extract<
   ObjectiveContentDocument,
   { section: "reading" }

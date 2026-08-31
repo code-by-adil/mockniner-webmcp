@@ -7,6 +7,9 @@ import {
   type NormalizedListeningTimeline,
 } from "@/infrastructure/media/listeningTimeline";
 import { formatTime } from "@/domain/exam";
+import type { ListeningContentDocument } from "@/domain/objectiveContent";
+import type { ListeningAudioSession } from "@/application/useListeningAudio";
+import { KokoroListeningAudioBar } from "./KokoroListeningAudioBar";
 
 type ListeningSilenceRange =
   NormalizedListeningTimeline["silenceRanges"][number];
@@ -72,10 +75,9 @@ export type ListeningAudioUiStatus = {
   audioPart: number | null;
   isInSilence: boolean;
   silenceEndSec: number | null;
-  currentTimeSec: number;
 };
 
-type Props = {
+type BundledProps = {
   audioAssetKey: string;
   currentPart: number;
   isReviewMode: boolean;
@@ -87,7 +89,7 @@ type Props = {
   isMuted?: boolean;
 };
 
-export const ListeningAudioBar: React.FC<Props> = ({
+const BundledListeningAudioBar: React.FC<BundledProps> = ({
   audioAssetKey,
   currentPart,
   isReviewMode,
@@ -106,7 +108,6 @@ export const ListeningAudioBar: React.FC<Props> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingSeekRef = useRef<number | null>(null);
   const hasAttemptedAutoplayRef = useRef(false);
-  const lastUiStatusRef = useRef<ListeningAudioUiStatus | null>(null);
 
   const [timeline, setTimeline] = useState<NormalizedListeningTimeline | null>(
     null,
@@ -232,26 +233,12 @@ export const ListeningAudioBar: React.FC<Props> = ({
       audioPart,
       isInSilence: Boolean(activeSilence),
       silenceEndSec: activeSilence?.end ?? null,
-      currentTimeSec,
     };
-    const previous = lastUiStatusRef.current;
-    // Avoid emitting every `timeupdate` tick when status semantics have not changed.
-    if (
-      previous &&
-      previous.state === status.state &&
-      previous.audioPart === status.audioPart &&
-      previous.isInSilence === status.isInSilence &&
-      previous.silenceEndSec === status.silenceEndSec
-    ) {
-      return;
-    }
-    lastUiStatusRef.current = status;
     onUiStatus?.(status);
   }, [
     activeSilence,
     audioError,
     audioPart,
-    currentTimeSec,
     isLoadingAudio,
     isPlaying,
     onUiStatus,
@@ -749,4 +736,26 @@ export const ListeningAudioBar: React.FC<Props> = ({
       ) : null}
     </>
   );
+};
+
+type Props = Omit<BundledProps, "audioAssetKey"> & {
+  document: ListeningContentDocument;
+  audioSession: ListeningAudioSession;
+};
+
+export const ListeningAudioBar: React.FC<Props> = ({
+  document,
+  audioSession,
+  ...props
+}) => {
+  if (document.audio.type === "bundled") {
+    return (
+      <BundledListeningAudioBar
+        {...props}
+        audioAssetKey={document.audio.assetKey}
+      />
+    );
+  }
+
+  return <KokoroListeningAudioBar {...props} audioSession={audioSession} />;
 };

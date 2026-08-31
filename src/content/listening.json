@@ -3,7 +3,10 @@
   "contentKey": "local-listening-v1",
   "section": "listening",
   "name": "Academic Listening Practice Test 1",
-  "audioAssetKey": "local-original",
+  "audio": {
+    "type": "bundled",
+    "assetKey": "local-original"
+  },
   "parts": [
     {
       "id": 1,

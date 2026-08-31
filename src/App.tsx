@@ -20,6 +20,10 @@ import { SECTION_ORDER } from "@/domain/exam";
 import type { ExamMode, ExamSession } from "@/domain/session";
 import type { SectionKey } from "@/domain/types";
 import { useExamApplication } from "@/application/useExamApplication";
+import {
+  useListeningAudio,
+  type ListeningAudioSession,
+} from "@/application/useListeningAudio";
 import { useWritingWebMcpTools } from "@/webmcp/useWritingTools";
 
 type Section = SectionKey;
@@ -63,9 +67,14 @@ function AppHeader() {
 
 function Home({
   onStart,
+  listeningAudio,
+  onRetryListeningAudio,
 }: {
   onStart: (mode: Mode, section: Section) => void;
+  listeningAudio: ListeningAudioSession;
+  onRetryListeningAudio: () => void;
 }) {
+  const listeningReady = listeningAudio.readyToPlay;
   return (
     <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
         <AppHeader />
@@ -85,7 +94,8 @@ function Home({
             <button
               type="button"
               onClick={() => onStart("full", "listening")}
-              className="mt-7 inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--exam-accent-hover)]"
+              disabled={!listeningReady}
+              className="mt-7 inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--exam-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <PlayCircle size={18} />
               Start full practice test
@@ -108,10 +118,33 @@ function Home({
                   <p className="mt-2 leading-6 text-[var(--exam-text-muted)]">
                     {item.description}
                   </p>
+                  {section === "listening" && listeningAudio.phase !== "ready" ? (
+                    <div className="mt-4 rounded border border-[var(--exam-border-muted)] bg-[var(--exam-surface-muted)] px-3 py-2 text-xs font-semibold text-[var(--exam-text-muted)]">
+                      {listeningAudio.phase === "error" ? (
+                        <div className="flex items-center justify-between gap-3">
+                          <span>{listeningAudio.error}</span>
+                          <button
+                            type="button"
+                            onClick={onRetryListeningAudio}
+                            className="shrink-0 text-[var(--exam-accent)] underline underline-offset-2"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      ) : listeningAudio.phase === "loading" ? (
+                        "Loading the local Kokoro voice engine…"
+                      ) : listeningAudio.phase === "generating" ? (
+                        `Preparing listening audio — ${listeningAudio.completedChunks}${listeningAudio.totalChunks == null ? "" : ` of ${listeningAudio.totalChunks}`} chunks saved`
+                      ) : (
+                        "Preparing listening audio…"
+                      )}
+                    </div>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => onStart("section", section)}
-                    className="mt-6 inline-flex w-full items-center justify-between gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--exam-accent-hover)]"
+                    disabled={section === "listening" && !listeningReady}
+                    className="mt-6 inline-flex w-full items-center justify-between gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--exam-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <span>Start {item.title}</span>
                     <ArrowRight size={16} />
@@ -264,6 +297,7 @@ function Results({
 
 export default function App() {
   const { state, content, contentReady, commands } = useExamApplication();
+  const listeningAudio = useListeningAudio(content.listening);
   useWritingWebMcpTools(commands);
   const section = state.currentSection;
   const mode = state.mode ?? "section";
@@ -277,7 +311,13 @@ export default function App() {
   }
 
   if (state.view === "home" || !section) {
-    return <Home onStart={commands.start} />;
+    return (
+      <Home
+        onStart={commands.start}
+        listeningAudio={listeningAudio}
+        onRetryListeningAudio={listeningAudio.retry}
+      />
+    );
   }
 
   if (state.view === "transition") {
@@ -328,6 +368,7 @@ export default function App() {
         {section === "listening" ? (
           <ListeningExamRunner
             {...commonProps}
+            audioSession={listeningAudio}
             listeningPlayback={state.listeningPlayback}
             onListeningPlaybackChange={
               isReviewMode ? () => undefined : commands.setListeningPlayback

@@ -13,8 +13,10 @@ import {
   type ListeningAudioUiStatus,
 } from "./ListeningAudioBar";
 import { useTimedSubmission } from "@/modules/exam-engine/useTimedSubmission";
+import type { ListeningAudioSession } from "@/application/useListeningAudio";
 
 interface Props extends ObjectivePracticeRunnerProps {
+  audioSession: ListeningAudioSession;
   listeningPlayback: ListeningAudioPersistedState;
   onListeningPlaybackChange: (state: ListeningAudioPersistedState) => void;
 }
@@ -26,6 +28,7 @@ export const ListeningExamRunner: React.FC<Props> = ({
   answers,
   currentPart,
   secondsRemaining,
+  audioSession,
   listeningPlayback,
   onAnswerChange,
   onPartChange,
@@ -41,7 +44,6 @@ export const ListeningExamRunner: React.FC<Props> = ({
     audioPart: null,
     isInSilence: false,
     silenceEndSec: null,
-    currentTimeSec: 0,
   });
   const [audioPromptsEnabled, setAudioPromptsEnabled] = useState(true);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
@@ -114,19 +116,18 @@ export const ListeningExamRunner: React.FC<Props> = ({
             <div className="flex items-center justify-end mb-2 sm:mb-4">
             </div>
 
-            {document.audioAssetKey && (
-              <ListeningAudioBar
-                audioAssetKey={document.audioAssetKey}
-                currentPart={currentPart}
-                isReviewMode={isReviewMode}
-                placement="header-popout"
-                audioPromptsEnabled={audioPromptsEnabled}
-                hydrateState={initialAudioState}
-                onPersistState={handlePersistAudioState}
-                onUiStatus={handleAudioUiStatus}
-                isMuted={isAudioMuted}
-              />
-            )}
+            <ListeningAudioBar
+              document={document}
+              audioSession={audioSession}
+              currentPart={currentPart}
+              isReviewMode={isReviewMode}
+              placement="header-popout"
+              audioPromptsEnabled={audioPromptsEnabled}
+              hydrateState={initialAudioState}
+              onPersistState={handlePersistAudioState}
+              onUiStatus={handleAudioUiStatus}
+              isMuted={isAudioMuted}
+            />
 
             <div className="bg-[#f0f0f0] border border-gray-200 p-3 sm:p-4 rounded-sm mt-2 sm:mt-3">
               <h2 className="font-bold text-xs sm:text-sm text-gray-800 mb-1">
