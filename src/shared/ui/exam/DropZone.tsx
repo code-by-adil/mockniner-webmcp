@@ -1,0 +1,946 @@
+import React, { useState } from "react";
+import { createPortal } from "react-dom";
+import { ChevronRight, X } from "lucide-react";
+import { normalizeAnswer } from "@/modules/exam-engine/review-mode/normalizeAnswer";
+import {
+  isExamDragSessionActive,
+  resolveExamDragPayload,
+  subscribeExamDragSession,
+  useDropZoneDragDepth,
+} from "./examDragDrop";
+import {
+  canAssignDragOption,
+  clearDragSelection,
+  getActiveDragGroupId,
+  getDragOptions,
+  getSelectedDragValue,
+  subscribeDragSelection,
+} from "./dragSelection";
+import {
+  resolveMapSlotCatchState,
+  resolveMapSlotDragPreview,
+  resolveMatchingSlotCatchState,
+  type MapSlotCatchState,
+} from "./mapSlotDragUi";
+import { cn } from "@/lib/utils";
+import { EXAM_SLOT_HIT_INSET_PX } from "./examProximityDrop";
+import { MatchingChoiceLabel, matchingSlotSurfaceClass } from "./matchingChoice";
+import {
+  handleExamDialogBackdropClick,
+  useExamNativeDialog,
+} from "./useExamNativeDialog";
+import { useExamOverlayPresence } from "./useExamOverlayPresence";
+import { supportsNativeDialog } from "./cssAnchorPositioning";
+
+function splitChoiceDisplay(display: string): { letter: string; name: string } {
+  const match = display.match(/^([A-Z])\.\s+(.+)$/i);
+  if (match?.[1] && match[2]) {
+    return { letter: match[1].toUpperCase(), name: match[2] };
+  }
+  return { letter: "", name: display };
+}
+
+function MapSlotLetterBadge({
+  letter,
+  muted = false,
+}: {
+  letter: string;
+  muted?: boolean;
+}) {
+  return (
+    <span
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white shadow-[0_1px_4px_rgba(15,23,42,0.35)] ring-2 ring-white/95 ${
+        muted ? "opacity-80" : ""
+      }`}
+    >
+      {letter}
+    </span>
+  );
+}
+
+function MapSlotAnswerChip({
+  display,
+  muted = false,
+  compact = false,
+}: {
+  display: string;
+  muted?: boolean;
+  compact?: boolean;
+}) {
+  const { letter, name } = splitChoiceDisplay(display);
+
+  if (compact && letter) {
+    return <MapSlotLetterBadge letter={letter} muted={muted} />;
+  }
+
+  return (
+    <div
+      className={`flex min-w-0 flex-1 items-center gap-2 ${muted ? "opacity-75" : ""}`}
+      title={display}
+    >
+      {letter ? (
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white shadow-sm">
+          {letter}
+        </span>
+      ) : null}
+      <span className="min-w-0 text-[10px] font-semibold leading-snug text-slate-800 line-clamp-2">
+        {name}
+      </span>
+    </div>
+  );
+}
+
+function ClearAnswerIcon() {
+  return (
+    <X
+      aria-hidden="true"
+      className="h-3.5 w-3.5"
+      strokeWidth={2.5}
+    />
+  );
+}
+
+function AnswerClearButton({
+  questionLabel,
+  onClear,
+  className = "",
+}: {
+  questionLabel: string | number;
+  onClear: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={`Remove answer for question ${questionLabel}`}
+      title="Remove answer"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClear();
+        clearDragSelection();
+      }}
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/35 active:scale-95 active:bg-red-100 ${className}`}
+    >
+      <ClearAnswerIcon />
+    </button>
+  );
+}
+
+function getMapSlotSurfaceStyles({
+  isReviewMode,
+  isCorrect,
+  value,
+  catchState,
+  compact,
+}: {
+  isReviewMode: boolean;
+  isCorrect: boolean;
+  value?: string;
+  catchState: MapSlotCatchState;
+  compact?: boolean;
+}): string {
+  if (compact && !isReviewMode) {
+    return "border-0 bg-transparent p-0 shadow-none";
+  }
+
+  if (isReviewMode) {
+    return isCorrect
+      ? "border border-emerald-600/80 bg-emerald-50/95 shadow-sm"
+      : "border border-red-400/90 bg-red-50/95 shadow-sm";
+  }
+
+  if (catchState === "caught") {
+    return "border-2 border-solid border-sky-600 bg-sky-100 shadow-[0_0_0_3px_rgba(2,132,199,0.35)]";
+  }
+
+  if (catchState === "targeted") {
+    return "border-2 border-dashed border-sky-500 bg-sky-50/95 shadow-[0_0_0_2px_rgba(14,165,233,0.28)]";
+  }
+
+  if (catchState === "droppable") {
+    return "border border-dashed border-sky-300/90 bg-sky-50/40";
+  }
+
+  if (value) {
+    return "border border-slate-200/90 bg-white/95 shadow-[0_1px_3px_rgba(15,23,42,0.1)]";
+  }
+
+  return "border border-dashed border-slate-400/75 bg-white/70";
+}
+
+interface Props {
+  id: number | string;
+  groupId?: string | undefined;
+  value?: string | undefined;
+  onDrop: (val: string) => void;
+  onClear: () => void;
+  placeholder?: string | undefined;
+  displayValue?: string | undefined;
+  className?: string | undefined;
+  variant?: "inline" | "box" | "mapSlot" | "matching" | undefined;
+  width?: string | undefined;
+  height?: string | undefined;
+  isReviewMode?: boolean | undefined;
+  correctAnswer?: string | string[] | undefined;
+  proximityActive?: boolean | undefined;
+  catchFlash?: boolean | undefined;
+  mapInteraction?: "drag" | "tap" | undefined;
+}
+
+function renderPickerPortal(node: React.ReactNode) {
+  if (typeof document === "undefined") return node;
+  return createPortal(node, document.body);
+}
+
+/** IELTS pickers are usually ≤8 options; only cap height when the list can overflow the viewport. */
+const PICKER_SCROLL_AT_OPTION_COUNT = 9;
+
+function pickerOptionsListClassName(optionCount: number, pickerSheetLayout: "tap" | "drag") {
+  if (optionCount < PICKER_SCROLL_AT_OPTION_COUNT) {
+    return "p-2";
+  }
+
+  return cn(
+    "max-h-[min(70svh,calc(100dvh-9rem))] overflow-y-auto p-2",
+    pickerSheetLayout === "tap" && "overscroll-y-contain",
+  );
+}
+
+type AnswerPickerOption = {
+  value: string;
+  label: string;
+  isUsed?: boolean | undefined;
+};
+
+function AnswerPickerSheet({
+  open,
+  questionLabel,
+  pickerSheetLayout,
+  availableOptions,
+  value,
+  selectedValue,
+  selectedGroupId,
+  groupId,
+  mapDragEnabled,
+  canAcceptSelection,
+  variant,
+  onChoose,
+  onClear,
+  onClose,
+}: {
+  open: boolean;
+  questionLabel: string | number;
+  pickerSheetLayout: "tap" | "drag";
+  availableOptions: AnswerPickerOption[];
+  value?: string | undefined;
+  selectedValue: string | null;
+  selectedGroupId: string | null;
+  groupId: string;
+  mapDragEnabled: boolean;
+  canAcceptSelection: boolean;
+  variant?: "inline" | "box" | "mapSlot" | "matching" | undefined;
+  onChoose: (nextValue: string) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const useNative = supportsNativeDialog();
+  const dialogRef = useExamNativeDialog({
+    open: useNative && open,
+    onOpenChange: (next) => {
+      if (!next) onClose();
+    },
+  });
+
+  const sheetClassName = cn(
+    "exam-answer-picker-sheet w-full border border-gray-200 bg-white shadow-2xl",
+    pickerSheetLayout === "tap"
+      ? "max-w-none rounded-t-2xl border-b-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      : "max-w-md rounded-lg",
+  );
+
+  const body = (
+    <>
+      <div
+        className={`flex items-center justify-between border-b border-gray-200 px-4 py-3 ${
+          pickerSheetLayout === "tap" ? "pt-4" : ""
+        }`}
+      >
+        {pickerSheetLayout === "tap" ? (
+          <div
+            className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-gray-300"
+            aria-hidden
+          />
+        ) : null}
+        <div className={pickerSheetLayout === "tap" ? "pt-2" : undefined}>
+          <p className="text-base font-bold text-gray-900">Question {questionLabel}</p>
+          <p className="text-xs font-medium text-gray-500">
+            {mapDragEnabled && canAcceptSelection
+              ? "Click an option below or press Enter to place the selected answer"
+              : variant === "matching"
+                ? "Choose an option for this question"
+                : "Choose an answer for this location"}
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-label="Close answer selector"
+          onClick={onClose}
+          className="rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+        >
+          ×
+        </button>
+      </div>
+      <div className={pickerOptionsListClassName(availableOptions.length, pickerSheetLayout)}>
+        {availableOptions.length > 0 ? (
+          availableOptions.map((option) => {
+            const isCurrent = option.value === value;
+            const isSelectedOption =
+              selectedValue === option.value && selectedGroupId === groupId;
+            const isUsedElsewhere = option.isUsed && option.value !== value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                disabled={isUsedElsewhere}
+                aria-current={isCurrent ? "true" : undefined}
+                onClick={() => onChoose(option.value)}
+                className={`mb-2 flex w-full items-center justify-between rounded-xl border px-3 text-left font-semibold last:mb-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 ${
+                  pickerSheetLayout === "tap" ? "min-h-[52px] py-3.5 text-sm" : "py-3 text-sm"
+                } ${
+                  isCurrent
+                    ? "border-slate-900 bg-slate-100 text-gray-950"
+                    : isUsedElsewhere
+                      ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                      : isSelectedOption
+                        ? "border-black bg-white text-gray-900 ring-2 ring-black/15"
+                        : "border-gray-200 bg-white text-gray-900 hover:border-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                <span>{option.label}</span>
+                {isCurrent ? (
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-600">
+                    Selected
+                  </span>
+                ) : isUsedElsewhere ? (
+                  <span className="rounded-md bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                    Used
+                  </span>
+                ) : isSelectedOption ? (
+                  <span className="text-xs text-gray-500">Ready</span>
+                ) : null}
+              </button>
+            );
+          })
+        ) : (
+          <p className="px-3 py-6 text-center text-sm font-medium text-gray-500">
+            No answers are available.
+          </p>
+        )}
+      </div>
+      {value ? (
+        <div className="border-t border-gray-200 p-2">
+          <button
+            type="button"
+            onClick={() => {
+              onClear();
+              onClose();
+            }}
+            className="w-full rounded border border-gray-200 px-3 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+          >
+            Clear Answer
+          </button>
+        </div>
+      ) : null}
+    </>
+  );
+
+  if (useNative) {
+    return (
+      <dialog
+        ref={dialogRef}
+        className={cn(
+          "exam-answer-picker-dialog exam-native-dialog",
+          pickerSheetLayout === "tap"
+            ? "exam-answer-picker-dialog--sheet"
+            : "exam-answer-picker-dialog--centered",
+          sheetClassName,
+        )}
+        aria-label={`Select answer for question ${questionLabel}`}
+        onClick={handleExamDialogBackdropClick}
+      >
+        <div className="relative">{body}</div>
+      </dialog>
+    );
+  }
+
+  return (
+    <div
+      className={`fixed inset-0 z-[1400] flex bg-black/40 ${
+        pickerSheetLayout === "tap"
+          ? "items-end px-0 pb-0"
+          : "items-end px-3 pb-3 sm:items-center sm:justify-center sm:pb-0"
+      }`}
+      role="presentation"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Select answer for question ${questionLabel}`}
+        className={cn("relative", sheetClassName)}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {body}
+      </div>
+    </div>
+  );
+}
+
+function DropHitLayer({
+  enabled,
+  dragHandlers,
+}: {
+  enabled: boolean;
+  dragHandlers: React.HTMLAttributes<HTMLDivElement>;
+}) {
+  if (!enabled) return null;
+
+  return (
+    <div
+      className="absolute z-0 touch-manipulation"
+      style={{
+        top: -EXAM_SLOT_HIT_INSET_PX,
+        right: -EXAM_SLOT_HIT_INSET_PX,
+        bottom: -EXAM_SLOT_HIT_INSET_PX,
+        left: -EXAM_SLOT_HIT_INSET_PX,
+      }}
+      aria-hidden
+      {...dragHandlers}
+    />
+  );
+}
+
+export const DropZone: React.FC<Props> = ({
+  id,
+  groupId = "default",
+  value,
+  onDrop,
+  onClear,
+  placeholder,
+  displayValue,
+  className = "",
+  variant = "box",
+  width,
+  height,
+  isReviewMode = false,
+  correctAnswer,
+  proximityActive = false,
+  catchFlash = false,
+  mapInteraction = "drag",
+}) => {
+  const mapDragEnabled = mapInteraction === "drag";
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const useNativePicker = supportsNativeDialog();
+  const pickerPresent = useExamOverlayPresence(isPickerOpen);
+  const showPicker = (useNativePicker ? pickerPresent : isPickerOpen) && !isReviewMode;
+  const [optionVersion, setOptionVersion] = useState(0);
+  const [, setSelectionTick] = useState(0);
+  const [isExamDragging, setIsExamDragging] = useState(false);
+  const { isOver, onDragEnter, onDragLeave, onDragOver, reset } = useDropZoneDragDepth();
+
+  React.useEffect(() => {
+    setIsExamDragging(isExamDragSessionActive());
+    return subscribeExamDragSession(setIsExamDragging);
+  }, []);
+
+  React.useEffect(() => {
+    const refreshOptions = () => setOptionVersion((current) => current + 1);
+    window.addEventListener("exam-drag-options-change", refreshOptions);
+    return () => window.removeEventListener("exam-drag-options-change", refreshOptions);
+  }, []);
+
+  React.useEffect(() => subscribeDragSelection(() => setSelectionTick((tick) => tick + 1)), []);
+
+  let isCorrect = false;
+  let displayCorrect: string | null = null;
+
+  if (isReviewMode) {
+    if (correctAnswer) {
+      if (Array.isArray(correctAnswer)) {
+        isCorrect = correctAnswer.some(
+          (candidate) => normalizeAnswer(candidate) === normalizeAnswer(value || ""),
+        );
+        displayCorrect = correctAnswer[0] ?? null;
+      } else {
+        isCorrect = normalizeAnswer(correctAnswer) === normalizeAnswer(value || "");
+        displayCorrect = correctAnswer;
+      }
+    }
+  }
+
+  const availableOptions = React.useMemo(() => {
+    void optionVersion;
+    const options = getDragOptions(groupId)
+      .filter((option) => !option.isReviewMode)
+      .filter((option) => !option.isUsed || option.value === value);
+    return Array.from(new Map(options.map((option) => [option.value, option])).values());
+  }, [groupId, optionVersion, value]);
+
+  const selectedValue = getSelectedDragValue();
+  const selectedGroupId = getActiveDragGroupId();
+  const canAcceptSelection =
+    !isReviewMode &&
+    Boolean(selectedValue) &&
+    selectedGroupId === groupId &&
+    canAssignDragOption(groupId, selectedValue!, value);
+
+  const registeredLabel = value
+    ? availableOptions.find((option) => option.value === value)?.label
+    : undefined;
+
+  const resolvedDisplayValue = registeredLabel ?? displayValue ?? value;
+
+  const pendingLabel = canAcceptSelection
+    ? availableOptions.find((option) => option.value === selectedValue)?.label
+    : null;
+
+  const assignValue = (nextValue: string) => {
+    if (!canAssignDragOption(groupId, nextValue, value)) return;
+    onDrop(nextValue);
+    clearDragSelection();
+    reset();
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    if (isReviewMode) return;
+    event.preventDefault();
+    event.stopPropagation();
+    reset();
+
+    const payload = resolveExamDragPayload(event, {
+      groupId,
+      value: selectedValue ?? "",
+    });
+    if (!payload || payload.groupId !== groupId) return;
+    assignValue(payload.value);
+  };
+
+  const openPicker = () => {
+    if (isReviewMode) return;
+    setIsPickerOpen(true);
+  };
+
+  const handleActivate = () => {
+    if (isReviewMode) return;
+
+    if (canAcceptSelection && selectedValue) {
+      assignValue(selectedValue);
+      return;
+    }
+
+    openPicker();
+  };
+
+  const chooseOption = (nextValue: string) => {
+    assignValue(nextValue);
+    setIsPickerOpen(false);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    handleActivate();
+  };
+
+  const suppressPerSlotIsOver = variant === "matching" && isExamDragging;
+  const isHighlighted =
+    (suppressPerSlotIsOver ? false : isOver) || canAcceptSelection || proximityActive;
+
+  const activeDragValue =
+    isExamDragging && selectedGroupId === groupId ? selectedValue : undefined;
+  const hasMapDragPayload =
+    !isReviewMode && Boolean(activeDragValue);
+  const canReceiveDrag =
+    hasMapDragPayload && canAssignDragOption(groupId, activeDragValue!, value);
+  const dragPreviewLabel = canReceiveDrag
+    ? availableOptions.find((option) => option.value === activeDragValue)?.label
+    : undefined;
+
+  const baseStyles = isReviewMode
+    ? isCorrect
+      ? "border-2 border-green-600 bg-green-50 text-green-900 font-bold"
+      : "border-2 border-red-500 bg-red-50 text-red-900 line-through decoration-red-500/50"
+    : value
+      ? "border border-black bg-white shadow-sm"
+      : `border border-dashed border-gray-400 bg-white ${
+          isHighlighted ? "border-black bg-gray-50 shadow-sm ring-2 ring-black/15" : ""
+        }`;
+
+  const tooltip =
+    isReviewMode && !isCorrect && displayCorrect ? (
+      <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+        <div className="flex items-center gap-2 whitespace-nowrap rounded bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg">
+          <span className="font-bold text-red-300">✓</span> {displayCorrect}
+        </div>
+        <div className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-gray-900" />
+      </div>
+    ) : null;
+
+  const successCheck =
+    isReviewMode && isCorrect ? (
+      <div className="pointer-events-none absolute -right-2 -top-2 z-10 rounded-full border border-green-200 bg-white p-0.5 shadow-sm">
+        <svg
+          aria-hidden="true"
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#16a34a"
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </div>
+    ) : null;
+
+  const pickerSheetLayout = !mapDragEnabled ? "tap" : "drag";
+
+  const picker =
+    showPicker ? (
+      <AnswerPickerSheet
+        open={isPickerOpen}
+        questionLabel={placeholder || id}
+        pickerSheetLayout={pickerSheetLayout}
+        availableOptions={availableOptions}
+        value={value}
+        selectedValue={selectedValue}
+        selectedGroupId={selectedGroupId}
+        groupId={groupId}
+        mapDragEnabled={mapDragEnabled}
+        canAcceptSelection={canAcceptSelection}
+        variant={variant}
+        onChoose={chooseOption}
+        onClear={() => {
+          onClear();
+          clearDragSelection();
+        }}
+        onClose={() => setIsPickerOpen(false)}
+      />
+    ) : null;
+
+  const matchingProximityDrop = variant === "matching" && isExamDragging;
+  const dragHandlers =
+    !isReviewMode && mapDragEnabled && !matchingProximityDrop
+      ? {
+          onDragEnter,
+          onDragLeave,
+          onDragOver,
+          onDrop: handleDrop,
+        }
+      : {};
+
+  const questionLabel = placeholder || id;
+  const handleClear = () => {
+    onClear();
+    clearDragSelection();
+  };
+  const slotInteractionProps: React.HTMLAttributes<HTMLDivElement> = isReviewMode
+    ? {}
+    : {
+        role: "button",
+        tabIndex: 0,
+        "aria-label": `Select answer for question ${questionLabel}`,
+        onClick: handleActivate,
+        onKeyDown: handleKeyDown,
+      };
+
+  if (variant === "mapSlot") {
+    const mapSlotCompact = !mapDragEnabled;
+    const filledLabel = value ? resolvedDisplayValue : null;
+    const mapSlotCatchState = resolveMapSlotCatchState({
+      isReviewMode,
+      isOver,
+      proximityActive,
+      canReceiveDrag,
+      isEmpty: !value,
+      dragHighlightEnabled: mapDragEnabled,
+      mapDragEnabled,
+      isExamDragging,
+    });
+    const mapSlotStyles = getMapSlotSurfaceStyles({
+      isReviewMode,
+      isCorrect,
+      catchState: mapSlotCatchState,
+      compact: mapSlotCompact,
+      ...(value ? { value } : {}),
+    });
+    const activeSlotPreview =
+      mapDragEnabled && isExamDragging
+        ? resolveMapSlotDragPreview({
+            proximityActive,
+            canReceiveDrag,
+            ...(dragPreviewLabel ? { dragPreviewLabel } : {}),
+            ...(value ? { slotValue: value } : {}),
+            ...(activeDragValue ? { dragValue: activeDragValue } : {}),
+          })
+        : mapSlotCatchState === "targeted" || mapSlotCatchState === "caught"
+          ? (dragPreviewLabel ?? pendingLabel ?? null)
+          : null;
+
+    return (
+      <>
+        <div className="relative h-full min-h-0 w-full overflow-visible">
+          <DropHitLayer
+            enabled={!isReviewMode && mapDragEnabled}
+            dragHandlers={dragHandlers}
+          />
+          <div
+            id={`question-${id}`}
+            {...slotInteractionProps}
+            className={`
+              group relative z-10 flex h-full min-h-0 w-full touch-manipulation items-center justify-center transition-[background-color,border-color,box-shadow,color,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/25
+              ${mapSlotCompact ? "rounded-full p-0" : "rounded-md px-2 py-1.5"}
+              ${mapSlotStyles}
+              ${className}
+            `}
+          >
+          {activeSlotPreview ? (
+            <MapSlotAnswerChip display={activeSlotPreview} muted compact={mapSlotCompact} />
+          ) : filledLabel ? (
+            mapSlotCompact && !isReviewMode ? (
+              <MapSlotAnswerChip display={filledLabel} compact />
+            ) : (
+              <div className="relative flex min-h-0 w-full min-w-0 items-center">
+                <div className="min-w-0 flex-1">
+                  <MapSlotAnswerChip display={filledLabel} compact={false} />
+                </div>
+                {!isReviewMode ? (
+                  <AnswerClearButton
+                    questionLabel={questionLabel}
+                    onClear={handleClear}
+                    className="absolute right-1 top-1/2 z-10 -translate-y-1/2 transition-opacity duration-150 max-md:pointer-events-auto max-md:opacity-100 md:pointer-events-none md:opacity-0 md:group-hover:pointer-events-auto md:group-hover:opacity-100 md:group-focus-within:pointer-events-auto md:group-focus-within:opacity-100"
+                  />
+                ) : null}
+              </div>
+            )
+          ) : (
+            <span
+              className={`flex items-center justify-center rounded-full border font-bold ${
+                mapSlotCompact ? "h-7 w-7 text-[11px] shadow-[0_1px_3px_rgba(15,23,42,0.2)]" : "h-8 w-8 text-xs shadow-sm"
+              } ${
+                mapSlotCatchState === "caught"
+                  ? "border-sky-600 bg-sky-100 text-sky-800"
+                  : mapSlotCatchState === "targeted"
+                    ? "border-sky-500 bg-sky-50 text-sky-700"
+                    : mapSlotCatchState === "droppable"
+                      ? "border-sky-300 bg-sky-50/80 text-sky-700"
+                      : mapSlotCompact
+                        ? "border border-slate-500/80 bg-white/95 text-slate-700"
+                        : "border-dashed border-slate-500/90 bg-white/90 text-slate-700"
+              }`}
+            >
+              {placeholder || id}
+            </span>
+          )}
+          {tooltip}
+          {successCheck}
+          </div>
+        </div>
+        {picker ? renderPickerPortal(picker) : null}
+      </>
+    );
+  }
+
+  if (variant === "inline") {
+    return (
+      <>
+        <div
+          id={`question-${id}`}
+          {...slotInteractionProps}
+          className={`
+            group relative mx-1 inline-flex touch-manipulation items-center rounded-sm align-middle transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30
+            ${width || "min-w-[100px]"}
+            ${height || "h-[30px]"}
+            ${baseStyles}
+            ${className}
+          `}
+          {...dragHandlers}
+        >
+          {value ? (
+            <div className="flex w-full items-center justify-between gap-1 overflow-hidden">
+              <span className="w-full truncate text-sm font-bold" title={resolvedDisplayValue}>
+                {resolvedDisplayValue}
+              </span>
+              {!isReviewMode ? (
+                <AnswerClearButton
+                  questionLabel={questionLabel}
+                  onClear={handleClear}
+                  className="h-7 w-7"
+                />
+              ) : null}
+            </div>
+        ) : pendingLabel ? (
+          <span
+            className="w-full truncate px-1 text-center text-xs font-semibold text-gray-700"
+            title={pendingLabel}
+          >
+            {pendingLabel}
+          </span>
+        ) : (
+          <span className="w-full select-none text-center text-xs font-bold text-gray-500">
+            {placeholder || id}
+          </span>
+        )}
+          {tooltip}
+          {successCheck}
+        </div>
+        {picker ? renderPickerPortal(picker) : null}
+      </>
+    );
+  }
+
+  if (variant === "matching") {
+    const matchingTapMode = !mapDragEnabled;
+    const slotLabel = value ? resolvedDisplayValue : null;
+    const matchingCatchState = catchFlash
+      ? "caught"
+      : resolveMatchingSlotCatchState({
+          isReviewMode,
+          canReceiveDrag,
+          proximityActive,
+          dragActive: isExamDragging,
+        });
+    const activeSlotPreview =
+      isExamDragging && !isReviewMode
+        ? resolveMapSlotDragPreview({
+            proximityActive,
+            canReceiveDrag,
+            ...(dragPreviewLabel ? { dragPreviewLabel } : {}),
+            ...(value ? { slotValue: value } : {}),
+            ...(activeDragValue ? { dragValue: activeDragValue } : {}),
+          })
+        : null;
+    // While dragging: preview only on the proximity-targeted slot. Tap-to-place: selected option on click target.
+    const previewLabel =
+      !isReviewMode && !value
+        ? isExamDragging
+          ? activeSlotPreview
+          : pendingLabel
+        : null;
+
+    return (
+      <>
+        <div className="relative w-full min-w-0 overflow-visible">
+          <DropHitLayer
+            enabled={!isReviewMode && !matchingProximityDrop && mapDragEnabled}
+            dragHandlers={dragHandlers}
+          />
+          <div
+            id={`question-${id}`}
+            {...slotInteractionProps}
+            className={cn(
+              "group relative z-10 w-full min-w-0",
+              matchingSlotSurfaceClass({
+                isReviewMode,
+                isCorrect,
+                hasValue: Boolean(value),
+                catchState: matchingCatchState,
+                tapHighlighted: canAcceptSelection && !isExamDragging,
+              }),
+              matchingTapMode && !isReviewMode && "gap-2 pr-1",
+              className,
+            )}
+          >
+            {slotLabel ? (
+              matchingTapMode && !isReviewMode ? (
+                <>
+                  <MatchingChoiceLabel
+                    text={slotLabel}
+                    letterTone="filled"
+                    muted={isReviewMode && !isCorrect}
+                    clampName
+                  />
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-[color:var(--exam-text-subtle)]"
+                    aria-hidden
+                  />
+                </>
+              ) : (
+                <>
+                  <MatchingChoiceLabel
+                    text={slotLabel}
+                    letterTone="filled"
+                    muted={isReviewMode && !isCorrect}
+                  />
+                  {!isReviewMode && value ? (
+                    <AnswerClearButton
+                      questionLabel={questionLabel}
+                      onClear={handleClear}
+                      className="shrink-0"
+                    />
+                  ) : null}
+                </>
+              )
+            ) : previewLabel ? (
+              <MatchingChoiceLabel text={previewLabel} letterTone="filled" muted clampName={matchingTapMode} />
+            ) : (
+              <>
+                <span className="text-sm font-semibold text-[color:var(--exam-text-subtle)]">
+                  {placeholder || id}
+                </span>
+                {matchingTapMode && !isReviewMode ? (
+                  <ChevronRight
+                    className="ml-auto h-4 w-4 shrink-0 text-[color:var(--exam-text-subtle)]"
+                    aria-hidden
+                  />
+                ) : null}
+              </>
+            )}
+            {tooltip}
+            {successCheck}
+          </div>
+        </div>
+        {picker ? renderPickerPortal(picker) : null}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div
+        id={`question-${id}`}
+        {...slotInteractionProps}
+        className={`
+          group relative flex touch-manipulation items-center justify-center rounded-[2px] transition-[background-color,border-color,box-shadow,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30
+          ${width || "w-full"}
+          ${height || "h-[42px]"}
+          ${baseStyles}
+          ${className}
+        `}
+        {...dragHandlers}
+      >
+        {value ? (
+          <div className="flex h-full w-full items-center justify-between overflow-hidden px-3">
+            <span className="truncate text-sm font-bold select-none" title={resolvedDisplayValue}>
+              {resolvedDisplayValue}
+            </span>
+            {!isReviewMode ? (
+              <AnswerClearButton questionLabel={questionLabel} onClear={handleClear} />
+            ) : null}
+          </div>
+        ) : pendingLabel ? (
+          <span className="truncate px-2 text-xs font-semibold text-gray-700" title={pendingLabel}>
+            {pendingLabel}
+          </span>
+        ) : (
+          <span className="select-none text-sm font-bold text-gray-500">{placeholder || id}</span>
+        )}
+        {tooltip}
+        {successCheck}
+      </div>
+      {picker ? renderPickerPortal(picker) : null}
+    </>
+  );
+};
