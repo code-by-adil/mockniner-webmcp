@@ -1,14 +1,13 @@
 import React from "react";
 import {
   normalizeObjectiveCompletionBlock,
-} from "@ielts/shared";
+} from "../objectiveRendering";
 import { FlowchartCompletion } from "@/shared/ui/exam/FlowchartCompletion";
 import { InlineCompletion, type InlineCompletionItem } from "@/shared/ui/exam/InlineCompletion";
 import { InputAnswer } from "@/shared/ui/exam/InputAnswer";
 import type {
   ObjectiveWebBlockRendererProps,
 } from "@/modules/section-packs/content-json/types";
-import { getCorrectAnswer } from "./helpers";
 
 export function CompletionQuestionsBlock({
   block,
@@ -16,7 +15,11 @@ export function CompletionQuestionsBlock({
 }: ObjectiveWebBlockRendererProps<"completion_questions">) {
   const completion = normalizeObjectiveCompletionBlock(block);
   const rowGap = completion.density === "compact" ? "gap-2" : "gap-3";
-  const renderInput = (questionId: number, width?: number) => (
+  const renderInput = (
+    questionId: number,
+    answer: string | string[],
+    width?: number,
+  ) => (
     <InputAnswer
       questionNumber={questionId}
       value={ctx.answers[questionId] ?? ""}
@@ -24,7 +27,7 @@ export function CompletionQuestionsBlock({
       widthPx={width}
       showQuestionNumberLabel
       isReviewMode={ctx.isReviewMode}
-      correctAnswer={getCorrectAnswer(ctx.answerKey, questionId)}
+      correctAnswer={ctx.isReviewMode ? answer : undefined}
     />
   );
 
@@ -44,7 +47,7 @@ export function CompletionQuestionsBlock({
             {block.items.map((item) => (
               <tr key={item.questionId} className="border-b border-gray-200 last:border-b-0">
                 <td className="px-4 py-3 leading-6 text-gray-900">{item.prefix}</td>
-                <td className="px-4 py-3">{renderInput(item.questionId, item.width)}</td>
+                <td className="px-4 py-3">{renderInput(item.questionId, item.answer, item.width)}</td>
                 <td className="px-4 py-3 leading-6 text-gray-700">{item.suffix ?? ""}</td>
               </tr>
             ))}
@@ -60,7 +63,10 @@ export function CompletionQuestionsBlock({
         title={block.title}
         items={block.items}
         density={completion.density}
-        renderGap={renderInput}
+        renderGap={(questionId, width) => {
+          const item = block.items.find((candidate) => candidate.questionId === questionId);
+          return item ? renderInput(questionId, item.answer, width) : null;
+        }}
       />
     );
   }
@@ -76,7 +82,7 @@ export function CompletionQuestionsBlock({
             value: ctx.answers[item.questionId] ?? "",
             onChange: (value) => ctx.onAnswerChange(item.questionId, value),
             isReviewMode: ctx.isReviewMode,
-            correctAnswer: getCorrectAnswer(ctx.answerKey, item.questionId),
+            correctAnswer: ctx.isReviewMode ? item.answer : undefined,
           },
           ...(item.suffix ? [item.suffix] : []),
         ];

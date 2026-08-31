@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { initialSession, loadSession, saveSession, sessionReducer } from './session'
-import { writingTasks } from '@/content/writing'
+import { writingDocument } from '@/content/writing'
 import type {
   ObjectiveResult,
   ObjectiveSubmission,
@@ -23,8 +23,8 @@ const writingSubmission: WritingSubmission = {
   attemptId: '22222222-2222-4222-8222-222222222222',
   contentKey: 'local-writing-v1',
   tasks: [
-    { task: writingTasks[0], response: 'Task one response', wordCount: 3 },
-    { task: writingTasks[1], response: 'Task two response', wordCount: 3 },
+    { task: writingDocument.tasks[0], response: 'Task one response', wordCount: 3 },
+    { task: writingDocument.tasks[1], response: 'Task two response', wordCount: 3 },
   ],
   startedAt: '2026-08-31T10:00:00.000Z',
   submittedAt: '2026-08-31T11:00:00.000Z',

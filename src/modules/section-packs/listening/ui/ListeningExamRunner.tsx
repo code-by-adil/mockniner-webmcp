@@ -4,47 +4,28 @@ import {
   ObjectiveExamFooter,
   buildObjectiveFooterParts,
 } from "@/modules/exam-engine/ui/Footer";
-import {
-  formatTime,
-  type AnswerMap,
-} from "@ielts/shared";
-import { TestDefinition } from "@ielts/shared";
+import { formatTime } from "@/domain/exam";
+import { ObjectivePartView } from "@/modules/section-packs/content-json/ObjectivePartView";
+import type { ObjectivePracticeRunnerProps } from "@/modules/section-packs/objective/types";
 import {
   ListeningAudioBar,
   type ListeningAudioPersistedState,
   type ListeningAudioUiStatus,
 } from "./ListeningAudioBar";
-import { GlobalMultiStepThinkingLoader } from "@/shared/ui/global/GlobalMultiStepThinkingLoader";
-import { useObjectiveSectionRuntime } from "@/modules/section-packs/objective/useObjectiveSectionRuntime";
+import { useTimedSubmission } from "@/modules/exam-engine/useTimedSubmission";
 
-interface Props {
-  testDefinition: TestDefinition;
-  contentKey?: string | undefined;
-  onBack: () => void;
-  topBarContent?: React.ReactNode | undefined;
-  isFullExam?: boolean | undefined;
-  isReviewMode?: boolean | undefined;
-  answers: AnswerMap;
-  currentPart: number;
-  secondsRemaining: number;
+interface Props extends ObjectivePracticeRunnerProps {
   listeningPlayback: ListeningAudioPersistedState;
-  onAnswerChange: (id: number, value: string) => void;
-  onPartChange: (part: number) => void;
   onListeningPlaybackChange: (state: ListeningAudioPersistedState) => void;
-  onTick: () => void;
-  onSubmit?: (() => unknown | Promise<unknown>) | undefined;
 }
 
 export const ListeningExamRunner: React.FC<Props> = ({
-  testDefinition,
-  contentKey,
+  document,
   onBack,
-  topBarContent,
-  isFullExam,
   isReviewMode: providedReviewMode = false,
-  answers: controlledAnswers,
-  currentPart: controlledCurrentPart,
-  secondsRemaining: controlledSecondsRemaining,
+  answers,
+  currentPart,
+  secondsRemaining,
   listeningPlayback,
   onAnswerChange,
   onPartChange,
@@ -52,6 +33,9 @@ export const ListeningExamRunner: React.FC<Props> = ({
   onTick,
   onSubmit,
 }) => {
+  if (document.section !== "listening") {
+    throw new Error("ListeningExamRunner requires Listening content.");
+  }
   const [audioUiStatus, setAudioUiStatus] = useState<ListeningAudioUiStatus>({
     state: "paused",
     audioPart: null,
@@ -63,94 +47,24 @@ export const ListeningExamRunner: React.FC<Props> = ({
   const [isAudioMuted, setIsAudioMuted] = useState(false);
 
   const footerParts = useMemo(
-    () => buildObjectiveFooterParts(testDefinition.parts),
-    [testDefinition.parts],
+    () => buildObjectiveFooterParts(document),
+    [document],
   );
   const [initialAudioState] = useState(listeningPlayback);
+  const isReviewMode = providedReviewMode;
   const {
-    answers,
-    currentPart,
-    effectiveSubmissionLocked,
-    handleAnswerChange,
-    handleExit,
-    handleSubmit,
     isSubmitting,
-    isReviewMode,
-    secondsRemaining,
-    setCurrentPart,
     submissionError,
-  } = useObjectiveSectionRuntime({
-    section: "listening",
-    answers: controlledAnswers,
-    currentPart: controlledCurrentPart,
-    secondsRemaining: controlledSecondsRemaining,
-    isReviewMode: providedReviewMode,
-    onAnswerChange,
-    onPartChange,
+    submit: handleSubmit,
+  } = useTimedSubmission({
+    secondsRemaining,
+    disabled: isReviewMode,
     onTick,
     onSubmit,
-    onBack,
+    fallbackError: "Unable to submit this Listening test.",
   });
 
-  const submissionLoaderCopy = useMemo(() => {
-    if (isFullExam) {
-      return {
-        badgeLabel: "Full Exam",
-        title: "Checking your listening answers",
-        note: "We are scoring your listening section, saving your progress, and getting Reading ready.",
-        steps: [
-          {
-            text: "Checking your answers",
-            detail: "Reviewing each response against the listening answer key.",
-          },
-          {
-            text: "Calculating your listening score",
-            detail: "Converting your raw score to the IELTS listening band.",
-          },
-          {
-            text: "Saving your progress",
-            detail:
-              "Recording your result so you can continue the full exam smoothly.",
-          },
-          {
-            text: "Preparing Reading",
-            detail: "Getting the next section ready for you.",
-          },
-        ],
-      };
-    }
-
-    return {
-      badgeLabel: "Scoring Listening",
-      title: "Analyzing objective listening performance",
-      note: "We are validating answers and finalizing your listening report.",
-      steps: [
-        {
-          text: "Compiling your answer sheet",
-          detail:
-            "Aligning all responses by question number and completion status.",
-        },
-        {
-          text: "Validating answer accuracy",
-          detail:
-            "Checking each entry against the official listening answer key.",
-        },
-        {
-          text: "Applying IELTS conversion",
-          detail:
-            "Transforming your raw score into the IELTS listening band scale.",
-        },
-        {
-          text: "Publishing listening report",
-          detail:
-            "Saving your result and preparing the finalized listening summary.",
-        },
-      ],
-    };
-  }, [isFullExam]);
-
-  const currentPartDef = testDefinition.parts[currentPart - 1];
-  const CurrentPartComponent = currentPartDef?.Component;
+  const currentPartDef = document.parts[currentPart - 1];
 
   const handlePersistAudioState = useCallback(
     (next: ListeningAudioPersistedState): void => {
@@ -178,16 +92,9 @@ export const ListeningExamRunner: React.FC<Props> = ({
 
   return (
     <div className="h-screen bg-white text-gray-900 font-sans flex flex-col overflow-hidden">
-      <GlobalMultiStepThinkingLoader
-        visible={isSubmitting}
-        badgeLabel={submissionLoaderCopy.badgeLabel}
-        title={submissionLoaderCopy.title}
-        steps={submissionLoaderCopy.steps}
-        note={submissionLoaderCopy.note}
-      />
       <Header
         testType="listening"
-        onExit={handleExit}
+        onExit={onBack}
         isReviewMode={isReviewMode}
         timeLeft={formatTime(secondsRemaining)}
         isTimerWarning={secondsRemaining <= 300}
@@ -205,14 +112,11 @@ export const ListeningExamRunner: React.FC<Props> = ({
         <div className="bg-white border-b border-gray-200 shrink-0 px-3 sm:px-6 py-2 sm:py-4">
           <div className="max-w-[1400px] mx-auto">
             <div className="flex items-center justify-end mb-2 sm:mb-4">
-              <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
-                {topBarContent}
-              </div>
             </div>
 
-            {testDefinition.listeningAudio?.key && (
+            {document.audioAssetKey && (
               <ListeningAudioBar
-                contentKey={contentKey ?? testDefinition.listeningAudio.key}
+                audioAssetKey={document.audioAssetKey}
                 currentPart={currentPart}
                 isReviewMode={isReviewMode}
                 placement="header-popout"
@@ -237,7 +141,7 @@ export const ListeningExamRunner: React.FC<Props> = ({
                 {submissionError}
               </div>
             ) : null}
-            {effectiveSubmissionLocked ? (
+            {isReviewMode ? (
               <div className="mt-3 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">
                 This listening test has already been submitted. You can review
                 answers only.
@@ -252,12 +156,13 @@ export const ListeningExamRunner: React.FC<Props> = ({
           className="flex-1 overflow-y-auto overflow-x-auto overscroll-contain"
         >
           <div className="max-w-[1400px] mx-auto p-3 sm:p-6">
-            {CurrentPartComponent ? (
-              <CurrentPartComponent
+            {currentPartDef ? (
+              <ObjectivePartView
+                part={currentPartDef}
+                section={document.section}
                 answers={answers}
-                onAnswerChange={handleAnswerChange}
+                onAnswerChange={onAnswerChange}
                 isReviewMode={isReviewMode}
-                answerKey={isReviewMode ? testDefinition.answerKey : undefined}
               />
             ) : (
               <div>Part content not found.</div>
@@ -266,22 +171,14 @@ export const ListeningExamRunner: React.FC<Props> = ({
         </div>
       </div>
 
-      {isReviewMode || !effectiveSubmissionLocked ? (
-        <ObjectiveExamFooter
-          currentPart={currentPart}
-          answers={answers}
-          parts={footerParts}
-          onPartChange={setCurrentPart}
-          onSubmit={
-            isReviewMode
-              ? undefined
-              : () => {
-                  void handleSubmit();
-                }
-          }
-          isSubmitting={isSubmitting}
-        />
-      ) : null}
+      <ObjectiveExamFooter
+        currentPart={currentPart}
+        answers={answers}
+        parts={footerParts}
+        onPartChange={onPartChange}
+        onSubmit={isReviewMode ? undefined : () => void handleSubmit()}
+        isSubmitting={isSubmitting}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import type { ObjectiveMapElement, ObjectiveMapScene } from "@ielts/shared";
+import type { ObjectiveMapElement, ObjectiveMapScene } from "@/domain/objectiveContent";
 
 export type MapViewBoxRect = {
   x: number;

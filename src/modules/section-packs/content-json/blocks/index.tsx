@@ -1,4 +1,4 @@
-import type { ObjectiveContentBlock } from "@ielts/shared";
+import type { ObjectiveContentBlock } from "@/domain/objectiveContent";
 import type { ObjectiveWebRenderContext } from "../types";
 import { CompletionQuestionsBlock } from "./CompletionQuestionsBlock";
 import {

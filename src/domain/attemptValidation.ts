@@ -8,6 +8,7 @@ import type {
   WritingSubmission,
 } from "./types";
 import { writingEvaluationInputSchema } from "./writingEvaluation";
+import { writingTask1Schema, writingTask2Schema } from "./writingContent";
 
 const timestampSchema = z.iso.datetime({ offset: true });
 const bandScoreSchema = z
@@ -53,35 +54,17 @@ export const objectiveSubmissionSchema: z.ZodType<ObjectiveSubmission> =
       message: "The objective submission section must match its result.",
     });
 
-const writingTaskSchema = z.strictObject({
-  id: z.union([z.literal(1), z.literal(2)]),
-  title: z.string(),
-  instruction: z.string(),
-  lead: z.string(),
-  prompt: z.string(),
-  minimumWords: z.number().int().positive(),
-  chart: z.strictObject({
-    title: z.string(),
-    years: z.tuple([z.string(), z.string()]),
-    rows: z.array(z.strictObject({
-      label: z.string(),
-      values: z.tuple([z.number(), z.number()]),
-    })),
-    unit: z.string(),
-  }).optional(),
-});
-
 export const writingSubmissionSchema: z.ZodType<WritingSubmission> = z.strictObject({
   attemptId: z.uuid(),
   contentKey: z.string().min(1),
   tasks: z.tuple([
     z.strictObject({
-      task: writingTaskSchema,
+      task: writingTask1Schema,
       response: z.string(),
       wordCount: z.number().int().nonnegative(),
     }),
     z.strictObject({
-      task: writingTaskSchema,
+      task: writingTask2Schema,
       response: z.string(),
       wordCount: z.number().int().nonnegative(),
     }),

@@ -56,6 +56,23 @@ const migrations = [
         ON attempts(section, submitted_at DESC)`,
     ],
   },
+  {
+    version: 3,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS content_documents (
+        content_key TEXT PRIMARY KEY,
+        section TEXT NOT NULL CHECK (section IN ('listening', 'reading', 'writing')),
+        schema_version INTEGER NOT NULL,
+        document_json TEXT NOT NULL,
+        installed_at TEXT NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS active_content (
+        section TEXT PRIMARY KEY CHECK (section IN ('listening', 'reading', 'writing')),
+        content_key TEXT NOT NULL UNIQUE,
+        FOREIGN KEY (content_key) REFERENCES content_documents(content_key)
+      )`,
+    ],
+  },
 ] as const
 
 export async function migrateDatabase(database: SQLocal): Promise<void> {

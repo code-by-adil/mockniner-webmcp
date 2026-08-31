@@ -296,20 +296,29 @@ export const objectiveContentBlockSchema = z.discriminatedUnion("type", [
 const objectiveContentPartSchema = z.strictObject({
   id: z.number().int().positive().max(4),
   label: shortText,
-  instructionRange: shortText,
   instructionText: bodyText,
   blocks: z.array(objectiveContentBlockSchema).min(1).max(100),
 });
 
-export const objectiveContentDocumentSchema = z.strictObject({
+const objectiveContentDocumentBase = {
   schemaVersion: z.literal(1),
   contentKey: z.string().trim().min(1).max(100).regex(/^[a-z0-9][a-z0-9._-]*$/),
-  id: z.number().int().positive(),
-  section: z.enum(["listening", "reading"]),
   name: shortText,
-  listeningAudio: z.strictObject({ key: shortText }).optional(),
-  parts: z.array(objectiveContentPartSchema).min(3).max(4),
-}).superRefine((document, context) => {
+};
+
+export const objectiveContentDocumentSchema = z.discriminatedUnion("section", [
+  z.strictObject({
+    ...objectiveContentDocumentBase,
+    section: z.literal("listening"),
+    audioAssetKey: z.literal("local-original"),
+    parts: z.array(objectiveContentPartSchema).length(4),
+  }),
+  z.strictObject({
+    ...objectiveContentDocumentBase,
+    section: z.literal("reading"),
+    parts: z.array(objectiveContentPartSchema).length(3),
+  }),
+]).superRefine((document, context) => {
   const partIds = document.parts.map((part) => part.id);
   const expectedPartIds = Array.from(
     { length: document.parts.length },
@@ -320,29 +329,6 @@ export const objectiveContentDocumentSchema = z.strictObject({
       code: "custom",
       path: ["parts"],
       message: "Part IDs must be contiguous and ordered from 1.",
-    });
-  }
-
-  const expectedPartCount = document.section === "listening" ? 4 : 3;
-  if (document.parts.length !== expectedPartCount) {
-    context.addIssue({
-      code: "custom",
-      path: ["parts"],
-      message: `${document.section} must contain ${expectedPartCount} parts.`,
-    });
-  }
-  if (document.section === "listening" && !document.listeningAudio) {
-    context.addIssue({
-      code: "custom",
-      path: ["listeningAudio"],
-      message: "Listening content must declare one continuous audio source.",
-    });
-  }
-  if (document.section === "reading" && document.listeningAudio) {
-    context.addIssue({
-      code: "custom",
-      path: ["listeningAudio"],
-      message: "Reading content cannot declare Listening audio.",
     });
   }
 
@@ -473,6 +459,14 @@ export const objectiveContentDocumentSchema = z.strictObject({
 
 export type ObjectiveContentBlock = z.infer<typeof objectiveContentBlockSchema>;
 export type ObjectiveContentDocument = z.infer<typeof objectiveContentDocumentSchema>;
+export type ListeningContentDocument = Extract<
+  ObjectiveContentDocument,
+  { section: "listening" }
+>;
+export type ReadingContentDocument = Extract<
+  ObjectiveContentDocument,
+  { section: "reading" }
+>;
 export type ObjectiveContentPart = ObjectiveContentDocument["parts"][number];
 export type ObjectiveBlockType = ObjectiveContentBlock["type"];
 export type ObjectiveAnswerValue = z.infer<typeof objectiveAnswerSchema>;
@@ -527,15 +521,6 @@ export type ObjectiveMapQuestion = Extract<
   ObjectiveContentBlock,
   { type: "map_labeling_questions" }
 >["questions"][number];
-export type ObjectiveCollectionPackMetadata = {
-  id: number;
-  key: string;
-  collectionId: "official" | "cambridge" | "curated";
-  label: string;
-  selectionVisible: boolean;
-  isDemo?: boolean;
-};
-
 export function parseObjectiveContentDocument(input: unknown): ObjectiveContentDocument {
   return objectiveContentDocumentSchema.parse(input);
 }

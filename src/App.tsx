@@ -11,18 +11,15 @@ import {
 } from "lucide-react";
 import { ExamUiBoundary } from "@/app/layouts/UiLayerBoundary";
 import { BrandLogo, BrandWordmark } from "@/shared/ui/global/BrandLogo";
-import { toWebObjectiveTestDefinition } from "@/modules/section-packs/content-json/webObjectiveRenderer";
 import { ListeningExamRunner } from "@/modules/section-packs/listening/ui/ListeningExamRunner";
 import { ReadingExamRunner } from "@/modules/section-packs/reading/ui/ReadingExamRunner";
 import { LocalWritingExam } from "@/local/LocalWritingExam";
 import { LocalWritingReview } from "@/local/LocalWritingReview";
 import { LocalSpeakingExam } from "@/local/LocalSpeakingExam";
-import { listeningDocument, readingDocument } from "@/content/objective";
 import { SECTION_ORDER } from "@/domain/exam";
 import type { ExamMode, ExamSession } from "@/domain/session";
 import type { SectionKey } from "@/domain/types";
 import { useExamApplication } from "@/application/useExamApplication";
-import { writingTasks } from "@/content/writing";
 import { useWritingWebMcpTools } from "@/webmcp/useWritingTools";
 
 type Section = SectionKey;
@@ -49,9 +46,6 @@ const SECTION_META = {
     icon: Mic,
   },
 } as const;
-
-const listeningDefinition = toWebObjectiveTestDefinition(listeningDocument);
-const readingDefinition = toWebObjectiveTestDefinition(readingDocument);
 
 function AppHeader() {
   return (
@@ -269,10 +263,18 @@ function Results({
 }
 
 export default function App() {
-  const { state, commands } = useExamApplication();
+  const { state, content, contentReady, commands } = useExamApplication();
   useWritingWebMcpTools(commands);
   const section = state.currentSection;
   const mode = state.mode ?? "section";
+
+  if (!contentReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--exam-surface-muted)] text-sm font-semibold text-[var(--exam-text-muted)]">
+        Loading practice content…
+      </div>
+    );
+  }
 
   if (state.view === "home" || !section) {
     return <Home onStart={commands.start} />;
@@ -301,23 +303,17 @@ export default function App() {
 
   if (section === "listening" || section === "reading") {
     const isReviewMode = state.view === "review";
-    const document =
-      section === "listening" ? listeningDocument : readingDocument;
-    const definition =
-      section === "listening" ? listeningDefinition : readingDefinition;
+    const document = content[section];
     const submission = state.objectiveSubmissions[section];
-    const answerKey = definition.answerKey;
-    if (!answerKey) throw new Error(`${section} answer key is unavailable.`);
     if (isReviewMode && !submission) {
       throw new Error(`${section} review submission is unavailable.`);
     }
     const commonProps = {
-      testDefinition: definition,
+      document,
       answers: isReviewMode ? submission!.answers : state.answers[section],
       currentPart: state.partBySection[section],
       secondsRemaining: state.secondsRemaining[section],
       onBack: isReviewMode ? commands.closeReview : commands.goHome,
-      isFullExam: mode === "full",
       isReviewMode,
       onAnswerChange: (id: number, value: string) =>
         commands.setObjectiveAnswer(section, id, value),
@@ -325,14 +321,13 @@ export default function App() {
       onTick: () => commands.tick(section),
       onSubmit: isReviewMode
         ? undefined
-        : () => commands.submitObjective(document),
+        : () => commands.submitObjective(section),
     };
     return (
       <ExamUiBoundary>
         {section === "listening" ? (
           <ListeningExamRunner
             {...commonProps}
-            contentKey="local-original"
             listeningPlayback={state.listeningPlayback}
             onListeningPlaybackChange={
               isReviewMode ? () => undefined : commands.setListeningPlayback
@@ -363,6 +358,7 @@ export default function App() {
     }
     return (
       <LocalWritingExam
+        document={content.writing}
         answers={state.writingDrafts}
         currentPart={state.partBySection.writing === 2 ? 2 : 1}
         secondsRemaining={state.secondsRemaining.writing}
@@ -370,7 +366,7 @@ export default function App() {
         onAnswerChange={commands.setWritingDraft}
         onPartChange={(part) => commands.setPart("writing", part)}
         onTick={() => commands.tick("writing")}
-        onSubmit={() => commands.submitWriting("local-writing-v1", writingTasks)}
+        onSubmit={commands.submitWriting}
       />
     );
   }

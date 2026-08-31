@@ -3,7 +3,6 @@ import { RadioGroup } from "@/shared/ui/exam/RadioGroup";
 import type {
   ObjectiveWebBlockRendererProps,
 } from "@/modules/section-packs/content-json/types";
-import { getCorrectAnswer } from "./helpers";
 
 export function MCQQuestionsBlock({
   block,
@@ -21,7 +20,7 @@ export function MCQQuestionsBlock({
           value={ctx.answers[question.questionId]}
           onChange={(value) => ctx.onAnswerChange(question.questionId, value)}
           isReviewMode={ctx.isReviewMode}
-          correctAnswer={getCorrectAnswer(ctx.answerKey, question.questionId) as string | undefined}
+          correctAnswer={ctx.isReviewMode ? question.answer : undefined}
         />
       ))}
     </>
@@ -47,7 +46,7 @@ export function TrueFalseNotGivenQuestionsBlock({
           value={ctx.answers[question.questionId]}
           onChange={(value) => ctx.onAnswerChange(question.questionId, value)}
           isReviewMode={ctx.isReviewMode}
-          correctAnswer={getCorrectAnswer(ctx.answerKey, question.questionId) as string | undefined}
+          correctAnswer={ctx.isReviewMode ? question.answer : undefined}
         />
       ))}
     </>
@@ -73,7 +72,7 @@ export function YesNoNotGivenQuestionsBlock({
           value={ctx.answers[question.questionId]}
           onChange={(value) => ctx.onAnswerChange(question.questionId, value)}
           isReviewMode={ctx.isReviewMode}
-          correctAnswer={getCorrectAnswer(ctx.answerKey, question.questionId) as string | undefined}
+          correctAnswer={ctx.isReviewMode ? question.answer : undefined}
         />
       ))}
     </>

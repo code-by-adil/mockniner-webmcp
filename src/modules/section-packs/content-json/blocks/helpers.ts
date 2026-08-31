@@ -1,5 +1,9 @@
-import type { AnswerKey } from "@ielts/shared";
-
-export function getCorrectAnswer(answerKey: AnswerKey | undefined, id: number) {
-  return answerKey?.[id];
+export function findCorrectAnswer(
+  questions: ReadonlyArray<{
+    questionId: number;
+    answer: string | string[];
+  }>,
+  questionId: number,
+) {
+  return questions.find((question) => question.questionId === questionId)?.answer;
 }

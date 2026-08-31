@@ -1,17 +1,13 @@
 {
   "schemaVersion": 1,
   "contentKey": "local-listening-v1",
-  "id": 1,
   "section": "listening",
   "name": "Academic Listening Practice Test 1",
-  "listeningAudio": {
-    "key": "local-original"
-  },
+  "audioAssetKey": "local-original",
   "parts": [
     {
       "id": 1,
       "label": "Part 1",
-      "instructionRange": "1–10",
       "instructionText": "Listen and answer questions 1–10. You will hear the recording once only.",
       "blocks": [
         {
@@ -97,7 +93,6 @@
     {
       "id": 2,
       "label": "Part 2",
-      "instructionRange": "11–20",
       "instructionText": "Listen and answer questions 11–20. You will hear the recording once only.",
       "blocks": [
         {
@@ -438,7 +433,6 @@
     {
       "id": 3,
       "label": "Part 3",
-      "instructionRange": "21–30",
       "instructionText": "Listen and answer questions 21–30. You will hear the recording once only.",
       "blocks": [
         {
@@ -536,7 +530,6 @@
     {
       "id": 4,
       "label": "Part 4",
-      "instructionRange": "31–40",
       "instructionText": "Listen and answer questions 31–40. You will hear the recording once only.",
       "blocks": [
         {
@@ -618,4 +611,3 @@
     }
   ]
 }
-

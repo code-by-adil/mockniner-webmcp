@@ -1,5 +1,5 @@
 import React from "react";
-import type { ObjectiveInputLine } from "@ielts/shared";
+import type { ObjectiveInputLine } from "@/domain/objectiveContent";
 
 type FlowchartCompletionProps = {
   title?: string | undefined;

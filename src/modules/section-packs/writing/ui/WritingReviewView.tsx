@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import {
-  getWritingIssueTitle,
-  type WritingAnnotation,
-  type WritingScore,
-} from "@ielts/shared";
+import type {
+  WritingAnnotation,
+  WritingTaskEvaluation,
+} from "@/domain/types";
 import { ResizableSplitPane } from "@/shared/ui/exam/ResizableSplitPane";
 import { ExamBrandMark } from "@/modules/exam-engine/ui/ExamBrandMark";
 import {
@@ -25,7 +24,7 @@ import { supportsNativeDialog } from "@/shared/ui/exam/cssAnchorPositioning";
 
 interface Props {
   essay: string;
-  scoreData: WritingScore;
+  scoreData: WritingTaskEvaluation;
   onClose: () => void;
   taskOptions?: Array<{
     id: 1 | 2;
@@ -59,6 +58,13 @@ type SanitizedAnnotations = {
 };
 
 const EMPTY_WRITING_ANNOTATIONS: WritingAnnotation[] = [];
+
+function getWritingIssueTitle(annotation: WritingAnnotation): string {
+  const explicitTitle = annotation.shortTitle?.trim() || annotation.issueTitle?.trim();
+  if (explicitTitle) return explicitTitle;
+  const derivedTitle = annotation.explanation.split(".")[0]?.trim();
+  return derivedTitle || "Writing issue";
+}
 
 function normalizeSnippet(value: string): string {
   return value.replace(/\s+/g, " ").trim().toLowerCase();

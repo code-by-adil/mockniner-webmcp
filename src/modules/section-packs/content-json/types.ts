@@ -1,10 +1,14 @@
+import type { AnswerMap } from "@/domain/types";
 import type {
   ObjectiveContentBlock,
   ObjectiveBlockType,
-  TestPartProps,
-} from "@ielts/shared";
+} from "@/domain/objectiveContent";
 
-export type ObjectiveWebRenderContext = TestPartProps;
+export type ObjectiveWebRenderContext = {
+  answers: AnswerMap;
+  onAnswerChange: (id: number, value: string) => void;
+  isReviewMode: boolean;
+};
 
 export type ObjectiveWebBlockByType<T extends ObjectiveBlockType> = Extract<
   ObjectiveContentBlock,

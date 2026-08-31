@@ -1,5 +1,11 @@
-import { gradeObjectiveDocument } from '@/domain/exam'
-import type { ObjectiveContentDocument } from '@/domain/objectiveContent'
+import { countWords, gradeObjectiveDocument } from '@/domain/exam'
+import {
+  parsePracticeContentDocument,
+  replaceActiveContent,
+  requireActiveObjectiveContent,
+  type ActiveContentDocuments,
+  type PracticeContentDocument,
+} from '@/domain/contentDocument'
 import {
   finalizeWritingEvaluation,
   type WritingEvaluationInput,
@@ -17,18 +23,21 @@ import type {
   WritingEvaluation,
   WritingSubmission,
   WritingSubmittedTask,
-  WritingTask,
 } from '@/domain/types'
 import type {
   AttemptWriter,
   CompleteSpeakingAttemptInput,
 } from './attemptWriter'
+import type { ContentStore } from './contentStore'
 
 type CommandDependencies = {
   getState: () => ExamSession
   dispatch: (action: SessionAction) => void
   now?: () => Date
   getAttemptWriter: () => Promise<AttemptWriter>
+  getContent: () => ActiveContentDocuments
+  setContent: (documents: ActiveContentDocuments) => void
+  getContentStore: () => Promise<ContentStore>
 }
 
 export type ExamApplicationCommands = {
@@ -44,13 +53,11 @@ export type ExamApplicationCommands = {
   setWritingDraft: (task: 1 | 2, value: string) => void
   setListeningPlayback: (playback: ListeningPlaybackState) => void
   tick: (section: SectionKey) => void
+  installContent: (input: unknown) => Promise<PracticeContentDocument>
   submitObjective: (
-    document: ObjectiveContentDocument,
+    section: 'listening' | 'reading',
   ) => Promise<ObjectiveSubmission>
-  submitWriting: (
-    contentKey: string,
-    tasks: readonly [WritingTask, WritingTask],
-  ) => Promise<WritingSubmission>
+  submitWriting: () => Promise<WritingSubmission>
   attachWritingEvaluation: (
     input: WritingEvaluationInput,
   ) => Promise<WritingEvaluation>
@@ -77,16 +84,14 @@ function requireVisibleSection(state: ExamSession, section: SectionKey): void {
   }
 }
 
-function countWords(value: string): number {
-  const trimmed = value.trim()
-  return trimmed ? trimmed.split(/\s+/).length : 0
-}
-
 export function createExamApplicationCommands({
   getState,
   dispatch,
   now = () => new Date(),
   getAttemptWriter,
+  getContent,
+  setContent,
+  getContentStore,
 }: CommandDependencies): ExamApplicationCommands {
   return {
     start(mode, requestedSection) {
@@ -124,10 +129,18 @@ export function createExamApplicationCommands({
     tick(section) {
       dispatch({ type: 'TICK', section })
     },
-    async submitObjective(document) {
+    async installContent(input) {
+      const document = parsePracticeContentDocument(input)
+      await (await getContentStore()).saveAndActivate(document)
+      setContent(replaceActiveContent(getContent(), document))
+      dispatch({ type: 'RESET' })
+      return document
+    },
+    async submitObjective(section) {
       const state = getState()
-      const { section, contentKey } = document
       requireActiveSection(state, section)
+      const document = requireActiveObjectiveContent(getContent(), section)
+      const { contentKey } = document
       const result = gradeObjectiveDocument(document, state.answers[section])
       const submittedAt = now().toISOString()
       const submission = await (await getAttemptWriter()).saveObjectiveAttempt({
@@ -142,16 +155,17 @@ export function createExamApplicationCommands({
       dispatch({ type: 'COMPLETE_OBJECTIVE', submission })
       return submission
     },
-    async submitWriting(contentKey, tasks) {
+    async submitWriting() {
       const state = getState()
       requireActiveSection(state, 'writing')
+      const document = getContent().writing
       const submittedAt = now().toISOString()
-      const submittedTasks = tasks.map((task) => {
+      const submittedTasks = document.tasks.map((task) => {
         const response = state.writingDrafts[task.id]
         return { task, response, wordCount: countWords(response) }
       }) as [WritingSubmittedTask, WritingSubmittedTask]
       const submission = await (await getAttemptWriter()).saveWritingAttempt({
-        contentKey,
+        contentKey: document.contentKey,
         tasks: submittedTasks,
         startedAt:
           state.startedAtBySection.writing ?? state.startedAt ?? submittedAt,

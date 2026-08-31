@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { writingTasks } from '@/content/writing'
+import { writingDocument } from '@/content/writing'
 import type { WritingEvaluation, WritingSubmission } from '@/domain/types'
 import { createWritingToolDefinitions } from './useWritingTools'
 
@@ -8,8 +8,8 @@ const submission: WritingSubmission = {
   attemptId,
   contentKey: 'local-writing-v1',
   tasks: [
-    { task: writingTasks[0], response: 'Task one answer.', wordCount: 3 },
-    { task: writingTasks[1], response: 'Task two answer.', wordCount: 3 },
+    { task: writingDocument.tasks[0], response: 'Task one answer.', wordCount: 3 },
+    { task: writingDocument.tasks[1], response: 'Task two answer.', wordCount: 3 },
   ],
   startedAt: '2026-08-31T10:00:00.000Z',
   submittedAt: '2026-08-31T11:00:00.000Z',

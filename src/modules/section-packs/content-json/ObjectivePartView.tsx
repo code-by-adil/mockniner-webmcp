@@ -1,21 +1,23 @@
 import React from "react";
-import {
-  splitObjectivePartBlocks,
-  toObjectiveBlockListItems,
-  type ObjectiveBlockListItem,
-  type ObjectiveContentBlock,
-  type ObjectiveContentDocument,
-  type TestPartProps,
-} from "@ielts/shared";
+import type {
+  ObjectiveContentBlock,
+  ObjectiveContentDocument,
+} from "@/domain/objectiveContent";
 import { HighlightableArea } from "@/shared/ui/exam/HighlightableArea";
 import { ResizableSplitPane } from "@/shared/ui/exam/ResizableSplitPane";
 import { ObjectiveWebBlock } from "./blocks";
+import type { ObjectiveWebRenderContext } from "./types";
 import {
   HeadingMatchingOptionsBlock,
   HeadingMatchingPassageBlock,
 } from "./blocks/MatchingQuestionsBlock";
+import {
+  splitObjectivePartBlocks,
+  toObjectiveBlockListItems,
+  type ObjectiveBlockListItem,
+} from "./objectiveRendering";
 
-type ObjectivePartViewProps = TestPartProps & {
+type ObjectivePartViewProps = ObjectiveWebRenderContext & {
   part: ObjectiveContentDocument["parts"][number];
   section: ObjectiveContentDocument["section"];
 };
@@ -26,12 +28,11 @@ function BlockList({
   className = "",
 }: {
   blocks: ObjectiveBlockListItem[];
-  exam: TestPartProps;
+  exam: ObjectiveWebRenderContext;
   className?: string;
 }) {
   return (
     <div className={className}>
-      {exam.headerContent}
       {blocks.map((item) => (
         <ObjectiveWebBlock
           key={`${item.block.type}-${item.originalIndex}`}
@@ -40,7 +41,6 @@ function BlockList({
           index={item.originalIndex}
         />
       ))}
-      {exam.footerContent}
     </div>
   );
 }
@@ -95,7 +95,6 @@ export function ObjectivePartView({
           }
           right={
             <div className="h-full overflow-y-auto bg-white p-4 sm:p-6">
-              {exam.headerContent}
               {questionBlocks.map((item) =>
                 item.block.type === "heading_matching_questions" &&
                 headingMatchingBlock ? (
@@ -114,7 +113,6 @@ export function ObjectivePartView({
                   />
                 ),
               )}
-              {exam.footerContent}
             </div>
           }
           initialLeftPercent={50}

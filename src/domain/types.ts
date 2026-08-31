@@ -1,23 +1,10 @@
+import type { WritingTask } from './writingContent'
+
 export type SectionKey = 'listening' | 'reading' | 'writing' | 'speaking'
 
 export type AnswerValue = string
 export type AnswerMap = Record<number, AnswerValue>
 export type AnswerKey = Record<number, string | string[]>
-
-export type WritingTask = {
-  id: 1 | 2
-  title: string
-  instruction: string
-  lead: string
-  prompt: string
-  minimumWords: number
-  chart?: {
-    title: string
-    years: [string, string]
-    rows: Array<{ label: string; values: [number, number] }>
-    unit: string
-  }
-}
 
 export type SpeakingPrompt = {
   id: number
@@ -107,3 +94,4 @@ export type SpeakingSubmission = {
   recordingIds: string[]
   submittedAt: string
 }
+export type { WritingTask } from './writingContent'

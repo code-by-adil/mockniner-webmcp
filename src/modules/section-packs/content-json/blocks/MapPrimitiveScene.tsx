@@ -4,7 +4,7 @@ import type {
   ObjectiveMapPoint,
   ObjectiveMapScene,
   ObjectiveMapSymbolElement,
-} from "@ielts/shared";
+} from "@/domain/objectiveContent";
 import type { MapViewBoxRect } from "./mapDisplayViewBox";
 
 type MapPrimitiveSceneProps = {

@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SQLocal } from 'sqlocal'
-import { writingTasks } from '@/content/writing'
+import { writingDocument } from '@/content/writing'
 import type { WritingEvaluation } from '@/domain/types'
 import { migrateDatabase } from './migrations'
 import {
@@ -67,8 +67,8 @@ describe('local attempt repository', () => {
     const submission = await saveWritingAttempt(database, {
       contentKey: 'local-writing-v1',
       tasks: [
-        { task: writingTasks[0], response: 'Task one answer.', wordCount: 3 },
-        { task: writingTasks[1], response: 'Task two answer.', wordCount: 3 },
+        { task: writingDocument.tasks[0], response: 'Task one answer.', wordCount: 3 },
+        { task: writingDocument.tasks[1], response: 'Task two answer.', wordCount: 3 },
       ],
       startedAt: '2026-08-31T10:00:00.000Z',
       submittedAt: '2026-08-31T11:00:00.000Z',
@@ -95,7 +95,12 @@ describe('local attempt repository', () => {
     const stored = await readWritingAttempt(database, submission.attemptId)
 
     expect(stored?.submission).toEqual(submission)
-    expect(stored?.submission.tasks[0]?.task.chart?.rows).toHaveLength(7)
+    const storedTask1 = stored?.submission.tasks[0]?.task
+    expect(storedTask1?.type).toBe('academic_task_1_bar_chart')
+    if (storedTask1?.type !== 'academic_task_1_bar_chart') {
+      throw new Error('Expected the stored first Writing task to be Task 1.')
+    }
+    expect(storedTask1.chart.rows).toHaveLength(7)
     expect(stored?.evaluation).toEqual(evaluation)
     const [attempt] = await database.sql<{ status: string }>`
       SELECT status FROM attempts WHERE id = ${submission.attemptId}

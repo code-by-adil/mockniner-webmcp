@@ -1,12 +1,18 @@
 import React, { useCallback, useState, useRef, useEffect } from "react";
 import { Loader2, Mic, RotateCcw, Square } from "lucide-react";
-import type { SpeakingQuestion } from "@ielts/shared";
 import type { CompleteSpeakingAttemptInput } from "@/application/attemptWriter";
 import { reportWebHandledProductFailure } from "@/shared/observability/report-error";
 import {
   useSpeakingRecorder,
   type RecordedSpeakingResponse,
 } from "../useSpeakingRecorder";
+
+export type SpeakingQuestion = {
+  id: number;
+  part: string;
+  text: string;
+  timeLimit: number;
+};
 
 interface Props {
   contentKey: string;

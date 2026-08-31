@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Play, SkipForward, X } from "lucide-react";
 import { getListeningAudioSources } from "@/infrastructure/media/listeningAudio";
 import {
-  formatTime,
   parseListeningTimeline,
   type ListeningAudioPersistedState,
   type NormalizedListeningTimeline,
-} from "@ielts/shared";
+} from "@/infrastructure/media/listeningTimeline";
+import { formatTime } from "@/domain/exam";
 
 type ListeningSilenceRange =
   NormalizedListeningTimeline["silenceRanges"][number];
@@ -28,7 +28,7 @@ function findLastIndexLeq(starts: number[], t: number): number {
   return ans;
 }
 
-export type { ListeningAudioPersistedState } from "@ielts/shared";
+export type { ListeningAudioPersistedState } from "@/infrastructure/media/listeningTimeline";
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -76,7 +76,7 @@ export type ListeningAudioUiStatus = {
 };
 
 type Props = {
-  contentKey: string;
+  audioAssetKey: string;
   currentPart: number;
   isReviewMode: boolean;
   placement?: "inline" | "header-popout";
@@ -88,7 +88,7 @@ type Props = {
 };
 
 export const ListeningAudioBar: React.FC<Props> = ({
-  contentKey,
+  audioAssetKey,
   currentPart,
   isReviewMode,
   placement = "inline",
@@ -99,8 +99,8 @@ export const ListeningAudioBar: React.FC<Props> = ({
   isMuted = false,
 }) => {
   const sources = useMemo(
-    () => getListeningAudioSources(contentKey),
-    [contentKey],
+    () => getListeningAudioSources(audioAssetKey),
+    [audioAssetKey],
   );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);

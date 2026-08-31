@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import type { SpeakingQuestion } from "@ielts/shared";
 import { ExamUiBoundary } from "@/app/layouts/UiLayerBoundary";
 import { Header } from "@/modules/exam-engine/ui/Header";
-import { StandardSpeakingMode } from "@/modules/section-packs/speaking/ui/StandardSpeakingMode";
+import {
+  StandardSpeakingMode,
+  type SpeakingQuestion,
+} from "@/modules/section-packs/speaking/ui/StandardSpeakingMode";
 import { GlobalMultiStepThinkingLoader } from "@/shared/ui/global/GlobalMultiStepThinkingLoader";
 import { SPEAKING_CONTENT_KEY, speakingPrompts } from "@/content/speaking";
 import type { CompleteSpeakingAttemptInput } from "@/application/attemptWriter";

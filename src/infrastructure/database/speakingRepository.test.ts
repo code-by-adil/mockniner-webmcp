@@ -108,6 +108,6 @@ describe('Speaking SQLite repository', () => {
     const rows = await database.sql<{ version: number }>`
       SELECT version FROM app_schema_migrations ORDER BY version
     `
-    expect(rows.map((row) => Number(row.version))).toEqual([1, 2])
+    expect(rows.map((row) => Number(row.version))).toEqual([1, 2, 3])
   })
 })

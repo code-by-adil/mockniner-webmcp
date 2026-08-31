@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { writingTasks } from '@/content/writing'
+import { writingDocument } from '@/content/writing'
 import type {
   WritingEvaluation,
   WritingSubmission,
@@ -14,12 +14,12 @@ const submission: WritingSubmission = {
   contentKey: 'local-writing-v1',
   tasks: [
     {
-      task: writingTasks[0],
+      task: writingDocument.tasks[0],
       response: 'The chart shows a clear rise in participation.',
       wordCount: 9,
     },
     {
-      task: writingTasks[1],
+      task: writingDocument.tasks[1],
       response: 'Living alone has both social and economic causes.',
       wordCount: 9,
     },

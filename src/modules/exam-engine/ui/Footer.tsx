@@ -1,7 +1,10 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Check, ChevronDown } from 'lucide-react';
-import type { TestPartDefinition } from '@ielts/shared';
+import {
+  getObjectiveBlockQuestionIds,
+  type ObjectiveContentDocument,
+} from '@/domain/objectiveContent';
 import {
   handleExamDialogBackdropClick,
   useExamNativeDialog,
@@ -682,22 +685,11 @@ export function WritingExamFooter({
   );
 }
 
-const NUMBER_PATTERN = /\d+/g;
-
-function parseInstructionQuestionRange(instructionRange: string): number[] {
-  const rangeNumbers = instructionRange.match(NUMBER_PATTERN);
-  if (!rangeNumbers || rangeNumbers.length < 2) return [];
-  const start = Number(rangeNumbers[0]);
-  const end = Number(rangeNumbers[1]);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return [];
-  return Array.from({ length: end - start + 1 }, (_, idx) => start + idx);
-}
-
 export function buildObjectiveFooterParts(
-  parts: Array<Pick<TestPartDefinition, 'id' | 'instructionRange'>>,
+  document: ObjectiveContentDocument,
 ): ObjectiveFooterPart[] {
-  return parts.map((part) => ({
+  return document.parts.map((part) => ({
     part: part.id,
-    questionNumbers: parseInstructionQuestionRange(part.instructionRange),
+    questionNumbers: part.blocks.flatMap(getObjectiveBlockQuestionIds),
   }));
 }

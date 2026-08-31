@@ -10,7 +10,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      '@ielts/shared': fileURLToPath(new URL('./src/vendor/ielts-shared/index.ts', import.meta.url)),
     },
   },
 })

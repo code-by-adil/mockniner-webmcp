@@ -40,7 +40,7 @@ function answerMatches(userAnswer: string, correctAnswer: string | string[]): bo
   return candidates.some((candidate) => normalizeAnswer(candidate) === normalized)
 }
 
-export function gradeObjectiveAnswers(
+function gradeObjectiveAnswers(
   section: 'listening' | 'reading',
   answerKey: AnswerKey,
   answers: AnswerMap,
@@ -93,8 +93,4 @@ export function formatTime(seconds: number): string {
 export function calculateOverallBand(values: number[]): number | null {
   if (values.length !== 4) return null
   return Math.round((values.reduce((sum, value) => sum + value, 0) / 4) * 2) / 2
-}
-
-export function getAnswerKeySize(answerKey: AnswerKey): number {
-  return Object.keys(answerKey).length
 }

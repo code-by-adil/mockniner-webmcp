@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { listeningDocument } from '@/content/objective'
+import { listeningDocument, readingDocument } from '@/content/objective'
 import { initialSession, sessionReducer, type ExamSession } from '@/domain/session'
-import { writingTasks } from '@/content/writing'
+import { writingDocument } from '@/content/writing'
 import type {
   ObjectiveSubmission,
   SpeakingSubmission,
@@ -11,9 +11,20 @@ import { createExamApplicationCommands } from './commands'
 
 function createHarness() {
   let state: ExamSession = initialSession
+  let content = {
+    listening: listeningDocument,
+    reading: readingDocument,
+    writing: writingDocument,
+  }
   const persistEvaluation = vi.fn(async () => undefined)
+  const saveAndActivate = vi.fn(async () => undefined)
   const commands = createExamApplicationCommands({
     getState: () => state,
+    getContent: () => content,
+    setContent: (next) => {
+      content = next
+    },
+    getContentStore: async () => ({ loadActive: async () => [], saveAndActivate }),
     dispatch: (action) => {
       state = sessionReducer(state, action)
     },
@@ -37,7 +48,13 @@ function createHarness() {
       }),
     }),
   })
-  return { commands, getState: () => state, persistEvaluation }
+  return {
+    commands,
+    getState: () => state,
+    getContent: () => content,
+    persistEvaluation,
+    saveAndActivate,
+  }
 }
 
 describe('exam application commands', () => {
@@ -47,7 +64,7 @@ describe('exam application commands', () => {
     harness.commands.setObjectiveAnswer('listening', 1, 'carter')
     harness.commands.setObjectiveAnswer('listening', 3, '9.30')
 
-    const submission = await harness.commands.submitObjective(listeningDocument)
+    const submission = await harness.commands.submitObjective('listening')
 
     expect(submission).toMatchObject({
       section: 'listening',
@@ -66,7 +83,7 @@ describe('exam application commands', () => {
     harness.commands.setWritingDraft(1, 'Task one response')
     harness.commands.setWritingDraft(2, 'Task two response')
 
-    const submission = await harness.commands.submitWriting('local-writing-v1', writingTasks)
+    const submission = await harness.commands.submitWriting()
 
     expect(submission).toMatchObject({
       attemptId: '22222222-2222-4222-8222-222222222222',
@@ -78,6 +95,30 @@ describe('exam application commands', () => {
       submittedAt: '2026-08-31T10:00:00.000Z',
     })
     expect(harness.getState().writingSubmission).toEqual(submission)
+  })
+
+  it('validates, persists, and activates one content document through one command', async () => {
+    const harness = createHarness()
+    harness.commands.start('section', 'writing')
+    const replacement = {
+      ...writingDocument,
+      contentKey: 'agent-writing-v1',
+      name: 'Agent-created Writing practice',
+    }
+
+    await expect(harness.commands.installContent(replacement)).resolves.toEqual(replacement)
+    expect(harness.saveAndActivate).toHaveBeenCalledWith(replacement)
+    expect(harness.getContent().writing).toEqual(replacement)
+    expect(harness.getState()).toEqual(initialSession)
+  })
+
+  it('rejects invalid content before persistence or activation', async () => {
+    const harness = createHarness()
+    await expect(
+      harness.commands.installContent({ section: 'writing', tasks: [] }),
+    ).rejects.toThrow()
+    expect(harness.saveAndActivate).not.toHaveBeenCalled()
+    expect(harness.getContent().writing).toEqual(writingDocument)
   })
 
   it('persists Speaking evidence through the command layer before completing', async () => {
@@ -114,7 +155,7 @@ describe('exam application commands', () => {
   it('persists an agent evaluation before opening Writing review', async () => {
     const harness = createHarness()
     harness.commands.start('section', 'writing')
-    await harness.commands.submitWriting('local-writing-v1', writingTasks)
+    await harness.commands.submitWriting()
     const task = {
       band: 7,
       taskAchievement: 7,

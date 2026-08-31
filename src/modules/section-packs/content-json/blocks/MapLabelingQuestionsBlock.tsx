@@ -1,5 +1,5 @@
 import React from "react";
-import type { ObjectiveMapAnswerSlotElement } from "@ielts/shared";
+import type { ObjectiveMapAnswerSlotElement } from "@/domain/objectiveContent";
 import { useIsCompactExamLayout } from "@/hooks/use-mobile";
 import { DraggableItem } from "@/shared/ui/exam/DraggableItem";
 import { DragOptionRegistry } from "@/shared/ui/exam/DragOptionRegistry";
@@ -10,7 +10,7 @@ import { useExamProximityDropLayer } from "@/shared/ui/exam/examProximityDrop";
 import type {
   ObjectiveWebBlockRendererProps,
 } from "@/modules/section-packs/content-json/types";
-import { getCorrectAnswer } from "./helpers";
+import { findCorrectAnswer } from "./helpers";
 import { MapPrimitiveScene } from "./MapPrimitiveScene";
 import {
   getFullMapViewBox,
@@ -108,7 +108,9 @@ function AnswerSlot({
   mapInteraction?: "drag" | "tap";
 }) {
   const value = ctx.answers[slot.questionId] ?? "";
-  const correctAnswer = getCorrectAnswer(ctx.answerKey, slot.questionId);
+  const correctAnswer = ctx.isReviewMode
+    ? findCorrectAnswer(block.questions, slot.questionId)
+    : undefined;
 
   if (block.response.type === "text") {
     return (
@@ -196,7 +198,7 @@ function QuestionAnswerList({
               onClear={() => ctx.onAnswerChange(question.questionId, "")}
               placeholder={String(question.questionId)}
               isReviewMode={ctx.isReviewMode}
-              correctAnswer={getCorrectAnswer(ctx.answerKey, question.questionId)}
+              correctAnswer={ctx.isReviewMode ? question.answer : undefined}
               mapInteraction={mapInteraction}
             />
           </div>

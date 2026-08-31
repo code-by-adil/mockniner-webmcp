@@ -1,15 +1,9 @@
-import type React from "react";
-import type {
-  AnswerMap,
-  TestDefinition,
-} from "@ielts/shared";
+import type { ObjectiveContentDocument } from "@/domain/objectiveContent";
+import type { AnswerMap } from "@/domain/types";
 
 export type ObjectivePracticeRunnerProps = {
-  testDefinition: TestDefinition;
-  contentKey?: string | undefined;
-  topBarContent?: React.ReactNode | undefined;
+  document: ObjectiveContentDocument;
   onBack: () => void;
-  isFullExam?: boolean | undefined;
   isReviewMode?: boolean | undefined;
   answers: AnswerMap;
   currentPart: number;

@@ -1,14 +1,12 @@
 {
   "schemaVersion": 1,
   "contentKey": "local-reading-v1",
-  "id": 2,
   "section": "reading",
   "name": "Academic Reading Practice Test 1",
   "parts": [
     {
       "id": 1,
       "label": "Passage 1",
-      "instructionRange": "1–13",
       "instructionText": "Read the text and answer questions 1–13.",
       "blocks": [
         {
@@ -128,7 +126,6 @@
     {
       "id": 2,
       "label": "Passage 2",
-      "instructionRange": "14–26",
       "instructionText": "Read the text and answer questions 14–26.",
       "blocks": [
         {
@@ -317,7 +314,6 @@
     {
       "id": 3,
       "label": "Passage 3",
-      "instructionRange": "27–40",
       "instructionText": "Read the text and answer questions 27–40.",
       "blocks": [
         {
@@ -455,4 +451,3 @@
     }
   ]
 }
-

@@ -9,7 +9,7 @@ import {
 import type {
   ObjectiveWebBlockRendererProps,
 } from "@/modules/section-packs/content-json/types";
-import { getCorrectAnswer } from "./helpers";
+import { findCorrectAnswer } from "./helpers";
 
 type MatchingBlockType = "feature_matching_questions" | "heading_matching_questions";
 type MatchingBlock = ObjectiveWebBlockRendererProps<MatchingBlockType>["block"];
@@ -69,7 +69,9 @@ function MatchingQuestionsBlock({
         placeholder={block.placeholder}
         usedAnswers={usedAnswers}
         optionLabel={matchingOptionLetter}
-        getCorrectAnswer={(questionId) => getCorrectAnswer(ctx.answerKey, questionId)}
+        getCorrectAnswer={(questionId) =>
+          ctx.isReviewMode ? findCorrectAnswer(block.questions, questionId) : undefined
+        }
       />
     </div>
   );
@@ -158,7 +160,7 @@ export function HeadingMatchingPassageBlock({
                 onClear={() => onAnswerChange(question.questionId, "")}
                 placeholder={String(question.questionId)}
                 isReviewMode={ctx.isReviewMode}
-                correctAnswer={getCorrectAnswer(ctx.answerKey, question.questionId)}
+                correctAnswer={ctx.isReviewMode ? question.answer : undefined}
                 proximityActive={proximitySlotId === question.questionId}
                 catchFlash={caughtSlotId === question.questionId}
               />
