@@ -1,0 +1,26 @@
+Daniel|You will hear a conversation between a customer and a staff member at the Harbour Cycling Centre. First, you have some time to look at questions one to ten. Now listen carefully and answer questions one to ten.
+Samantha|Good morning, Harbour Cycling Centre. How can I help?
+Daniel|Hello. I would like to book a place on the city cycling course.
+Samantha|Of course. I will complete the form with you. First, what is your family name?
+Daniel|It is Carter. That is C A R T E R.
+Samantha|Thank you, Mister Carter. We have courses beginning on Tuesday and Thursday next week.
+Daniel|Thursday would be better because I work on Tuesday.
+Samantha|The Thursday course begins at nine thirty in the morning. Please arrive fifteen minutes before that so we can check the bicycles.
+Daniel|That is fine. Where should I meet the group?
+Samantha|At the Riverside entrance. It is the entrance facing the footbridge, not the one beside the car park.
+Daniel|Riverside entrance. Got it.
+Samantha|The course fee is eighteen pounds. That includes the guided ride and lunch.
+Daniel|Do I need to bring any equipment?
+Samantha|Wear comfortable clothes and bring a water bottle. The centre provides a helmet, and you may borrow gloves if the weather is cold.
+Daniel|Good. I have not ridden very much recently. Which ability level should I choose?
+Samantha|I will put you in the beginner group. The intermediate group travels much further.
+Daniel|That sounds sensible. Is there somewhere safe for my bag?
+Samantha|Yes. Every participant can use a locker. Bring a one-pound coin for the lock; you get the coin back afterwards.
+Daniel|And you mentioned lunch. I do not eat meat.
+Samantha|No problem. I will record the vegetarian choice for you. We also have a vegan option, but vegetarian is the one you want, correct?
+Daniel|Correct.
+Samantha|Excellent. Your booking is complete. Please write down the reference H six four. That is the letter H, followed by sixty-four.
+Daniel|H six four. Thank you.
+Samantha|We will email a route map this afternoon. If the weather is unsafe we will contact you, but light rain will not cancel the course.
+Daniel|All right. I look forward to it.
+Samantha|Thank you for calling. You now have some time to check your answers.
