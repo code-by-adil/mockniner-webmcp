@@ -1,0 +1,458 @@
+{
+  "schemaVersion": 1,
+  "contentKey": "local-reading-v1",
+  "id": 2,
+  "section": "reading",
+  "name": "Academic Reading Practice Test 1",
+  "parts": [
+    {
+      "id": 1,
+      "label": "Passage 1",
+      "instructionRange": "1–13",
+      "instructionText": "Read the text and answer questions 1–13.",
+      "blocks": [
+        {
+          "type": "passage",
+          "title": "Small forests, fast change",
+          "paragraphs": [
+            "A  On a former car park beside a library in the fictional city of Bellweather, a dense patch of native trees now occupies a space smaller than a tennis court. The planting is deliberately crowded: young oaks, birches, hazels and shrubs stand far closer together than they would in a conventional park. From the pavement it looks slightly untidy, but that is part of the idea. Its designers want a self-sustaining pocket of woodland, not a collection of ornamental trees surrounded by clipped grass.",
+            "B  The approach begins with the soil. Urban ground is often compacted by vehicles and construction, leaving little air or water around plant roots. At Bellweather, workers first removed buried rubble and loosened the ground to a depth of about one metre. They then mixed the existing earth with locally produced compost and leaf mould. No imported topsoil was used. The choice reduced transport and, more importantly, preserved a connection with the geology of the site.",
+            "C  Plant selection followed a survey of older woods within thirty kilometres of the city. The team recorded which species naturally appeared together and used those observations as a guide. More than twenty species were included, from tall canopy trees to shade-tolerant shrubs. Supporters argue that diversity makes the planting less vulnerable: a pest that damages one species is unlikely to destroy the entire forest. The mixture also provides food and shelter at different times of year.",
+            "D  The trees were planted at roughly three per square metre. This density creates competition for light, so many saplings grow upwards quickly. It also shades the ground, helping it retain moisture and making it harder for weeds to dominate. For the first two summers volunteers watered the site during dry periods and replaced failed plants. After that, routine watering stopped. Fallen leaves were left where they landed, gradually creating the damp surface layer found in mature woodland.",
+            "E  Early measurements are encouraging, though not conclusive. Summer temperatures recorded inside the plot have sometimes been several degrees lower than those on the neighbouring pavement. Insects arrived within months, and residents later reported seeing wrens and hedgehogs. Researchers have also measured carbon in the growing trunks and soil. However, they caution against comparing the site directly with an ancient forest, whose ecological relationships have developed over centuries.",
+            "F  Not everyone is persuaded. Some landscape architects say that advocates focus on rapid growth while overlooking the high number of saplings needed at the start. Others question whether a method developed for different climates can be transferred unchanged. A densely planted site may struggle during a prolonged drought, especially if local species and soil conditions were poorly studied. There is also disagreement about appearance: some neighbours value wildness, while others see neglect.",
+            "G  Bellweather’s project therefore includes a long monitoring programme. Each autumn, students count surviving trees, measure selected trunks and record birds and invertebrates. The city publishes the results, including failures, rather than treating the forest as a finished display. Managers say this openness matters because the project is an experiment. If a species repeatedly dies, future plantings can use less of it; if paths become muddy, access can be redesigned without disturbing the central habitat.",
+            "H  Pocket forests will not replace large parks or protect the extensive landscapes on which many species depend. Their value is more modest. They can bring shade, permeable soil and everyday contact with nature to districts where land is scarce. Bellweather is now testing plots beside two schools and a health centre, each adapted to its own ground conditions. The lesson is not that every empty corner should follow one recipe, but that even a small site can become useful when design begins with careful observation.",
+            "I  The project has also changed how the council budgets for small green spaces. Most of the expense came at the beginning, when the ground was repaired and hundreds of young plants were purchased. Later costs are largely connected with surveys and keeping the edge safe beside the pavement. This differs from a flower garden that requires seasonal replanting, but it does not mean the forest is free to manage. Dead branches near paths must be removed, litter can smother low plants and public signs need repair. Project leaders argue that these ordinary duties should be stated honestly. A forest presented as maintenance-free may lose support when work becomes visible, whereas residents who understand the long experiment are more likely to accept change, including the loss of some young trees. Clear expectations also help volunteers decide whether they can offer practical support over several years instead of joining only the first planting day."
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 1–6",
+          "instruction": "Do the following statements agree with the information in the passage? Choose TRUE, FALSE or NOT GIVEN."
+        },
+        {
+          "type": "true_false_not_given_questions",
+          "questions": [
+            {
+              "questionId": 1,
+              "questionText": "The Bellweather forest was planted on land previously used for parking.",
+              "answer": "TRUE"
+            },
+            {
+              "questionId": 2,
+              "questionText": "The designers wanted the site to resemble a formal public garden.",
+              "answer": "FALSE"
+            },
+            {
+              "questionId": 3,
+              "questionText": "Soil brought from outside the region was added to the site.",
+              "answer": "FALSE"
+            },
+            {
+              "questionId": 4,
+              "questionText": "The forest contains more than twenty different plant species.",
+              "answer": "TRUE"
+            },
+            {
+              "questionId": 5,
+              "questionText": "All the trees survived the first two summers.",
+              "answer": "NOT GIVEN"
+            },
+            {
+              "questionId": 6,
+              "questionText": "The project cost less than creating a conventional park of the same size.",
+              "answer": "NOT GIVEN"
+            }
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 7–13",
+          "instruction": "Complete the notes below. Write ONE WORD ONLY from the passage for each answer."
+        },
+        {
+          "type": "completion_questions",
+          "completionType": "note_completion",
+          "title": "Creating and studying the Bellweather forest",
+          "presentation": {
+            "layout": "list"
+          },
+          "items": [
+            {
+              "questionId": 7,
+              "prefix": "Workers removed underground",
+              "suffix": "before loosening the soil.",
+              "answer": "rubble"
+            },
+            {
+              "questionId": 8,
+              "prefix": "A survey of older",
+              "suffix": "helped determine the plant selection.",
+              "answer": "woods"
+            },
+            {
+              "questionId": 9,
+              "prefix": "Dense planting increases competition for",
+              "suffix": "",
+              "answer": "light"
+            },
+            {
+              "questionId": 10,
+              "prefix": "The shade helps the ground keep",
+              "suffix": "",
+              "answer": "moisture"
+            },
+            {
+              "questionId": 11,
+              "prefix": "Researchers warn against direct comparison with an",
+              "suffix": "forest.",
+              "answer": "ancient"
+            },
+            {
+              "questionId": 12,
+              "prefix": "Students measure selected tree",
+              "suffix": "each year.",
+              "answer": "trunks"
+            },
+            {
+              "questionId": 13,
+              "prefix": "New plots near schools will be adjusted to local ground",
+              "suffix": "",
+              "answer": "conditions"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "label": "Passage 2",
+      "instructionRange": "14–26",
+      "instructionText": "Read the text and answer questions 14–26.",
+      "blocks": [
+        {
+          "type": "passage",
+          "title": "When a town learned the time",
+          "paragraphs": [
+            "A  Before public clocks became common, most people did not need to know the minute. Daylight, meals, bells and the progress of familiar tasks divided the day well enough. A farmer could begin work at dawn; a market might open after a church bell; a craft worker judged a job by its completion rather than by a fixed number of hours. Mechanical clocks existed in medieval Europe, but the earliest examples were expensive, inaccurate and installed mainly in monasteries or towers.",
+            "B  Tower clocks changed more than the measurement of time. Their size made time visible and their bells made it audible across crowded streets. A single public signal could coordinate people who did not know one another. Town councils used bells to announce markets, meetings, fires and the closing of gates. The clock therefore became part of civic authority. Its position above a town hall or commercial square was a claim that shared time belonged to the whole town, even though officials controlled the mechanism.",
+            "C  Accuracy improved gradually. Early mechanisms could lose many minutes in a day, and their exposed iron parts were affected by temperature and wear. A caretaker had to wind the weights, oil the machinery and compare the display with a sundial. Later pendulum clocks kept time much more reliably, but a tower dial still depended on regular human attention. The apparently automatic public clock was, in practice, supported by a hidden routine of skilled maintenance.",
+            "D  As workshops and factories grew, employers found clock time useful for organising labour. Bells marked the start and end of shifts, and wages could be connected to hours rather than completed pieces. This brought predictability, but it also produced conflict. Workers complained when an owner’s clock ran slowly during the working day or when gates closed after a strict starting time. Campaigns for shorter hours relied on the same system: once work was counted in hours, limits could be stated and defended.",
+            "E  The railway created a more difficult problem. Each town once set noon by the moment the sun reached its highest point, so neighbouring places kept slightly different local times. That difference was harmless to a traveller moving at the speed of a horse. With fast trains and published timetables, it became confusing and potentially dangerous. Railway companies adopted a common time before many governments did. Station clocks helped spread the standard, although some towns displayed local and railway time side by side for years.",
+            "F  Cheap watches eventually made precise time personal. At first, owning a watch signalled wealth; mass production later put one in the pockets of clerks, conductors and factory workers. Yet personal watches did not make public clocks unnecessary. Street clocks remained reference points against which watches were checked. They also served people who could not afford a reliable device and turned railway stations, post offices and department stores into landmarks within the timed city.",
+            "G  Today, networked phones receive time from distant atomic standards and update without visible effort. This can make the old clock tower seem decorative. But public time has not disappeared; it has become infrastructure. Transport, financial exchanges, power systems and digital communication require agreement at a precision that a tower clock could never provide. The social question is familiar: whose standard do we share, who maintains it, and what happens when access fails? The machinery has changed, while the need for coordination remains.",
+            "H  Public clocks also altered personal habits unevenly. Office workers and railway passengers had strong reasons to consult them, while many household activities remained flexible. Historians have therefore rejected the simple idea that a clock instantly imposed a new culture on everyone. People negotiated with timed schedules, combining them with older signals and local customs. A shop might advertise an opening hour but wait for regular customers; a rural worker might own a watch yet still describe a journey by daylight. The important change was that exact time became available as a common language. It could be demanded by an employer, printed by a railway or used by citizens to challenge an official account. Adoption was gradual, but once institutions depended on shared minutes, opting out became increasingly difficult."
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 14–18",
+          "instruction": "Choose the correct heading for paragraphs B–F from the list of headings below."
+        },
+        {
+          "type": "heading_matching_questions",
+          "title": "List of headings",
+          "options": [
+            "A technology that still required human care",
+            "A shared signal and a symbol of power",
+            "The disappearance of public time",
+            "Speed creates pressure for one standard",
+            "Private ownership alongside a public reference",
+            "Arguments produced by measuring the working day",
+            "Religious objections to mechanical clocks",
+            "Why early travellers ignored clocks"
+          ],
+          "questions": [
+            {
+              "questionId": 14,
+              "label": "Paragraph B",
+              "paragraphIndex": 1,
+              "answer": "A shared signal and a symbol of power"
+            },
+            {
+              "questionId": 15,
+              "label": "Paragraph C",
+              "paragraphIndex": 2,
+              "answer": "A technology that still required human care"
+            },
+            {
+              "questionId": 16,
+              "label": "Paragraph D",
+              "paragraphIndex": 3,
+              "answer": "Arguments produced by measuring the working day"
+            },
+            {
+              "questionId": 17,
+              "label": "Paragraph E",
+              "paragraphIndex": 4,
+              "answer": "Speed creates pressure for one standard"
+            },
+            {
+              "questionId": 18,
+              "label": "Paragraph F",
+              "paragraphIndex": 5,
+              "answer": "Private ownership alongside a public reference"
+            }
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 19–22",
+          "instruction": "Choose TWO letters for each question."
+        },
+        {
+          "type": "multiple_selection_question",
+          "questionNumber": "Questions 19 and 20",
+          "questionText": "Which TWO uses of early public bells are mentioned?",
+          "questionIds": [
+            19,
+            20
+          ],
+          "maxSelections": 2,
+          "options": [
+            {
+              "value": "A",
+              "label": "warning residents about fires"
+            },
+            {
+              "value": "B",
+              "label": "celebrating military victories"
+            },
+            {
+              "value": "C",
+              "label": "announcing public meetings"
+            },
+            {
+              "value": "D",
+              "label": "calling children to school"
+            },
+            {
+              "value": "E",
+              "label": "guiding ships near the coast"
+            }
+          ],
+          "answers": [
+            "A",
+            "C"
+          ]
+        },
+        {
+          "type": "multiple_selection_question",
+          "questionNumber": "Questions 21 and 22",
+          "questionText": "Which TWO points does the writer make about factory time?",
+          "questionIds": [
+            21,
+            22
+          ],
+          "maxSelections": 2,
+          "options": [
+            {
+              "value": "A",
+              "label": "It made working arrangements more predictable."
+            },
+            {
+              "value": "B",
+              "label": "It immediately increased all workers’ wages."
+            },
+            {
+              "value": "C",
+              "label": "It replaced every system of payment by completed work."
+            },
+            {
+              "value": "D",
+              "label": "Workers suspected that clocks could be used unfairly."
+            },
+            {
+              "value": "E",
+              "label": "Workers refused to campaign using limits expressed in hours."
+            }
+          ],
+          "answers": [
+            "A",
+            "D"
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 23–26",
+          "instruction": "Complete the summary. Write ONE WORD ONLY from the passage for each answer."
+        },
+        {
+          "type": "completion_questions",
+          "completionType": "note_completion",
+          "title": "From local time to connected time",
+          "presentation": {
+            "layout": "list"
+          },
+          "items": [
+            {
+              "questionId": 23,
+              "prefix": "Local time was based on the position of the",
+              "suffix": "",
+              "answer": "sun"
+            },
+            {
+              "questionId": 24,
+              "prefix": "Standard time became necessary because trains used published",
+              "suffix": "",
+              "answer": "timetables"
+            },
+            {
+              "questionId": 25,
+              "prefix": "Mass production made personal",
+              "suffix": "less expensive.",
+              "answer": "watches"
+            },
+            {
+              "questionId": 26,
+              "prefix": "Modern phones ultimately receive time from",
+              "suffix": "standards.",
+              "answer": "atomic"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "label": "Passage 3",
+      "instructionRange": "27–40",
+      "instructionText": "Read the text and answer questions 27–40.",
+      "blocks": [
+        {
+          "type": "passage",
+          "title": "The case for useful friction",
+          "paragraphs": [
+            "A  Designers are often asked to make an action effortless. A good door opens smoothly, a payment takes one tap and a form asks only essential questions. Removing pointless difficulty is usually humane: it saves time and makes products usable by more people. Yet the ambition to eliminate every pause has a hidden assumption—that faster action always reflects a person’s real intention. In some situations, a small amount of carefully designed friction can improve a decision.",
+            "B  Consider sending a message. Physical letters required several stages: writing, addressing, finding a stamp and reaching a post box. Most of that inconvenience deserved to disappear. Instant digital delivery, however, also removed the interval in which a writer might reconsider an angry response. Some services now offer a short “undo send” period. Technically the message is delayed, but the user experiences the feature as a safety net rather than an obstruction.",
+            "C  Behavioural researchers describe a related distinction between automatic and reflective choices. People use quick judgement for familiar, low-risk actions and slower thought when consequences are uncertain. Problems arise when an interface makes a serious action look as casual as a trivial one. A brightly coloured button can complete a large purchase with the same gesture used to approve a free update. Adding a clear review screen restores a moment for reflection.",
+            "D  Friction can also support memory. Navigation software gives excellent directions, but drivers who always follow turn-by-turn instructions may form a weaker mental map of an area. In one experiment, participants who first studied a simple route overview remembered landmarks better than those who immediately followed individual commands. The overview added a task before movement began. Its benefit came not from delay itself, but from directing attention to relationships between places.",
+            "E  The same principle appears in learning. An answer that arrives before a student attempts a problem feels efficient, yet the struggle to retrieve an idea can strengthen later recall. This does not justify confusing lessons or withholding help indefinitely. Productive difficulty has to match the learner’s current ability and be followed by useful feedback. If the challenge is far too hard, effort becomes noise; if it is absent, recognition can be mistaken for understanding.",
+            "F  There are ethical risks. A company may describe a cancellation process as a chance for reflection when its actual purpose is to protect revenue. Repeated confirmation pages, hidden controls and mandatory phone calls are not useful friction if they work against a choice the user has already made. The crucial test is whose goal the delay serves. Ethical friction protects the user from an error or helps them act on a stated intention; manipulative friction protects the organisation from the user.",
+            "G  Context also matters. A confirmation step may be valuable when deleting a year of photographs but intolerable when silencing an alarm. Designers should consider the cost of a mistake, whether the action can be reversed and how frequently it occurs. Repetition changes the calculation: even a tiny delay becomes burdensome when encountered hundreds of times, while an unusual and irreversible action can justify a deliberate checkpoint.",
+            "H  Useful friction is therefore not a celebration of clumsy design. It is a tool to be applied selectively, measured against real behaviour and removed when it does not help. Teams can test whether a pause reduces errors, improves recall or merely causes abandonment. The aim remains ease, but ease should be understood as helping people reach the outcome they value—not simply minimising the number of seconds or taps before something happens.",
+            "I  Measurement should continue after a feature is launched. A confirmation screen may initially reduce accidental choices but later become invisible as experienced users click through it automatically. In that case, a different safeguard—such as making the action reversible—may offer better protection with less interruption. Designers can compare error rates, completion times and reports from users, but no single number settles the question. A lower completion rate could mean that people avoided a mistake, or that a useful task became too annoying. Interviews and observation help distinguish those outcomes. The broader lesson is that friction is not a fixed property of a button or a sequence. It emerges from the relationship between a person, a goal and a particular moment, so the same design choice can be supportive in one context and obstructive in another."
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 27–33",
+          "instruction": "Do the following statements agree with the views of the writer? Choose YES, NO or NOT GIVEN."
+        },
+        {
+          "type": "yes_no_not_given_questions",
+          "questions": [
+            {
+              "questionId": 27,
+              "questionText": "Removing unnecessary difficulty can make a product accessible to more people.",
+              "answer": "YES"
+            },
+            {
+              "questionId": 28,
+              "questionText": "Every digital message should be delayed before it is delivered.",
+              "answer": "NO"
+            },
+            {
+              "questionId": 29,
+              "questionText": "A serious decision may need to look different from an everyday low-risk action.",
+              "answer": "YES"
+            },
+            {
+              "questionId": 30,
+              "questionText": "People who use navigation software never remember landmarks.",
+              "answer": "NO"
+            },
+            {
+              "questionId": 31,
+              "questionText": "Learning tasks should always be made as difficult as possible.",
+              "answer": "NO"
+            },
+            {
+              "questionId": 32,
+              "questionText": "The majority of customers abandon a purchase when shown a review screen.",
+              "answer": "NOT GIVEN"
+            },
+            {
+              "questionId": 33,
+              "questionText": "The value of a design delay depends partly on whether an action can be undone.",
+              "answer": "YES"
+            }
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 34–37",
+          "instruction": "Complete each sentence with the correct ending, A–F."
+        },
+        {
+          "type": "feature_matching_questions",
+          "title": "Sentence endings",
+          "options": [
+            "encourages attention to connections between locations.",
+            "mainly benefits the organisation imposing it.",
+            "offers time to recover from an impulsive action.",
+            "should occur before every routine action.",
+            "is adjusted to the learner and followed by feedback.",
+            "makes all forms of digital navigation unnecessary."
+          ],
+          "questions": [
+            {
+              "questionId": 34,
+              "label": "An undo-send period",
+              "answer": "offers time to recover from an impulsive action."
+            },
+            {
+              "questionId": 35,
+              "label": "Studying a route overview",
+              "answer": "encourages attention to connections between locations."
+            },
+            {
+              "questionId": 36,
+              "label": "A productive learning challenge",
+              "answer": "is adjusted to the learner and followed by feedback."
+            },
+            {
+              "questionId": 37,
+              "label": "A deliberately difficult cancellation process",
+              "answer": "mainly benefits the organisation imposing it."
+            }
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 38–40",
+          "instruction": "Complete the sentences. Write ONE WORD ONLY from the passage for each answer."
+        },
+        {
+          "type": "completion_questions",
+          "completionType": "note_completion",
+          "presentation": {
+            "layout": "list"
+          },
+          "items": [
+            {
+              "questionId": 38,
+              "prefix": "The writer says the key question about a delay is whose",
+              "suffix": "it serves.",
+              "answer": "goal"
+            },
+            {
+              "questionId": 39,
+              "prefix": "A small repeated delay can eventually become",
+              "suffix": "",
+              "answer": "burdensome"
+            },
+            {
+              "questionId": 40,
+              "prefix": "Design teams should study real",
+              "suffix": "to judge whether friction helps.",
+              "answer": "behaviour"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

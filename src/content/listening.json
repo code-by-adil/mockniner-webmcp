@@ -1,0 +1,621 @@
+{
+  "schemaVersion": 1,
+  "contentKey": "local-listening-v1",
+  "id": 1,
+  "section": "listening",
+  "name": "Academic Listening Practice Test 1",
+  "listeningAudio": {
+    "key": "local-original"
+  },
+  "parts": [
+    {
+      "id": 1,
+      "label": "Part 1",
+      "instructionRange": "1–10",
+      "instructionText": "Listen and answer questions 1–10. You will hear the recording once only.",
+      "blocks": [
+        {
+          "type": "group_header",
+          "title": "Questions 1–10",
+          "instruction": "Complete the booking form below. Write ONE WORD AND/OR A NUMBER for each answer."
+        },
+        {
+          "type": "completion_questions",
+          "completionType": "note_completion",
+          "title": "Harbour Cycling Centre — course booking",
+          "presentation": {
+            "layout": "list"
+          },
+          "items": [
+            {
+              "questionId": 1,
+              "prefix": "Family name",
+              "suffix": "",
+              "answer": "Carter"
+            },
+            {
+              "questionId": 2,
+              "prefix": "Course begins",
+              "suffix": "",
+              "answer": "Thursday"
+            },
+            {
+              "questionId": 3,
+              "prefix": "Starting time",
+              "suffix": "a.m.",
+              "answer": [
+                "9:30",
+                "9.30"
+              ]
+            },
+            {
+              "questionId": 4,
+              "prefix": "Meeting point",
+              "suffix": "entrance",
+              "answer": "Riverside"
+            },
+            {
+              "questionId": 5,
+              "prefix": "Course fee",
+              "suffix": "pounds",
+              "answer": "18"
+            },
+            {
+              "questionId": 6,
+              "prefix": "Centre provides a",
+              "suffix": "",
+              "answer": "helmet"
+            },
+            {
+              "questionId": 7,
+              "prefix": "Ability level",
+              "suffix": "",
+              "answer": "beginner"
+            },
+            {
+              "questionId": 8,
+              "prefix": "Personal items can be kept in a",
+              "suffix": "",
+              "answer": "locker"
+            },
+            {
+              "questionId": 9,
+              "prefix": "Lunch choice",
+              "suffix": "",
+              "answer": "vegetarian"
+            },
+            {
+              "questionId": 10,
+              "prefix": "Booking reference",
+              "suffix": "",
+              "answer": "H64"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "label": "Part 2",
+      "instructionRange": "11–20",
+      "instructionText": "Listen and answer questions 11–20. You will hear the recording once only.",
+      "blocks": [
+        {
+          "type": "group_header",
+          "title": "Questions 11–16",
+          "instruction": "Label the museum plan. Choose the correct answer, A–F, for each numbered location."
+        },
+        {
+          "type": "map_labeling_questions",
+          "title": "Maritime Museum — ground floor",
+          "response": {
+            "type": "choice",
+            "choices": [
+              {
+                "id": "A",
+                "label": "Gift shop"
+              },
+              {
+                "id": "B",
+                "label": "Café"
+              },
+              {
+                "id": "C",
+                "label": "Cloakroom"
+              },
+              {
+                "id": "D",
+                "label": "Activity studio"
+              },
+              {
+                "id": "E",
+                "label": "Toilets"
+              },
+              {
+                "id": "F",
+                "label": "Lecture room"
+              }
+            ],
+            "presentation": "slots_on_map"
+          },
+          "questions": [
+            {
+              "questionId": 11,
+              "answer": "C"
+            },
+            {
+              "questionId": 12,
+              "answer": "B"
+            },
+            {
+              "questionId": 13,
+              "answer": "A"
+            },
+            {
+              "questionId": 14,
+              "answer": "E"
+            },
+            {
+              "questionId": 15,
+              "answer": "F"
+            },
+            {
+              "questionId": 16,
+              "answer": "D"
+            }
+          ],
+          "map": {
+            "viewBox": {
+              "width": 1000,
+              "height": 600
+            },
+            "palette": {
+              "paper": "#ffffff",
+              "room": "#f8fafc",
+              "ink": "#374151",
+              "border": "#d1d5db"
+            },
+            "background": "paper",
+            "border": "border",
+            "borderWidth": 2,
+            "borderRadius": 10,
+            "elements": [
+              {
+                "type": "rect",
+                "id": "outer",
+                "x": 40,
+                "y": 40,
+                "w": 920,
+                "h": 520,
+                "rx": 8,
+                "fill": "paper",
+                "stroke": "ink",
+                "strokeWidth": 4
+              },
+              {
+                "type": "rect",
+                "id": "north-west",
+                "x": 80,
+                "y": 85,
+                "w": 300,
+                "h": 170,
+                "rx": 4,
+                "fill": "room",
+                "stroke": "ink",
+                "strokeWidth": 2
+              },
+              {
+                "type": "rect",
+                "id": "north-east",
+                "x": 620,
+                "y": 85,
+                "w": 300,
+                "h": 170,
+                "rx": 4,
+                "fill": "room",
+                "stroke": "ink",
+                "strokeWidth": 2
+              },
+              {
+                "type": "rect",
+                "id": "south-west",
+                "x": 80,
+                "y": 345,
+                "w": 300,
+                "h": 170,
+                "rx": 4,
+                "fill": "room",
+                "stroke": "ink",
+                "strokeWidth": 2
+              },
+              {
+                "type": "rect",
+                "id": "south-east",
+                "x": 620,
+                "y": 345,
+                "w": 300,
+                "h": 170,
+                "rx": 4,
+                "fill": "room",
+                "stroke": "ink",
+                "strokeWidth": 2
+              },
+              {
+                "type": "rect",
+                "id": "north-centre",
+                "x": 420,
+                "y": 85,
+                "w": 160,
+                "h": 170,
+                "rx": 4,
+                "fill": "room",
+                "stroke": "ink",
+                "strokeWidth": 2
+              },
+              {
+                "type": "rect",
+                "id": "south-centre",
+                "x": 420,
+                "y": 345,
+                "w": 160,
+                "h": 170,
+                "rx": 4,
+                "fill": "room",
+                "stroke": "ink",
+                "strokeWidth": 2
+              },
+              {
+                "type": "label",
+                "id": "entrance-label",
+                "x": 500,
+                "y": 310,
+                "text": "ENTRANCE / MAIN HALL",
+                "align": "middle",
+                "fontSize": 18,
+                "fontWeight": "700",
+                "fill": "ink"
+              },
+              {
+                "type": "symbol",
+                "id": "entrance",
+                "x": 500,
+                "y": 548,
+                "name": "entrance",
+                "size": 28,
+                "label": "Entrance"
+              },
+              {
+                "type": "answerSlot",
+                "id": "question-11",
+                "questionId": 11,
+                "x": 180,
+                "y": 138,
+                "w": 150,
+                "h": 52,
+                "label": "11"
+              },
+              {
+                "type": "answerSlot",
+                "id": "question-12",
+                "questionId": 12,
+                "x": 760,
+                "y": 132,
+                "w": 150,
+                "h": 52,
+                "label": "12"
+              },
+              {
+                "type": "answerSlot",
+                "id": "question-13",
+                "questionId": 13,
+                "x": 170,
+                "y": 426,
+                "w": 150,
+                "h": 52,
+                "label": "13"
+              },
+              {
+                "type": "answerSlot",
+                "id": "question-14",
+                "questionId": 14,
+                "x": 760,
+                "y": 432,
+                "w": 150,
+                "h": 52,
+                "label": "14"
+              },
+              {
+                "type": "answerSlot",
+                "id": "question-15",
+                "questionId": 15,
+                "x": 470,
+                "y": 144,
+                "w": 150,
+                "h": 52,
+                "label": "15"
+              },
+              {
+                "type": "answerSlot",
+                "id": "question-16",
+                "questionId": 16,
+                "x": 470,
+                "y": 432,
+                "w": 150,
+                "h": 52,
+                "label": "16"
+              }
+            ]
+          }
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 17–20",
+          "instruction": "Choose the correct letter, A, B or C."
+        },
+        {
+          "type": "mcq_questions",
+          "questions": [
+            {
+              "questionId": 17,
+              "questionText": "Why has the museum introduced timed entry?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "To reduce queues at popular exhibits"
+                },
+                {
+                  "value": "B",
+                  "label": "To allow more school visits"
+                },
+                {
+                  "value": "C",
+                  "label": "To lower staffing costs"
+                }
+              ],
+              "answer": "A"
+            },
+            {
+              "questionId": 18,
+              "questionText": "What is included in the standard ticket?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "A guided harbour walk"
+                },
+                {
+                  "value": "B",
+                  "label": "The temporary photography exhibition"
+                },
+                {
+                  "value": "C",
+                  "label": "A printed family activity pack"
+                }
+              ],
+              "answer": "B"
+            },
+            {
+              "questionId": 19,
+              "questionText": "Visitors who arrive by bicycle should use the racks",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "beside the main gate."
+                },
+                {
+                  "value": "B",
+                  "label": "behind the museum."
+                },
+                {
+                  "value": "C",
+                  "label": "near the ferry stop."
+                }
+              ],
+              "answer": "C"
+            },
+            {
+              "questionId": 20,
+              "questionText": "The museum closes early on Friday because of",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "a private event."
+                },
+                {
+                  "value": "B",
+                  "label": "essential maintenance."
+                },
+                {
+                  "value": "C",
+                  "label": "staff training."
+                }
+              ],
+              "answer": "A"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "label": "Part 3",
+      "instructionRange": "21–30",
+      "instructionText": "Listen and answer questions 21–30. You will hear the recording once only.",
+      "blocks": [
+        {
+          "type": "group_header",
+          "title": "Questions 21–25",
+          "instruction": "Which opinion does each speaker express? Choose the correct letter, A–G. You may use any letter more than once."
+        },
+        {
+          "type": "feature_matching_questions",
+          "title": "Opinions",
+          "options": [
+            "The research question is too broad.",
+            "The proposed sample is too small.",
+            "The interview method could influence answers.",
+            "The project needs a clearer timetable.",
+            "The existing literature is sufficient.",
+            "The topic has strong practical value.",
+            "The data will be difficult to compare."
+          ],
+          "questions": [
+            {
+              "questionId": 21,
+              "label": "Maya",
+              "answer": "The topic has strong practical value."
+            },
+            {
+              "questionId": 22,
+              "label": "Jon",
+              "answer": "The research question is too broad."
+            },
+            {
+              "questionId": 23,
+              "label": "Dr Patel",
+              "answer": "The proposed sample is too small."
+            },
+            {
+              "questionId": 24,
+              "label": "Maya (on interviews)",
+              "answer": "The interview method could influence answers."
+            },
+            {
+              "questionId": 25,
+              "label": "Jon (on the final report)",
+              "answer": "The project needs a clearer timetable."
+            }
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 26–30",
+          "instruction": "Complete the project plan. Write ONE WORD ONLY for each answer."
+        },
+        {
+          "type": "completion_questions",
+          "completionType": "flow_chart_completion",
+          "title": "Next stages of the research project",
+          "presentation": {
+            "layout": "flowchart"
+          },
+          "items": [
+            {
+              "questionId": 26,
+              "prefix": "Narrow the project to one",
+              "suffix": "neighbourhood",
+              "answer": "riverside"
+            },
+            {
+              "questionId": 27,
+              "prefix": "Ask the library for recent",
+              "suffix": "",
+              "answer": "statistics"
+            },
+            {
+              "questionId": 28,
+              "prefix": "Run a short",
+              "suffix": "with two volunteers",
+              "answer": "pilot"
+            },
+            {
+              "questionId": 29,
+              "prefix": "Collect responses during",
+              "suffix": "",
+              "answer": "weekends"
+            },
+            {
+              "questionId": 30,
+              "prefix": "Present initial findings with a",
+              "suffix": "",
+              "answer": "poster"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "label": "Part 4",
+      "instructionRange": "31–40",
+      "instructionText": "Listen and answer questions 31–40. You will hear the recording once only.",
+      "blocks": [
+        {
+          "type": "group_header",
+          "title": "Questions 31–40",
+          "instruction": "Complete the notes below. Write ONE WORD ONLY for each answer."
+        },
+        {
+          "type": "completion_questions",
+          "completionType": "note_completion",
+          "title": "Restoring urban rivers",
+          "presentation": {
+            "layout": "list"
+          },
+          "items": [
+            {
+              "questionId": 31,
+              "prefix": "Early city engineers placed rivers inside",
+              "suffix": "",
+              "answer": "tunnels"
+            },
+            {
+              "questionId": 32,
+              "prefix": "Hard surfaces increased the speed of",
+              "suffix": "",
+              "answer": "floodwater"
+            },
+            {
+              "questionId": 33,
+              "prefix": "Modern projects first remove concrete",
+              "suffix": "",
+              "answer": "channels"
+            },
+            {
+              "questionId": 34,
+              "prefix": "Plant roots help hold the river",
+              "suffix": "in place",
+              "answer": "bank"
+            },
+            {
+              "questionId": 35,
+              "prefix": "Shallow edges create habitat for young",
+              "suffix": "",
+              "answer": "fish"
+            },
+            {
+              "questionId": 36,
+              "prefix": "Public paths can improve community",
+              "suffix": "",
+              "answer": "access"
+            },
+            {
+              "questionId": 37,
+              "prefix": "Engineers must model the risk of",
+              "suffix": "",
+              "answer": "flooding"
+            },
+            {
+              "questionId": 38,
+              "prefix": "Water quality may be measured using",
+              "suffix": "",
+              "answer": "insects"
+            },
+            {
+              "questionId": 39,
+              "prefix": "Successful restoration depends on long-term",
+              "suffix": "",
+              "answer": "monitoring"
+            },
+            {
+              "questionId": 40,
+              "prefix": "The lecturer describes river restoration as a",
+              "suffix": "process",
+              "answer": "social"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
