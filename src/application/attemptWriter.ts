@@ -3,6 +3,7 @@ import type {
   ObjectiveResult,
   ObjectiveSubmission,
   SpeakingSubmission,
+  SpeakingEvaluation,
   WritingEvaluation,
   WritingSubmission,
   WritingSubmittedTask,
@@ -32,6 +33,7 @@ export type SpeakingRecordingInput = {
   timeLimitSeconds: number;
   durationMs: number;
   audio: Blob;
+  transcript: string;
 };
 
 export type SaveSpeakingAttemptInput = {
@@ -57,4 +59,5 @@ export type AttemptWriter = {
   saveSpeakingAttempt: (
     input: SaveSpeakingAttemptInput,
   ) => Promise<SpeakingSubmission>;
+  saveSpeakingEvaluation: (evaluation: SpeakingEvaluation) => Promise<void>;
 };

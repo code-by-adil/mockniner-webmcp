@@ -89,9 +89,32 @@ export type WritingEvaluation = {
 
 export type SpeakingSubmission = {
   attemptId: string
-  promptCount: number
-  recordedCount: number
-  recordingIds: string[]
+  contentKey: string
+  responses: SpeakingSubmittedResponse[]
+  startedAt: string
   submittedAt: string
+}
+
+export type SpeakingSubmittedResponse = {
+  recordingId: string
+  promptId: number
+  partLabel: string
+  sequence: number
+  promptText: string
+  timeLimitSeconds: number
+  durationMs: number
+  transcript: string
+}
+
+export type SpeakingEvaluation = {
+  attemptId: string
+  overallBand: number
+  fluencyCoherence: number
+  lexicalResource: number
+  grammaticalRangeAccuracy: number
+  summary: string
+  strengths: string[]
+  improvements: string[]
+  evaluatedAt: string
 }
 export type { WritingTask } from './writingContent'

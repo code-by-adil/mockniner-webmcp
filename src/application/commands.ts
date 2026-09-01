@@ -10,6 +10,10 @@ import {
   finalizeWritingEvaluation,
   type WritingEvaluationInput,
 } from '@/domain/writingEvaluation'
+import {
+  finalizeSpeakingEvaluation,
+  type SpeakingEvaluationInput,
+} from '@/domain/speakingEvaluation'
 import type {
   ExamMode,
   ExamSession,
@@ -20,6 +24,7 @@ import type {
   ObjectiveSubmission,
   SectionKey,
   SpeakingSubmission,
+  SpeakingEvaluation,
   WritingEvaluation,
   WritingSubmission,
   WritingSubmittedTask,
@@ -65,6 +70,9 @@ export type ExamApplicationCommands = {
   submitSpeaking: (
     input: CompleteSpeakingAttemptInput,
   ) => Promise<SpeakingSubmission>
+  attachSpeakingEvaluation: (
+    input: SpeakingEvaluationInput,
+  ) => Promise<SpeakingEvaluation>
   openReview: (section: SectionKey) => void
   closeReview: () => void
   reset: () => void
@@ -118,7 +126,7 @@ export function createExamApplicationCommands({
       dispatch({ type: 'START', mode, section, startedAt: now().toISOString() })
     },
     resume() {
-      dispatch({ type: 'RESUME' })
+      dispatch({ type: 'RESUME', startedAt: now().toISOString() })
     },
     goHome() {
       dispatch({ type: 'GO_HOME' })
@@ -210,13 +218,34 @@ export function createExamApplicationCommands({
       return evaluation
     },
     async submitSpeaking(input) {
-      requireActiveSection(getState(), 'speaking')
+      const activeState = getState()
+      requireActiveSection(activeState, 'speaking')
+      const activeAttemptStartedAt = activeState.startedAtBySection.speaking
       const submission = await (await getAttemptWriter()).saveSpeakingAttempt({
         ...input,
         submittedAt: now().toISOString(),
       })
-      dispatch({ type: 'COMPLETE_SPEAKING', submission })
+      const currentState = getState()
+      const isSameVisibleAttempt =
+        currentState.view === 'exam' &&
+        currentState.currentSection === 'speaking' &&
+        currentState.startedAtBySection.speaking === activeAttemptStartedAt
+      if (isSameVisibleAttempt) {
+        dispatch({ type: 'COMPLETE_SPEAKING', submission })
+      }
       return submission
+    },
+    async attachSpeakingEvaluation(input) {
+      const state = getState()
+      if (state.speakingSubmission?.attemptId !== input.attemptId) {
+        throw new Error(
+          `Speaking attempt ${input.attemptId} is not the current submitted attempt.`,
+        )
+      }
+      const evaluation = finalizeSpeakingEvaluation(input, now().toISOString())
+      await (await getAttemptWriter()).saveSpeakingEvaluation(evaluation)
+      dispatch({ type: 'ATTACH_SPEAKING_EVALUATION', evaluation })
+      return evaluation
     },
     openReview(section) {
       dispatch({ type: 'OPEN_REVIEW', section })

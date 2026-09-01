@@ -8,8 +8,13 @@ import type {
   WritingSubmission,
 } from '@/domain/types'
 import { createExamApplicationCommands } from './commands'
+import type { AttemptWriter } from './attemptWriter'
 
-function createHarness() {
+function createHarness({
+  saveSpeakingAttempt,
+}: {
+  saveSpeakingAttempt?: AttemptWriter['saveSpeakingAttempt']
+} = {}) {
   let state: ExamSession = initialSession
   let content = {
     listening: listeningDocument,
@@ -17,6 +22,7 @@ function createHarness() {
     writing: writingDocument,
   }
   const persistEvaluation = vi.fn(async () => undefined)
+  const persistSpeakingEvaluation = vi.fn(async () => undefined)
   const saveAndActivate = vi.fn(async () => undefined)
   const commands = createExamApplicationCommands({
     getState: () => state,
@@ -39,13 +45,23 @@ function createHarness() {
         ...input,
       }),
       saveWritingEvaluation: persistEvaluation,
-      saveSpeakingAttempt: async (input): Promise<SpeakingSubmission> => ({
+      saveSpeakingAttempt: saveSpeakingAttempt ?? (async (input): Promise<SpeakingSubmission> => ({
         attemptId: '33333333-3333-4333-8333-333333333333',
-        promptCount: input.recordings.length,
-        recordedCount: input.recordings.length,
-        recordingIds: input.recordings.map((_, index) => `recording-${index}`),
+        contentKey: input.contentKey,
+        responses: input.recordings.map((recording, index) => ({
+          recordingId: `recording-${index}`,
+          promptId: recording.promptId,
+          partLabel: recording.partLabel,
+          sequence: recording.sequence,
+          promptText: recording.promptText,
+          timeLimitSeconds: recording.timeLimitSeconds,
+          durationMs: recording.durationMs,
+          transcript: recording.transcript,
+        })),
+        startedAt: input.startedAt,
         submittedAt: input.submittedAt,
-      }),
+      })),
+      saveSpeakingEvaluation: persistSpeakingEvaluation,
     }),
   })
   return {
@@ -53,6 +69,7 @@ function createHarness() {
     getState: () => state,
     getContent: () => content,
     persistEvaluation,
+    persistSpeakingEvaluation,
     saveAndActivate,
   }
 }
@@ -141,6 +158,22 @@ describe('exam application commands', () => {
     })
   })
 
+  it('starts any standalone section instead of globally locking practice', () => {
+    const harness = createHarness()
+    harness.commands.start('section', 'listening')
+    harness.commands.setObjectiveAnswer('listening', 1, 'Carter')
+    harness.commands.goHome()
+
+    harness.commands.start('section', 'speaking')
+
+    expect(harness.getState()).toMatchObject({
+      view: 'exam',
+      mode: 'section',
+      currentSection: 'speaking',
+      answers: { listening: {}, reading: {} },
+    })
+  })
+
   it('rejects invalid content before persistence or activation', async () => {
     const harness = createHarness()
     await expect(
@@ -164,6 +197,7 @@ describe('exam application commands', () => {
         promptText: 'Where do you live?',
         timeLimitSeconds: 30,
         durationMs: 12_000,
+        transcript: 'I live in Dhaka.',
         audio: new Blob([new Uint8Array([1])], { type: 'audio/webm' }),
       }],
     })
@@ -171,6 +205,52 @@ describe('exam application commands', () => {
     expect(submission.submittedAt).toBe('2026-08-31T10:00:00.000Z')
     expect(harness.getState().speakingSubmission).toEqual(submission)
     expect(harness.getState().view).toBe('transition')
+  })
+
+  it('does not reopen a Speaking result when persistence finishes after exit', async () => {
+    let finishSave!: (submission: SpeakingSubmission) => void
+    const saveSpeakingAttempt = vi.fn(() => new Promise<SpeakingSubmission>((resolve) => {
+      finishSave = resolve
+    }))
+    const harness = createHarness({ saveSpeakingAttempt })
+    harness.commands.start('section', 'speaking')
+    const saving = harness.commands.submitSpeaking({
+      contentKey: 'local-speaking-v1',
+      startedAt: '2026-08-31T09:58:00.000Z',
+      recordings: [{
+        promptId: 1,
+        partLabel: 'Part 1',
+        sequence: 0,
+        promptText: 'Where do you live?',
+        timeLimitSeconds: 30,
+        durationMs: 12_000,
+        transcript: 'I live in Dhaka.',
+        audio: new Blob([new Uint8Array([1])], { type: 'audio/webm' }),
+      }],
+    })
+    await vi.waitFor(() => expect(saveSpeakingAttempt).toHaveBeenCalledOnce())
+    harness.commands.goHome()
+    finishSave({
+      attemptId: '33333333-3333-4333-8333-333333333333',
+      contentKey: 'local-speaking-v1',
+      responses: [{
+        recordingId: 'recording-0',
+        promptId: 1,
+        partLabel: 'Part 1',
+        sequence: 0,
+        promptText: 'Where do you live?',
+        timeLimitSeconds: 30,
+        durationMs: 12_000,
+        transcript: 'I live in Dhaka.',
+      }],
+      startedAt: '2026-08-31T09:58:00.000Z',
+      submittedAt: '2026-08-31T10:00:00.000Z',
+    })
+
+    await saving
+
+    expect(harness.getState().view).toBe('home')
+    expect(harness.getState().speakingSubmission).toBeUndefined()
   })
 
   it('rejects commands for a section that is not active', () => {
@@ -205,6 +285,39 @@ describe('exam application commands', () => {
 
     expect(harness.persistEvaluation).toHaveBeenCalledWith(evaluation)
     expect(harness.getState().writingEvaluation).toEqual(evaluation)
+    expect(harness.getState().view).toBe('review')
+  })
+
+  it('persists a transcript-based Speaking evaluation before opening review', async () => {
+    const harness = createHarness()
+    harness.commands.start('section', 'speaking')
+    const submission = await harness.commands.submitSpeaking({
+      contentKey: 'agent-speaking-interview-v1',
+      startedAt: '2026-08-31T09:58:00.000Z',
+      recordings: [{
+        promptId: 1,
+        partLabel: 'Part 1',
+        sequence: 0,
+        promptText: 'Where do you live?',
+        timeLimitSeconds: 30,
+        durationMs: 12_000,
+        transcript: 'I live in Dhaka.',
+        audio: new Blob([new Uint8Array([1])], { type: 'audio/webm' }),
+      }],
+    })
+    const evaluation = await harness.commands.attachSpeakingEvaluation({
+      attemptId: submission.attemptId,
+      overallBand: 6.5,
+      fluencyCoherence: 6.5,
+      lexicalResource: 6,
+      grammaticalRangeAccuracy: 6.5,
+      summary: 'A clear short response.',
+      strengths: ['The answer is direct.'],
+      improvements: ['Add a specific detail.'],
+    })
+
+    expect(harness.persistSpeakingEvaluation).toHaveBeenCalledWith(evaluation)
+    expect(harness.getState().speakingEvaluation).toEqual(evaluation)
     expect(harness.getState().view).toBe('review')
   })
 })

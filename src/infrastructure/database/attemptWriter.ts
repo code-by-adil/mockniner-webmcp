@@ -5,7 +5,10 @@ import {
   saveWritingAttempt,
   saveWritingEvaluation,
 } from "./attemptRepository";
-import { saveSpeakingAttempt } from "./speakingRepository";
+import {
+  saveSpeakingAttempt,
+  saveSpeakingEvaluation,
+} from "./speakingRepository";
 
 let writerPromise: Promise<AttemptWriter> | null = null;
 
@@ -18,6 +21,8 @@ export function getAttemptWriter(): Promise<AttemptWriter> {
         saveWritingEvaluation: (evaluation) =>
           saveWritingEvaluation(database, evaluation),
         saveSpeakingAttempt: (input) => saveSpeakingAttempt(database, input),
+        saveSpeakingEvaluation: (evaluation) =>
+          saveSpeakingEvaluation(database, evaluation),
       };
       return writer;
     })

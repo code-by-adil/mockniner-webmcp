@@ -16,8 +16,13 @@ import { ReadingExamRunner } from "@/modules/section-packs/reading/ui/ReadingExa
 import { LocalWritingExam } from "@/local/LocalWritingExam";
 import { LocalWritingReview } from "@/local/LocalWritingReview";
 import { LocalSpeakingExam } from "@/local/LocalSpeakingExam";
+import { LocalSpeakingReview } from "@/local/LocalSpeakingReview";
 import { SECTION_ORDER } from "@/domain/exam";
-import type { ExamMode, ExamSession } from "@/domain/session";
+import {
+  getResumableSection,
+  type ExamMode,
+  type ExamSession,
+} from "@/domain/session";
 import type { SectionKey } from "@/domain/types";
 import type { ActiveContentDocuments } from "@/domain/contentDocument";
 import { useExamApplication } from "@/application/useExamApplication";
@@ -47,7 +52,7 @@ const SECTION_META = {
   },
   speaking: {
     title: "Speaking",
-    description: "3 parts · timed local audio responses",
+    description: "3 parts · standard or agent-guided interview",
     icon: Mic,
   },
 } as const;
@@ -82,14 +87,15 @@ function Home({
   content: ActiveContentDocuments;
 }) {
   const listeningReady = listeningAudio.readyToPlay;
-  const resumableSection = session.currentSection &&
-    !session.completedSections.includes(session.currentSection)
-    ? session.currentSection
+  const resumableSection = getResumableSection(session);
+  const resumableFullExamSection = session.mode === "full"
+    ? resumableSection
     : null;
-  const canResume = Boolean(
-    resumableSection &&
-    (resumableSection !== "listening" || listeningReady),
-  );
+  const resumablePracticeSection = session.mode === "section"
+    ? resumableSection
+    : null;
+  const fullExamEntrySection = resumableFullExamSection ?? "listening";
+  const canOpenFullExam = fullExamEntrySection !== "listening" || listeningReady;
   return (
     <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
         <AppHeader />
@@ -99,24 +105,33 @@ function Home({
               Computer-delivered IELTS practice
             </div>
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-              Choose a complete test section.
+              Practise one section or take a full exam.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--exam-text-muted)]">
-              The exam runtime, navigation, question interactions, responsive
-              behavior, and visual system are the MockNiner interface, running
-              against local practice content.
+              Start Listening, Reading, Writing, or Speaking independently, or
+              complete all four in test-day order.
             </p>
             <button
               type="button"
-              onClick={resumableSection ? onResume : () => onStart("full", "listening")}
-              disabled={resumableSection ? !canResume : !listeningReady}
+              onClick={resumableFullExamSection
+                ? onResume
+                : () => onStart("full", "listening")}
+              disabled={!canOpenFullExam}
               className="mt-7 inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--exam-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <PlayCircle size={18} />
-              {resumableSection
-                ? `Resume ${SECTION_META[resumableSection].title}`
-                : "Start full practice test"}
+              {resumableFullExamSection
+                ? `Resume full exam · ${SECTION_META[resumableFullExamSection].title}`
+                : "Start full exam"}
             </button>
+            {resumableSection ? (
+              <p className="mt-3 text-sm text-[var(--exam-text-muted)]">
+                {session.mode === "full"
+                  ? `Your Full Exam will resume at ${SECTION_META[resumableSection].title}.`
+                  : `Your ${SECTION_META[resumableSection].title} practice is ready to resume.`}{" "}
+                Starting another option replaces this unfinished attempt.
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-12 grid gap-5 md:grid-cols-2">
@@ -172,17 +187,14 @@ function Home({
                   ) : null}
                   <button
                     type="button"
-                    onClick={resumableSection === section
+                    onClick={resumablePracticeSection === section
                       ? onResume
                       : () => onStart("section", section)}
-                    disabled={Boolean(
-                      (resumableSection && resumableSection !== section) ||
-                      (section === "listening" && !listeningReady),
-                    )}
+                    disabled={section === "listening" && !listeningReady}
                     className="mt-6 inline-flex w-full items-center justify-between gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--exam-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <span>
-                      {resumableSection === section ? "Resume" : "Start"} {item.title}
+                      {resumablePracticeSection === section ? "Resume" : "Start"} {item.title} practice
                     </span>
                     <ArrowRight size={16} />
                   </button>
@@ -232,6 +244,11 @@ function Complete({
               <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">
                 Ask your agent: “Grade my latest Writing attempt.” It can read this immutable submission and return structured feedback here.
               </p>
+            </div>
+          ) : section === "speaking" ? (
+            <div className="mt-6 w-full max-w-xl rounded-lg border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-5 py-4 text-left shadow-sm">
+              <p className="text-sm font-bold text-[var(--exam-text)]">Ready for transcript evaluation</p>
+              <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">Ask your agent: “Evaluate my latest Speaking attempt.” It can score fluency, vocabulary, and grammar, then return the review here.</p>
             </div>
           ) : null}
           <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -293,7 +310,8 @@ function Results({
               const canReview =
                 section === "listening" ||
                 section === "reading" ||
-                (section === "writing" && Boolean(session.writingEvaluation));
+                (section === "writing" && Boolean(session.writingEvaluation)) ||
+                (section === "speaking" && Boolean(session.speakingEvaluation));
               return (
                 <article
                   key={section}
@@ -311,7 +329,9 @@ function Results({
                           : section === "writing" && session.writingEvaluation
                             ? `Estimated overall band ${session.writingEvaluation.overallBand} · Evaluation ready`
                           : section === "speaking" && session.speakingSubmission
-                            ? `${session.speakingSubmission.recordedCount} recordings saved locally · Awaiting evaluation`
+                            ? session.speakingEvaluation
+                              ? `Estimated overall band ${session.speakingEvaluation.overallBand} · Evaluation ready`
+                              : `${session.speakingSubmission.responses.length} recordings saved locally · Awaiting evaluation`
                           : "Submission ready for evaluation"}
                       </p>
                       {canReview ? (
@@ -348,6 +368,7 @@ export default function App() {
   useWebMcpTools({
     commands,
     currentWritingAttemptId: state.writingSubmission?.attemptId,
+    currentSpeakingAttemptId: state.speakingSubmission?.attemptId,
     enabled: contentReady,
   });
   const section = state.currentSection;
@@ -462,6 +483,20 @@ export default function App() {
         onPartChange={(part) => commands.setPart("writing", part)}
         onTick={() => commands.tick("writing")}
         onSubmit={commands.submitWriting}
+      />
+    );
+  }
+
+  if (
+    state.view === "review" &&
+    state.speakingSubmission &&
+    state.speakingEvaluation
+  ) {
+    return (
+      <LocalSpeakingReview
+        submission={state.speakingSubmission}
+        evaluation={state.speakingEvaluation}
+        onExit={commands.closeReview}
       />
     );
   }

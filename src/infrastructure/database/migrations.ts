@@ -106,6 +106,19 @@ const migrations = [
         ADD COLUMN cache_version TEXT NOT NULL DEFAULT 'legacy-v1'`,
     ],
   },
+  {
+    version: 6,
+    statements: [
+      `ALTER TABLE speaking_responses
+        ADD COLUMN transcript TEXT NOT NULL DEFAULT ''`,
+      `CREATE TABLE IF NOT EXISTS speaking_evaluations (
+        attempt_id TEXT PRIMARY KEY,
+        evaluation_json TEXT NOT NULL,
+        evaluated_at TEXT NOT NULL,
+        FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE
+      )`,
+    ],
+  },
 ] as const
 
 export async function migrateDatabase(database: SQLocal): Promise<void> {

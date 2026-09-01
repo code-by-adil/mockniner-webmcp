@@ -3,11 +3,13 @@ import type {
   AnswerMap,
   ObjectiveResult,
   ObjectiveSubmission,
+  SpeakingEvaluation,
   SpeakingSubmission,
   WritingEvaluation,
   WritingSubmission,
 } from "./types";
 import { writingEvaluationInputSchema } from "./writingEvaluation";
+import { speakingEvaluationInputSchema } from "./speakingEvaluation";
 import { writingTask1Schema, writingTask2Schema } from "./writingContent";
 
 const timestampSchema = z.iso.datetime({ offset: true });
@@ -82,18 +84,35 @@ export const speakingSubmissionSchema: z.ZodType<SpeakingSubmission> =
   z
     .strictObject({
       attemptId: z.uuid(),
-      promptCount: z.number().int().nonnegative(),
-      recordedCount: z.number().int().nonnegative(),
-      recordingIds: z.array(z.string().min(1)),
+      contentKey: z.string().min(1),
+      responses: z.array(z.strictObject({
+        recordingId: z.string().min(1),
+        promptId: z.number().int().positive(),
+        partLabel: z.string().min(1),
+        sequence: z.number().int().nonnegative(),
+        promptText: z.string().min(1),
+        timeLimitSeconds: z.number().int().positive(),
+        durationMs: z.number().nonnegative(),
+        transcript: z.string().trim().min(1),
+      })).min(1),
+      startedAt: timestampSchema,
       submittedAt: timestampSchema,
     })
     .refine(
       (submission) =>
-        submission.promptCount === submission.recordedCount &&
-        submission.recordedCount === submission.recordingIds.length &&
-        new Set(submission.recordingIds).size === submission.recordingIds.length,
-      { message: "The stored Speaking submission counts are inconsistent." },
+        submission.responses.every(
+          (response, index) =>
+            response.sequence === index,
+        ) &&
+        new Set(submission.responses.map((response) => response.recordingId)).size ===
+          submission.responses.length,
+      { message: "The stored Speaking responses are inconsistent." },
     );
+
+export const speakingEvaluationSchema: z.ZodType<SpeakingEvaluation> =
+  speakingEvaluationInputSchema.extend({
+    evaluatedAt: timestampSchema,
+  });
 
 function parseStoredJson(value: string, label: string): unknown {
   try {
@@ -117,4 +136,8 @@ export function parseStoredWritingSubmission(value: string): WritingSubmission {
 
 export function parseStoredWritingEvaluation(value: string): WritingEvaluation {
   return writingEvaluationSchema.parse(parseStoredJson(value, "Writing evaluation"));
+}
+
+export function parseStoredSpeakingEvaluation(value: string): SpeakingEvaluation {
+  return speakingEvaluationSchema.parse(parseStoredJson(value, "Speaking evaluation"));
 }

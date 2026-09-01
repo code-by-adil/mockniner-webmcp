@@ -3,9 +3,11 @@ import { Loader2, Mic, RotateCcw, Square } from "lucide-react";
 import type { CompleteSpeakingAttemptInput } from "@/application/attemptWriter";
 import { reportWebHandledProductFailure } from "@/shared/observability/report-error";
 import {
+  supportsSpeechTranscription,
   useSpeakingRecorder,
   type RecordedSpeakingResponse,
 } from "../useSpeakingRecorder";
+import { SpeakingTranscriptReview } from "./SpeakingTranscriptReview";
 
 export type SpeakingQuestion = {
   id: number;
@@ -27,12 +29,14 @@ export const StandardSpeakingMode: React.FC<Props> = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [status, setStatus] = useState<
-    "idle" | "recording" | "completed" | "save-failed"
+    "idle" | "recording" | "review" | "completed" | "save-failed"
   >("idle");
   const [timeLeft, setTimeLeft] = useState(questions[0]?.timeLimit ?? 0);
   const [recordedResponses, setRecordedResponses] = useState<RecordedSpeakingResponse[]>([]);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pendingResponse, setPendingResponse] = useState<RecordedSpeakingResponse | null>(null);
+  const [transcriptDraft, setTranscriptDraft] = useState("");
 
   const transitionTimeoutRef = useRef<number | null>(null);
   const isStoppingRef = useRef(false);
@@ -41,7 +45,7 @@ export const StandardSpeakingMode: React.FC<Props> = ({
     canvasRef,
     start: startRecorder,
     stop: stopRecorder,
-  } = useSpeakingRecorder();
+  } = useSpeakingRecorder({ transcribe: supportsSpeechTranscription() });
 
   const questionList = questions;
   const currentQuestion = questionList[currentIndex] ?? questionList[0];
@@ -74,6 +78,7 @@ export const StandardSpeakingMode: React.FC<Props> = ({
             timeLimitSeconds: question.timeLimit,
             durationMs: response.durationMs,
             audio: response.audio,
+            transcript: response.transcript,
           };
         }),
       });
@@ -126,7 +131,9 @@ export const StandardSpeakingMode: React.FC<Props> = ({
       await startRecorder();
       setStatus("recording");
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === "NotAllowedError")) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      const permissionDenied = error instanceof DOMException && error.name === "NotAllowedError";
+      if (!permissionDenied) {
         reportWebHandledProductFailure(error, {
           runtime: "web",
           surface: "web-exam",
@@ -139,7 +146,11 @@ export const StandardSpeakingMode: React.FC<Props> = ({
         });
       }
       setErrorMessage(
-        "Microphone access is required. Allow permission and try again.",
+        permissionDenied
+          ? "Microphone access is required. Allow permission and try again."
+          : error instanceof Error
+            ? error.message
+            : "Speaking recording could not start.",
       );
     }
   }, [startRecorder]);
@@ -157,11 +168,34 @@ export const StandardSpeakingMode: React.FC<Props> = ({
         setStatus("idle");
         return;
       }
-      handleRecordingComplete(response);
+      setPendingResponse(response);
+      setTranscriptDraft(response.transcript);
+      setStatus("review");
     } finally {
       isStoppingRef.current = false;
     }
-  }, [handleRecordingComplete, status, stopRecorder]);
+  }, [status, stopRecorder]);
+
+  const approveTranscript = useCallback(() => {
+    if (!pendingResponse) return;
+    const transcript = transcriptDraft.trim();
+    if (!transcript) {
+      setErrorMessage("Add the answer transcript before continuing.");
+      return;
+    }
+    setPendingResponse(null);
+    setTranscriptDraft("");
+    setErrorMessage(null);
+    handleRecordingComplete({ ...pendingResponse, transcript });
+  }, [handleRecordingComplete, pendingResponse, transcriptDraft]);
+
+  const recordAgain = useCallback(() => {
+    setPendingResponse(null);
+    setTranscriptDraft("");
+    setErrorMessage(null);
+    setTimeLeft(currentQuestion.timeLimit);
+    setStatus("idle");
+  }, [currentQuestion.timeLimit]);
 
   useEffect(() => {
     if (status !== "recording") return;
@@ -271,6 +305,8 @@ export const StandardSpeakingMode: React.FC<Props> = ({
             ? "Tap the microphone or press Space to begin"
             : status === "recording"
               ? "Speaking… tap again or press Space when done"
+              : status === "review"
+                ? "Check the transcript before saving this answer"
               : status === "save-failed"
                 ? "Your recordings are ready. Try saving the attempt again."
               : "\u00A0"}
@@ -278,7 +314,7 @@ export const StandardSpeakingMode: React.FC<Props> = ({
       </div>
 
       {/* Central Mic / Timer Orb */}
-      <div className="relative flex items-center justify-center mb-6 sm:mb-10">
+      <div className={`${status === "review" ? "hidden" : "relative flex"} items-center justify-center mb-6 sm:mb-10`}>
         {/* Outer pulse rings (recording) */}
         {status === "recording" && (
           <>
@@ -371,7 +407,7 @@ export const StandardSpeakingMode: React.FC<Props> = ({
       </div>
 
       {/* Visualizer */}
-      <div className="w-full max-w-md h-16 sm:h-20 mb-6 sm:mb-8 rounded-2xl overflow-hidden relative">
+      <div className={`${status === "review" ? "hidden" : "block"} w-full max-w-md h-16 sm:h-20 mb-6 sm:mb-8 rounded-2xl overflow-hidden relative`}>
         {status === "recording" ? (
           <canvas
             ref={canvasRef}
@@ -399,6 +435,17 @@ export const StandardSpeakingMode: React.FC<Props> = ({
         </div>
       ) : null}
 
+      {status === "review" ? (
+        <SpeakingTranscriptReview
+          id={`standard-speaking-transcript-${currentQuestion.id}`}
+          value={transcriptDraft}
+          onChange={setTranscriptDraft}
+          onRecordAgain={recordAgain}
+          onApprove={approveTranscript}
+          approveLabel="Save answer"
+        />
+      ) : null}
+
       {/* Saved confirmation */}
       {status === "idle" && currentIndex > 0 && !isTransitioning ? (
         <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200/60 px-3 py-1.5 rounded-full mb-4">
@@ -411,7 +458,7 @@ export const StandardSpeakingMode: React.FC<Props> = ({
       ) : null}
 
       {/* Keyboard hint */}
-      <div className="flex items-center gap-2 text-xs text-gray-400">
+      <div className={`${status === "review" ? "hidden" : "flex"} items-center gap-2 text-xs text-gray-400`}>
         <kbd className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] font-bold text-gray-500 leading-relaxed">
           Space
         </kbd>

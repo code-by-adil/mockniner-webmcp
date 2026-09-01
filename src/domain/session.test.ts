@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { initialSession, loadSession, saveSession, sessionReducer } from './session'
+import {
+  getResumableSection,
+  initialSession,
+  loadSession,
+  saveSession,
+  sessionReducer,
+} from './session'
 import { writingDocument } from '@/content/writing'
 import type {
   ObjectiveResult,
@@ -17,6 +23,14 @@ const listeningSubmission: ObjectiveSubmission = {
   result: listeningResult,
   startedAt: '2026-08-31T10:00:00.000Z',
   submittedAt: '2026-08-31T10:30:00.000Z',
+}
+
+const readingSubmission: ObjectiveSubmission = {
+  ...listeningSubmission,
+  attemptId: '44444444-4444-4444-8444-444444444444',
+  contentKey: 'local-reading-v1',
+  section: 'reading',
+  result: { ...listeningResult, section: 'reading' },
 }
 
 const writingSubmission: WritingSubmission = {
@@ -73,6 +87,89 @@ describe('full exam state transitions', () => {
     expect(continued.currentSection).toBe('reading')
   })
 
+  it('runs all four sections in order before showing the full-exam result', () => {
+    const listening = sessionReducer(initialSession, {
+      type: 'START',
+      mode: 'full',
+      section: 'listening',
+      startedAt: '2026-08-31T10:00:00.000Z',
+    })
+    const reading = sessionReducer(
+      sessionReducer(listening, {
+        type: 'COMPLETE_OBJECTIVE',
+        submission: listeningSubmission,
+      }),
+      { type: 'CONTINUE', startedAt: '2026-08-31T10:31:00.000Z' },
+    )
+    const writing = sessionReducer(
+      sessionReducer(reading, {
+        type: 'COMPLETE_OBJECTIVE',
+        submission: readingSubmission,
+      }),
+      { type: 'CONTINUE', startedAt: '2026-08-31T11:32:00.000Z' },
+    )
+    const speaking = sessionReducer(
+      sessionReducer(writing, {
+        type: 'COMPLETE_WRITING',
+        submission: writingSubmission,
+      }),
+      { type: 'CONTINUE', startedAt: '2026-08-31T12:33:00.000Z' },
+    )
+    const complete = sessionReducer(
+      sessionReducer(speaking, {
+        type: 'COMPLETE_SPEAKING',
+        submission: {
+          attemptId: '55555555-5555-4555-8555-555555555555',
+          contentKey: 'local-speaking-v1',
+          responses: [],
+          startedAt: '2026-08-31T12:33:00.000Z',
+          submittedAt: '2026-08-31T12:47:00.000Z',
+        },
+      }),
+      { type: 'CONTINUE', startedAt: '2026-08-31T12:48:00.000Z' },
+    )
+
+    expect([
+      listening.currentSection,
+      reading.currentSection,
+      writing.currentSection,
+      speaking.currentSection,
+    ]).toEqual(['listening', 'reading', 'writing', 'speaking'])
+    expect(complete.completedSections).toEqual([
+      'listening',
+      'reading',
+      'writing',
+      'speaking',
+    ])
+    expect(complete.view).toBe('result')
+    expect(getResumableSection(complete)).toBeNull()
+  })
+
+  it('resumes the next incomplete full-exam section after leaving a transition', () => {
+    const transition = sessionReducer(
+      sessionReducer(initialSession, {
+        type: 'START',
+        mode: 'full',
+        section: 'listening',
+        startedAt: '2026-08-31T10:00:00.000Z',
+      }),
+      { type: 'COMPLETE_OBJECTIVE', submission: listeningSubmission },
+    )
+    const home = sessionReducer(transition, { type: 'GO_HOME' })
+    const resumed = sessionReducer(home, {
+      type: 'RESUME',
+      startedAt: '2026-08-31T10:35:00.000Z',
+    })
+
+    expect(getResumableSection(home)).toBe('reading')
+    expect(resumed).toMatchObject({
+      view: 'exam',
+      mode: 'full',
+      currentSection: 'reading',
+      startedAtBySection: { reading: '2026-08-31T10:35:00.000Z' },
+    })
+  })
+
   it('keeps objective answers in the same shared state used by the UI', () => {
     const started = sessionReducer(initialSession, {
       type: 'START',
@@ -98,7 +195,10 @@ describe('full exam state transitions', () => {
       { type: 'SET_LISTENING_PLAYBACK', playback: { currentTimeSec: 18.5, volume: 0.7 } },
     )
     const home = sessionReducer(progressed, { type: 'GO_HOME' })
-    const resumed = sessionReducer(home, { type: 'RESUME' })
+    const resumed = sessionReducer(home, {
+      type: 'RESUME',
+      startedAt: '2026-08-31T10:05:00.000Z',
+    })
 
     expect(resumed.view).toBe('exam')
     expect(resumed.answers.listening[1]).toBe('Carter')

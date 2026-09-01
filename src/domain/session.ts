@@ -3,6 +3,7 @@ import type {
   ObjectiveSubmission,
   SectionKey,
   SpeakingSubmission,
+  SpeakingEvaluation,
   WritingEvaluation,
   WritingSubmission,
 } from './types'
@@ -12,6 +13,7 @@ import {
   answerMapSchema,
   objectiveSubmissionSchema,
   speakingSubmissionSchema,
+  speakingEvaluationSchema,
   writingEvaluationSchema,
   writingSubmissionSchema,
 } from './attemptValidation'
@@ -39,6 +41,7 @@ export type ExamSession = {
   writingSubmission?: WritingSubmission
   writingEvaluation?: WritingEvaluation
   speakingSubmission?: SpeakingSubmission
+  speakingEvaluation?: SpeakingEvaluation
   completedSections: SectionKey[]
   startedAt?: string
   startedAtBySection: Partial<Record<SectionKey, string>>
@@ -46,7 +49,7 @@ export type ExamSession = {
 
 export type SessionAction =
   | { type: 'START'; mode: ExamMode; section: SectionKey; startedAt: string }
-  | { type: 'RESUME' }
+  | { type: 'RESUME'; startedAt: string }
   | { type: 'SET_PART'; section: SectionKey; part: number }
   | { type: 'SET_ANSWER'; section: 'listening' | 'reading'; questionId: number; value: string }
   | { type: 'SET_WRITING'; task: 1 | 2; value: string }
@@ -56,6 +59,7 @@ export type SessionAction =
   | { type: 'COMPLETE_WRITING'; submission: WritingSubmission }
   | { type: 'ATTACH_WRITING_EVALUATION'; evaluation: WritingEvaluation }
   | { type: 'COMPLETE_SPEAKING'; submission: SpeakingSubmission }
+  | { type: 'ATTACH_SPEAKING_EVALUATION'; evaluation: SpeakingEvaluation }
   | { type: 'CONTINUE'; startedAt: string }
   | { type: 'OPEN_REVIEW'; section: SectionKey }
   | { type: 'CLOSE_REVIEW' }
@@ -119,6 +123,7 @@ const examSessionSchema: z.ZodType<ExamSession> = z
     writingSubmission: writingSubmissionSchema.optional(),
     writingEvaluation: writingEvaluationSchema.optional(),
     speakingSubmission: speakingSubmissionSchema.optional(),
+    speakingEvaluation: speakingEvaluationSchema.optional(),
     completedSections: z.array(sectionSchema),
     startedAt: timestampSchema.optional(),
     startedAtBySection: z.strictObject({
@@ -134,6 +139,12 @@ const examSessionSchema: z.ZodType<ExamSession> = z
       session.writingEvaluation.attemptId === session.writingSubmission?.attemptId,
     { message: 'The Writing evaluation does not match the stored submission.' },
   )
+  .refine(
+    (session) =>
+      !session.speakingEvaluation ||
+      session.speakingEvaluation.attemptId === session.speakingSubmission?.attemptId,
+    { message: 'The Speaking evaluation does not match the stored submission.' },
+  )
 
 function markComplete(state: ExamSession, section: SectionKey): ExamSession {
   const completedSections = state.completedSections.includes(section)
@@ -145,6 +156,22 @@ function markComplete(state: ExamSession, section: SectionKey): ExamSession {
     completedSections,
     view: 'transition',
   }
+}
+
+export function getResumableSection(state: ExamSession): SectionKey | null {
+  if (state.mode === 'full') {
+    return SECTION_ORDER.find(
+      (section) => !state.completedSections.includes(section),
+    ) ?? null
+  }
+  if (
+    state.mode === 'section' &&
+    state.currentSection &&
+    !state.completedSections.includes(state.currentSection)
+  ) {
+    return state.currentSection
+  }
+  return null
 }
 
 export function sessionReducer(state: ExamSession, action: SessionAction): ExamSession {
@@ -159,12 +186,19 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
         startedAtBySection: { [action.section]: action.startedAt },
       }
     case 'RESUME':
-      if (
-        state.view !== 'home' ||
-        !state.currentSection ||
-        state.completedSections.includes(state.currentSection)
-      ) return state
-      return { ...state, view: 'exam' }
+      if (state.view !== 'home') return state
+      const resumedSection = getResumableSection(state)
+      if (!resumedSection) return state
+      return {
+        ...state,
+        currentSection: resumedSection,
+        startedAtBySection: {
+          ...state.startedAtBySection,
+          [resumedSection]:
+            state.startedAtBySection[resumedSection] ?? action.startedAt,
+        },
+        view: 'exam',
+      }
     case 'SET_PART':
       return {
         ...state,
@@ -226,11 +260,19 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
       }
     case 'COMPLETE_SPEAKING':
       return markComplete({ ...state, speakingSubmission: action.submission }, 'speaking')
+    case 'ATTACH_SPEAKING_EVALUATION':
+      if (state.speakingSubmission?.attemptId !== action.evaluation.attemptId) return state
+      return {
+        ...state,
+        currentSection: 'speaking',
+        speakingEvaluation: action.evaluation,
+        view: 'review',
+      }
     case 'CONTINUE': {
       if (!state.currentSection || state.mode !== 'full') {
         return { ...state, view: 'result' }
       }
-      const next = SECTION_ORDER[SECTION_ORDER.indexOf(state.currentSection) + 1]
+      const next = getResumableSection(state)
       return next
         ? {
             ...state,
@@ -249,7 +291,7 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
           ? Boolean(state.objectiveSubmissions[action.section])
           : action.section === 'writing'
             ? Boolean(state.writingSubmission && state.writingEvaluation)
-            : Boolean(state.speakingSubmission)
+            : Boolean(state.speakingSubmission && state.speakingEvaluation)
       if (!reviewable) return state
       return {
         ...state,

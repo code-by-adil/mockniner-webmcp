@@ -1,44 +1,28 @@
 import type { SQLocal } from 'sqlocal'
-import type { SpeakingSubmission } from '@/domain/types'
-import type {
-  SaveSpeakingAttemptInput,
-  SpeakingRecordingInput,
-} from '@/application/attemptWriter'
-
-export type StoredSpeakingResponse = {
-  id: string
-  attemptId: string
-  promptId: number
-  partLabel: string
-  sequence: number
-  promptText: string
-  timeLimitSeconds: number
-  durationMs: number
-  mimeType: string
-  byteLength: number
-  audio: Uint8Array<ArrayBuffer>
-}
+import type { SpeakingEvaluation, SpeakingSubmission } from '@/domain/types'
+import { parseStoredSpeakingEvaluation } from '@/domain/attemptValidation'
+import type { SaveSpeakingAttemptInput, SpeakingRecordingInput } from '@/application/attemptWriter'
 
 type StoredSpeakingAttemptRow = {
   id: string
   contentKey: string
-  status: 'submitted' | 'evaluated'
   startedAt: string
   submittedAt: string
 }
 
 type StoredSpeakingResponseRow = {
   id: string
-  attemptId: string
   promptId: number
   partLabel: string
   sequence: number
   promptText: string
   timeLimitSeconds: number
   durationMs: number
-  mimeType: string
-  byteLength: number
-  audio: Uint8Array<ArrayBuffer>
+  transcript: string
+}
+
+type StoredSpeakingEvaluationRow = {
+  evaluationJson: string
 }
 
 function validateRecordings(recordings: SpeakingRecordingInput[]): void {
@@ -52,6 +36,9 @@ function validateRecordings(recordings: SpeakingRecordingInput[]): void {
   for (const recording of recordings) {
     if (recording.audio.size === 0) {
       throw new Error(`The recording for prompt ${recording.promptId} is empty.`)
+    }
+    if (!recording.transcript.trim()) {
+      throw new Error(`The transcript for prompt ${recording.promptId} is empty.`)
     }
     if (promptIds.has(recording.promptId)) {
       throw new Error(`Prompt ${recording.promptId} has more than one recording.`)
@@ -100,7 +87,8 @@ export async function saveSpeakingAttempt(
         duration_ms,
         mime_type,
         byte_length,
-        audio
+        audio,
+        transcript
       ) VALUES (
         ${recording.id},
         ${attemptId},
@@ -112,56 +100,119 @@ export async function saveSpeakingAttempt(
         ${Math.max(0, Math.round(recording.durationMs))},
         ${recording.mimeType},
         ${recording.byteLength},
-        ${recording.audioBytes}
+        ${recording.audioBytes},
+        ${recording.transcript.trim()}
       )`,
     ),
   ])
 
   return {
     attemptId,
-    promptCount: input.recordings.length,
-    recordedCount: preparedRecordings.length,
-    recordingIds: preparedRecordings.map((recording) => recording.id),
+    contentKey: input.contentKey,
+    responses: preparedRecordings.map((recording) => ({
+      recordingId: recording.id,
+      promptId: recording.promptId,
+      partLabel: recording.partLabel,
+      sequence: recording.sequence,
+      promptText: recording.promptText,
+      timeLimitSeconds: recording.timeLimitSeconds,
+      durationMs: Math.max(0, Math.round(recording.durationMs)),
+      transcript: recording.transcript.trim(),
+    })),
+    startedAt: input.startedAt,
     submittedAt,
   }
 }
 
 export async function readSpeakingAttempt(
   database: SQLocal,
-  attemptId: string,
+  attemptId?: string,
 ): Promise<{
-  attempt: StoredSpeakingAttemptRow
-  responses: StoredSpeakingResponse[]
+  submission: SpeakingSubmission
+  evaluation: SpeakingEvaluation | null
 } | null> {
-  const [attempt] = await database.sql<StoredSpeakingAttemptRow>`
+  const attempts = attemptId
+    ? await database.sql<StoredSpeakingAttemptRow>`
     SELECT
       id,
       content_key AS contentKey,
-      status,
       started_at AS startedAt,
       submitted_at AS submittedAt
     FROM attempts
     WHERE id = ${attemptId} AND section = 'speaking'
-  `
+    `
+    : await database.sql<StoredSpeakingAttemptRow>`
+      SELECT
+        id,
+        content_key AS contentKey,
+        started_at AS startedAt,
+        submitted_at AS submittedAt
+      FROM attempts
+      WHERE section = 'speaking'
+      ORDER BY submitted_at DESC
+      LIMIT 1
+    `
+  const [attempt] = attempts
   if (!attempt) return null
 
   const responses = await database.sql<StoredSpeakingResponseRow>`
     SELECT
       id,
-      attempt_id AS attemptId,
       prompt_id AS promptId,
       part_label AS partLabel,
       sequence,
       prompt_text AS promptText,
       time_limit_seconds AS timeLimitSeconds,
       duration_ms AS durationMs,
-      mime_type AS mimeType,
-      byte_length AS byteLength,
-      audio
+      transcript
     FROM speaking_responses
-    WHERE attempt_id = ${attemptId}
+    WHERE attempt_id = ${attempt.id}
     ORDER BY sequence
   `
 
-  return { attempt, responses }
+  const [evaluationRow] = await database.sql<StoredSpeakingEvaluationRow>`
+    SELECT evaluation_json AS evaluationJson
+    FROM speaking_evaluations
+    WHERE attempt_id = ${attempt.id}
+  `
+
+  const submission: SpeakingSubmission = {
+    attemptId: attempt.id,
+    contentKey: attempt.contentKey,
+    responses: responses.map((response) => ({
+      recordingId: response.id,
+      promptId: response.promptId,
+      partLabel: response.partLabel,
+      sequence: response.sequence,
+      promptText: response.promptText,
+      timeLimitSeconds: response.timeLimitSeconds,
+      durationMs: response.durationMs,
+      transcript: response.transcript,
+    })),
+    startedAt: attempt.startedAt,
+    submittedAt: attempt.submittedAt,
+  }
+
+  return {
+    submission,
+    evaluation: evaluationRow
+      ? parseStoredSpeakingEvaluation(evaluationRow.evaluationJson)
+      : null,
+  }
+}
+
+export async function saveSpeakingEvaluation(
+  database: SQLocal,
+  evaluation: SpeakingEvaluation,
+): Promise<void> {
+  await database.batch((sql) => [
+    sql`INSERT INTO speaking_evaluations (
+      attempt_id, evaluation_json, evaluated_at
+    ) VALUES (
+      ${evaluation.attemptId}, ${JSON.stringify(evaluation)}, ${evaluation.evaluatedAt}
+    )`,
+    sql`UPDATE attempts
+      SET status = 'evaluated'
+      WHERE id = ${evaluation.attemptId} AND section = 'speaking'`,
+  ])
 }
