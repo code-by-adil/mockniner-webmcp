@@ -1,4 +1,5 @@
-import { Check, Loader2, Mic, Square, Volume2 } from 'lucide-react'
+import { useState } from 'react'
+import { Check, Copy, Loader2, Mic, Square, Volume2 } from 'lucide-react'
 import type { CompleteSpeakingAttemptInput } from '@/application/attemptWriter'
 import type { SpeakingSubmission } from '@/domain/types'
 import { useAgentSpeakingInterview } from '../useAgentSpeakingInterview'
@@ -8,7 +9,18 @@ type Props = {
   onComplete: (input: CompleteSpeakingAttemptInput) => Promise<SpeakingSubmission>
 }
 
+const DEFAULT_SPEAKING_PROMPT =
+  'Conduct a full IELTS Speaking interview with me covering Parts 1, 2, and 3. Ask questions one at a time, listen to each response, and conclude when finished.'
+
 export function AgentSpeakingMode({ onComplete }: Props) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopyPrompt = () => {
+    void navigator.clipboard.writeText(DEFAULT_SPEAKING_PROMPT)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   const {
     phase,
     examinerText,
@@ -26,36 +38,69 @@ export function AgentSpeakingMode({ onComplete }: Props) {
     recordAgain,
   } = useAgentSpeakingInterview({ onComplete })
   const statusText = phase === 'setup'
-    ? 'Prepare the browser once, then ask your agent to start an IELTS Speaking interview.'
+    ? 'Enable your microphone and audio to begin the interview.'
     : phase === 'waiting'
       ? completedTurns === 0
-        ? 'Ready. Ask your agent to begin the interview.'
-        : 'Answer sent. The agent is choosing the next question.'
+        ? 'Ready. Give the prompt below to your agent to start the interview.'
+        : 'Response received. Waiting for the next question…'
       : phase === 'speaking'
-        ? 'The examiner is preparing and speaking the question…'
+        ? 'The examiner is speaking…'
         : phase === 'ready'
           ? 'Press the microphone when you are ready to answer.'
           : phase === 'recording'
-            ? `Recording your answer · ${secondsLeft}s remaining`
+            ? `Recording · ${secondsLeft}s remaining`
             : phase === 'review'
-              ? 'Check the transcript, correct recognition mistakes, then send it.'
+              ? 'Review your transcript before submitting.'
               : phase === 'saving'
-                ? 'Saving the completed interview locally…'
-                : 'Resolve the issue below and ask the agent to try the turn again.'
+                ? 'Submitting your completed interview…'
+                : 'Please resolve the issue below and try again.'
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-3xl flex-col items-center justify-center px-4 py-10 text-center sm:px-6">
-      <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[var(--exam-border)] bg-[var(--exam-surface)] px-3 py-1 text-xs font-semibold text-[var(--exam-text-muted)]">
-        <Volume2 size={14} /> Local Kokoro examiner · {completedTurns} answers captured
+      <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[var(--exam-border-muted)] bg-[var(--exam-surface)] px-3.5 py-1.5 text-xs font-semibold text-[var(--exam-text-muted)] shadow-2xs">
+        <Volume2 size={14} className="text-[var(--exam-accent)]" />
+        <span>{completedTurns > 0 ? `${completedTurns} responses recorded` : 'Interactive Speaking Interview'}</span>
       </div>
       <h1 className="text-3xl font-extrabold tracking-tight text-[var(--exam-text)] sm:text-4xl">
-        Agent-guided Speaking interview
+        IELTS Speaking Interview
       </h1>
       <p className="mt-3 max-w-2xl leading-7 text-[var(--exam-text-muted)]">{statusText}</p>
-      {phase === 'setup' ? (
-        <p className="mt-2 max-w-2xl text-xs leading-5 text-[var(--exam-text-muted)]">
-          Kokoro voice generation and saved recordings stay in the browser. Chrome speech recognition may use an online recognition service; you can correct its transcript before anything is returned to the agent.
-        </p>
+
+      {completedTurns === 0 && !examinerText ? (
+        <section className="mt-8 w-full max-w-xl text-left">
+          <h2 className="mb-2.5 text-center text-xs font-bold uppercase tracking-wider text-[var(--exam-text-muted)]">
+            Ask your agent to start the interview
+          </h2>
+          <div className="rounded-xl border border-[var(--exam-border-muted)] bg-[var(--exam-surface)] p-5 shadow-xs">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-semibold text-[var(--exam-text)]">
+                Agent prompt
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyPrompt}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--exam-border-muted)] bg-[var(--exam-surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--exam-text)] transition-colors hover:bg-[var(--exam-control-hover-bg)] cursor-pointer"
+                aria-label="Copy prompt for agent"
+              >
+                {copied ? (
+                  <>
+                    <Check size={13} className="text-emerald-600" />
+                    <span className="text-emerald-700 font-semibold">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={13} className="text-[var(--exam-text-muted)]" />
+                    <span>Copy prompt</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="mt-3 rounded-lg border border-[var(--exam-border-muted)] bg-[var(--exam-surface-muted)] p-3.5 text-sm leading-relaxed text-[var(--exam-text)] select-text">
+              “{DEFAULT_SPEAKING_PROMPT}”
+            </div>
+          </div>
+        </section>
       ) : null}
 
       {examinerText ? (
@@ -74,7 +119,7 @@ export function AgentSpeakingMode({ onComplete }: Props) {
       <div className="mt-8 flex flex-col items-center gap-4">
         {(phase === 'setup' || phase === 'error') && !prepared ? (
           <button type="button" onClick={prepare} className="inline-flex items-center gap-2 rounded bg-[var(--exam-accent)] px-5 py-3 text-sm font-bold text-white hover:bg-[var(--exam-accent-hover)]">
-            <Volume2 size={18} /> Prepare microphone and audio
+            <Volume2 size={18} /> Enable microphone and audio
           </button>
         ) : null}
         {phase === 'ready' ? (
@@ -102,13 +147,13 @@ export function AgentSpeakingMode({ onComplete }: Props) {
           onChange={setTranscriptDraft}
           onRecordAgain={recordAgain}
           onApprove={approveTranscript}
-          approveLabel="Send answer to agent"
+          approveLabel="Send response"
         />
       ) : null}
 
       {phase === 'waiting' && completedTurns > 0 ? (
         <div className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[var(--exam-success-fg)]">
-          <Check size={17} /> The last transcript was returned to the agent.
+          <Check size={17} /> Response recorded.
         </div>
       ) : null}
     </main>

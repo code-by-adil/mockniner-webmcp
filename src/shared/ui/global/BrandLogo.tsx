@@ -5,8 +5,6 @@ export function BrandLogo({
 }: {
   className?: string;
 }): React.ReactElement {
-  const nineGradientId = React.useId();
-
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -16,13 +14,6 @@ export function BrandLogo({
       width="520"
       height="360"
     >
-      <defs>
-        <linearGradient id={nineGradientId} x1="302" y1="58" x2="420" y2="306" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#2f73ff" />
-          <stop offset="0.52" stopColor="#5a64ff" />
-          <stop offset="1" stopColor="#7957f2" />
-        </linearGradient>
-      </defs>
       <path
         d="M54 342V100C54 50 116 28 151 64L274 205C290 223 307 223 322 206L376 145M132 342V146L232 326"
         fill="none"
@@ -34,7 +25,7 @@ export function BrandLogo({
       <path
         d="M286 142C286 87 329 54 379 54C437 54 477 96 477 151C477 182 466 206 448 229L355 342"
         fill="none"
-        stroke={`url(#${nineGradientId})`}
+        stroke="var(--exam-accent, #c1121f)"
         strokeWidth="16"
         strokeLinecap="round"
         strokeLinejoin="round"

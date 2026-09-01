@@ -13,7 +13,7 @@ export function ExamBrandMark(): React.ReactElement {
           >
             <span aria-hidden="true" className="inline-flex items-baseline">
               <span className="font-light">Mock</span>
-              <span className="font-medium text-[#5a64ff]">Niner</span>
+              <span className="font-medium text-[var(--exam-accent,#c1121f)]">Niner</span>
             </span>
           </span>
         </h1>

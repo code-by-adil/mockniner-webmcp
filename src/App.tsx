@@ -7,10 +7,10 @@ import {
   FileText,
   Headphones,
   Mic,
-  PlayCircle,
 } from "lucide-react";
 import { ExamUiBoundary } from "@/app/layouts/UiLayerBoundary";
-import { BrandLogo, BrandWordmark } from "@/shared/ui/global/BrandLogo";
+import { ExamBrandMark } from "@/modules/exam-engine/ui/ExamBrandMark";
+import { Home } from "@/app/home/Home";
 import { ListeningExamRunner } from "@/modules/section-packs/listening/ui/ListeningExamRunner";
 import { ReadingExamRunner } from "@/modules/section-packs/reading/ui/ReadingExamRunner";
 import { LocalWritingExam } from "@/local/LocalWritingExam";
@@ -18,18 +18,10 @@ import { LocalWritingReview } from "@/local/LocalWritingReview";
 import { LocalSpeakingExam } from "@/local/LocalSpeakingExam";
 import { LocalSpeakingReview } from "@/local/LocalSpeakingReview";
 import { SECTION_ORDER } from "@/domain/exam";
-import {
-  getResumableSection,
-  type ExamMode,
-  type ExamSession,
-} from "@/domain/session";
+import type { ExamMode, ExamSession } from "@/domain/session";
 import type { SectionKey } from "@/domain/types";
-import type { ActiveContentDocuments } from "@/domain/contentDocument";
 import { useExamApplication } from "@/application/useExamApplication";
-import {
-  useListeningAudio,
-  type ListeningAudioSession,
-} from "@/application/useListeningAudio";
+import { useListeningAudio } from "@/application/useListeningAudio";
 import { useWebMcpTools } from "@/webmcp/useWebMcpTools";
 
 type Section = SectionKey;
@@ -59,151 +51,25 @@ const SECTION_META = {
 
 function AppHeader() {
   return (
-    <header className="sticky top-0 z-30 border-b border-[var(--exam-border-muted)] bg-[color:var(--exam-surface)]/95 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
-        <BrandLogo className="h-9 w-12" />
-        <BrandWordmark />
-        <span className="ml-auto rounded border border-[var(--exam-border)] bg-[var(--exam-surface)] px-3 py-1 text-xs font-semibold text-[var(--exam-text-muted)]">
-          Offline practice
-        </span>
+    <header className="w-full border-b border-neutral-200/80 bg-white sticky top-0 z-30">
+      <div className="max-w-[1400px] mx-auto flex h-[60px] items-center justify-between px-4 sm:px-8">
+        <div className="flex items-center gap-2 sm:gap-6 min-w-0">
+          <ExamBrandMark />
+          <div className="hidden sm:flex flex-col text-xs border-l pl-6 h-8 justify-center min-w-0">
+            <span className="font-bold text-neutral-900 leading-tight">
+              Computer-Delivered IELTS
+            </span>
+            <span className="text-neutral-500 text-[11px] truncate leading-tight">
+              Practice &amp; Evaluation Workspace
+            </span>
+          </div>
+        </div>
+        <div className="inline-flex items-center gap-1.5 text-neutral-500 text-[11px]">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <span>Saved on this device</span>
+        </div>
       </div>
     </header>
-  );
-}
-
-function Home({
-  onStart,
-  onResume,
-  session,
-  listeningAudio,
-  onRetryListeningAudio,
-  content,
-}: {
-  onStart: (mode: Mode, section: Section) => void;
-  onResume: () => void;
-  session: ExamSession;
-  listeningAudio: ListeningAudioSession;
-  onRetryListeningAudio: () => void;
-  content: ActiveContentDocuments;
-}) {
-  const listeningReady = listeningAudio.readyToPlay;
-  const resumableSection = getResumableSection(session);
-  const resumableFullExamSection = session.mode === "full"
-    ? resumableSection
-    : null;
-  const resumablePracticeSection = session.mode === "section"
-    ? resumableSection
-    : null;
-  const fullExamEntrySection = resumableFullExamSection ?? "listening";
-  const canOpenFullExam = fullExamEntrySection !== "listening" || listeningReady;
-  return (
-    <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
-        <AppHeader />
-        <main className="mx-auto max-w-7xl px-4 pb-16 pt-10 sm:px-6">
-          <div className="max-w-3xl">
-            <div className="mb-4 inline-flex rounded border border-[var(--exam-border)] bg-[var(--exam-surface)] px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-[var(--exam-text-muted)]">
-              Computer-delivered IELTS practice
-            </div>
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-              Practise one section or take a full exam.
-            </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--exam-text-muted)]">
-              Start Listening, Reading, Writing, or Speaking independently, or
-              complete all four in test-day order.
-            </p>
-            <button
-              type="button"
-              onClick={resumableFullExamSection
-                ? onResume
-                : () => onStart("full", "listening")}
-              disabled={!canOpenFullExam}
-              className="mt-7 inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--exam-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <PlayCircle size={18} />
-              {resumableFullExamSection
-                ? `Resume full exam · ${SECTION_META[resumableFullExamSection].title}`
-                : "Start full exam"}
-            </button>
-            {resumableSection ? (
-              <p className="mt-3 text-sm text-[var(--exam-text-muted)]">
-                {session.mode === "full"
-                  ? `Your Full Exam will resume at ${SECTION_META[resumableSection].title}.`
-                  : `Your ${SECTION_META[resumableSection].title} practice is ready to resume.`}{" "}
-                Starting another option replaces this unfinished attempt.
-              </p>
-            ) : null}
-          </div>
-
-          <div className="mt-12 grid gap-5 md:grid-cols-2">
-            {SECTION_ORDER.map((section) => {
-              const item = SECTION_META[section];
-              const Icon = item.icon;
-              const activeContent = section === "speaking" ? null : content[section];
-              const isAgentCreated = Boolean(
-                activeContent &&
-                (activeContent.source === "agent" || !activeContent.contentKey.startsWith("local-")),
-              );
-              return (
-                <article
-                  key={section}
-                  className="flex h-full flex-col rounded-lg border border-[var(--exam-border-muted)] bg-[var(--exam-surface)] px-6 py-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-                >
-                  <div className="flex h-11 w-11 items-center justify-center rounded bg-[var(--exam-accent)] text-white">
-                    <Icon size={20} />
-                  </div>
-                  <h2 className="mt-5 text-xl font-semibold">{item.title}</h2>
-                  <p className="mt-2 leading-6 text-[var(--exam-text-muted)]">
-                    {item.description}
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold">
-                    <span className={`rounded-full px-2 py-1 ${isAgentCreated ? "bg-[var(--exam-success-bg)] text-[var(--exam-success-fg)]" : "bg-[var(--exam-surface-muted)] text-[var(--exam-text-muted)]"}`}>
-                      {isAgentCreated ? "Agent-created" : "Built-in"}
-                    </span>
-                    <span className="text-[var(--exam-accent)]">
-                      {activeContent?.name ?? "Speaking practice"}
-                    </span>
-                  </div>
-                  {section === "listening" && listeningAudio.phase !== "ready" ? (
-                    <div className="mt-4 rounded border border-[var(--exam-border-muted)] bg-[var(--exam-surface-muted)] px-3 py-2 text-xs font-semibold text-[var(--exam-text-muted)]">
-                      {listeningAudio.phase === "error" ? (
-                        <div className="flex items-center justify-between gap-3">
-                          <span>{listeningAudio.error}</span>
-                          <button
-                            type="button"
-                            onClick={onRetryListeningAudio}
-                            className="shrink-0 text-[var(--exam-accent)] underline underline-offset-2"
-                          >
-                            Retry
-                          </button>
-                        </div>
-                      ) : listeningAudio.phase === "loading" ? (
-                        "Loading the local Kokoro voice engine…"
-                      ) : listeningAudio.phase === "generating" ? (
-                        `Preparing listening audio — ${listeningAudio.completedChunks}${listeningAudio.totalChunks == null ? "" : ` of ${listeningAudio.totalChunks}`} chunks saved`
-                      ) : (
-                        "Preparing listening audio…"
-                      )}
-                    </div>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={resumablePracticeSection === section
-                      ? onResume
-                      : () => onStart("section", section)}
-                    disabled={section === "listening" && !listeningReady}
-                    className="mt-6 inline-flex w-full items-center justify-between gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--exam-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <span>
-                      {resumablePracticeSection === section ? "Resume" : "Start"} {item.title} practice
-                    </span>
-                    <ArrowRight size={16} />
-                  </button>
-                </article>
-              );
-            })}
-          </div>
-        </main>
-    </div>
   );
 }
 
@@ -391,6 +257,7 @@ export default function App() {
         listeningAudio={listeningAudio}
         onRetryListeningAudio={listeningAudio.retry}
         content={content}
+        onReview={commands.openReview}
       />
     );
   }
