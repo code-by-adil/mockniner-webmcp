@@ -487,7 +487,9 @@ const BundledListeningAudioBar: React.FC<BundledProps> = ({
         audio.pause();
         audio.removeAttribute("src");
         audio.load();
-      } catch {}
+      } catch {
+        // Media teardown is best-effort; some browsers reject it after source failure.
+      }
     };
   }, [sources.audioUrl]);
 
@@ -505,7 +507,9 @@ const BundledListeningAudioBar: React.FC<BundledProps> = ({
     if (!audio) return;
     try {
       audio.pause();
-    } catch {}
+    } catch {
+      // Review mode is already non-playing when an uninitialized element rejects pause().
+    }
   }, [isReviewMode]);
 
   const canUseTimeline = Boolean(timeline) && !timelineError;

@@ -119,6 +119,39 @@ const migrations = [
       )`,
     ],
   },
+  {
+    version: 7,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS assessment_packages (
+        package_id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        schema_version INTEGER NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        document_json TEXT NOT NULL,
+        installed_at TEXT NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS assessment_attempts (
+        id TEXT PRIMARY KEY,
+        package_id TEXT NOT NULL,
+        profile_id TEXT NOT NULL,
+        package_snapshot_json TEXT NOT NULL,
+        responses_json TEXT NOT NULL,
+        result_json TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        submitted_at TEXT NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS assessment_evaluations (
+        attempt_id TEXT PRIMARY KEY,
+        evaluation_json TEXT NOT NULL,
+        evaluated_at TEXT NOT NULL,
+        FOREIGN KEY (attempt_id) REFERENCES assessment_attempts(id) ON DELETE CASCADE
+      )`,
+      `CREATE INDEX IF NOT EXISTS assessment_attempts_package_submitted_at
+        ON assessment_attempts(package_id, submitted_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS assessment_attempts_profile_submitted_at
+        ON assessment_attempts(profile_id, submitted_at DESC)`,
+    ],
+  },
 ] as const
 
 export async function migrateDatabase(database: SQLocal): Promise<void> {

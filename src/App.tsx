@@ -9,7 +9,6 @@ import {
   Mic,
 } from "lucide-react";
 import { ExamUiBoundary } from "@/app/layouts/UiLayerBoundary";
-import { ExamBrandMark } from "@/modules/exam-engine/ui/ExamBrandMark";
 import { Home } from "@/app/home/Home";
 import { ListeningExamRunner } from "@/modules/section-packs/listening/ui/ListeningExamRunner";
 import { ReadingExamRunner } from "@/modules/section-packs/reading/ui/ReadingExamRunner";
@@ -23,6 +22,10 @@ import type { SectionKey } from "@/domain/types";
 import { useExamApplication } from "@/application/useExamApplication";
 import { useListeningAudio } from "@/application/useListeningAudio";
 import { useWebMcpTools } from "@/webmcp/useWebMcpTools";
+import { useAssessmentApplication } from "@/application/useAssessmentApplication";
+import { AssessmentRunner } from "@/modules/assessment-engine/ui/AssessmentRunner";
+import { AssessmentResults } from "@/modules/assessment-engine/ui/AssessmentResults";
+import { WorkspaceBrandMark } from "@/shared/ui/global/WorkspaceBrandMark";
 
 type Section = SectionKey;
 type Mode = ExamMode;
@@ -54,10 +57,10 @@ function AppHeader() {
     <header className="w-full border-b border-neutral-200/80 bg-white sticky top-0 z-30">
       <div className="max-w-[1400px] mx-auto flex h-[60px] items-center justify-between px-4 sm:px-8">
         <div className="flex items-center gap-2 sm:gap-6 min-w-0">
-          <ExamBrandMark />
+          <WorkspaceBrandMark />
           <div className="hidden sm:flex flex-col text-xs border-l pl-6 h-8 justify-center min-w-0">
             <span className="font-bold text-neutral-900 leading-tight">
-              Computer-Delivered IELTS
+              Assessment Practice Workspace
             </span>
             <span className="text-neutral-500 text-[11px] truncate leading-tight">
               Practice &amp; Evaluation Workspace
@@ -230,21 +233,59 @@ function Results({
 
 export default function App() {
   const { state, content, contentReady, commands } = useExamApplication();
+  const assessmentApplication = useAssessmentApplication();
   const listeningAudio = useListeningAudio(content.listening);
   useWebMcpTools({
     commands,
+    assessmentCommands: assessmentApplication.commands,
     currentWritingAttemptId: state.writingSubmission?.attemptId,
     currentSpeakingAttemptId: state.speakingSubmission?.attemptId,
-    enabled: contentReady,
+    currentAssessmentAttemptId: assessmentApplication.state.view === "result"
+      ? assessmentApplication.state.submission?.attemptId
+      : undefined,
+    enabled: contentReady && assessmentApplication.assessmentReady,
   });
   const section = state.currentSection;
   const mode = state.mode ?? "section";
 
-  if (!contentReady) {
+  if (!contentReady || !assessmentApplication.assessmentReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--exam-surface-muted)] text-sm font-semibold text-[var(--exam-text-muted)]">
-        Loading practice content…
+        Loading assessment workspace…
       </div>
+    );
+  }
+
+  if (
+    assessmentApplication.state.view === "assessment" &&
+    assessmentApplication.currentAssessment
+  ) {
+    return (
+      <AssessmentRunner
+        assessment={assessmentApplication.currentAssessment}
+        session={assessmentApplication.state}
+        onExit={assessmentApplication.commands.goHome}
+        onResponse={assessmentApplication.commands.setResponse}
+        onToggleMark={assessmentApplication.commands.toggleMark}
+        onSetItem={assessmentApplication.commands.setItem}
+        onTick={assessmentApplication.commands.tick}
+        onAdvance={assessmentApplication.commands.advance}
+        onExpireModule={assessmentApplication.commands.expireModule}
+        onSubmit={assessmentApplication.commands.submit}
+      />
+    );
+  }
+
+  if (
+    assessmentApplication.state.view === "result" &&
+    assessmentApplication.state.submission
+  ) {
+    return (
+      <AssessmentResults
+        submission={assessmentApplication.state.submission}
+        evaluation={assessmentApplication.state.evaluation}
+        onHome={assessmentApplication.commands.goHome}
+      />
     );
   }
 
@@ -258,6 +299,12 @@ export default function App() {
         onRetryListeningAudio={listeningAudio.retry}
         content={content}
         onReview={commands.openReview}
+        assessments={assessmentApplication.assessments}
+        assessmentSession={assessmentApplication.state}
+        assessmentHistory={assessmentApplication.history}
+        onStartAssessment={assessmentApplication.commands.start}
+        onResumeAssessment={assessmentApplication.commands.resume}
+        onReviewAssessment={assessmentApplication.commands.openAttempt}
       />
     );
   }

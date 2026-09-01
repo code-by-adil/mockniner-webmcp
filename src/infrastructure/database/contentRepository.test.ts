@@ -47,4 +47,27 @@ describe("local content repository", () => {
       }),
     ).rejects.toThrow("already installed with different data");
   });
+
+  it("loads valid sections even when an older active document no longer validates", async () => {
+    const onInvalidContent = vi.fn();
+    await saveAndActivateContent(database, writingDocument);
+    await database.sql`
+      INSERT INTO content_documents (
+        content_key, section, schema_version, document_json, installed_at
+      ) VALUES (
+        'legacy-reading', 'reading', 1, '{"section":"reading"}',
+        '2026-09-02T10:00:00.000Z'
+      )
+    `;
+    await database.sql`
+      INSERT INTO active_content (section, content_key)
+      VALUES ('reading', 'legacy-reading')
+    `;
+
+    await expect(loadActiveContent(database, onInvalidContent)).resolves.toEqual([writingDocument]);
+    expect(onInvalidContent).toHaveBeenCalledWith(
+      expect.any(Error),
+      { contentKey: "legacy-reading", section: "reading" },
+    );
+  });
 });

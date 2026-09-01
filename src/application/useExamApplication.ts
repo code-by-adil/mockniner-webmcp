@@ -37,7 +37,13 @@ export function useExamApplication(): {
         const { createContentStore } = await import(
           '@/infrastructure/database/contentRepository'
         )
-        return createContentStore(database).loadActive()
+        return createContentStore(database, (error, row) => {
+          reportWebHandledProductFailure(error, {
+            feature: 'content-catalog-row-load',
+            contentKey: row.contentKey,
+            section: row.section,
+          })
+        }).loadActive()
       })
       .then((storedDocuments) => {
         if (cancelled) return

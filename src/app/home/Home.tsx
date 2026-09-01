@@ -12,7 +12,7 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
-import { ExamBrandMark } from "@/modules/exam-engine/ui/ExamBrandMark";
+import { WorkspaceBrandMark } from "@/shared/ui/global/WorkspaceBrandMark";
 import { SECTION_ORDER } from "@/domain/exam";
 import {
   getResumableSection,
@@ -23,9 +23,23 @@ import type { SectionKey } from "@/domain/types";
 import type { ActiveContentDocuments } from "@/domain/contentDocument";
 import type { ListeningAudioSession } from "@/application/useListeningAudio";
 import type { LearningSummary } from "@/domain/learningSummary";
+import {
+  UniversalAssessmentHistoryRows,
+  UniversalAssessmentLibrary,
+  type UniversalAssessmentHomeProps,
+} from "./UniversalAssessmentLibrary";
 
 type Section = SectionKey;
 type Mode = ExamMode;
+type HomeProps = UniversalAssessmentHomeProps & {
+  onStart: (mode: Mode, section: Section) => void;
+  onResume: () => void;
+  session: ExamSession;
+  listeningAudio: ListeningAudioSession;
+  onRetryListeningAudio: () => void;
+  content: ActiveContentDocuments;
+  onReview?: (section: Section) => void;
+};
 
 const SECTION_CONFIG = {
   listening: {
@@ -60,11 +74,27 @@ const SECTION_CONFIG = {
 
 const WEBMCP_TOOLS = [
   {
-    name: "install_practice_set",
-    desc: "Generate and install customized Listening, Reading, or Writing test materials.",
+    name: "get_assessment_capabilities",
+    desc: "Inspect trusted universal assessment components and authoring rules.",
   },
   {
-    name: "read_writing_attempt",
+    name: "install_assessment",
+    desc: "Install a universal or SAT-style assessment package in the library.",
+  },
+  {
+    name: "get_assessment_submission",
+    desc: "Read an immutable universal assessment submission without answer keys.",
+  },
+  {
+    name: "attach_assessment_evaluation",
+    desc: "Attach rubric-based feedback to a subjective assessment response.",
+  },
+  {
+    name: "install_practice_set",
+    desc: "Generate and install native IELTS Listening, Reading, or Writing materials.",
+  },
+  {
+    name: "get_writing_submission",
     desc: "Retrieve submitted Task 1 and Task 2 essays for grading.",
   },
   {
@@ -72,7 +102,11 @@ const WEBMCP_TOOLS = [
     desc: "Attach official Band descriptors, criteria scores, and targeted feedback.",
   },
   {
-    name: "read_speaking_attempt",
+    name: "conduct_speaking_turn",
+    desc: "Coordinate an agent-guided IELTS Speaking examiner turn.",
+  },
+  {
+    name: "get_speaking_submission",
     desc: "Retrieve recorded interview audio transcripts across all 3 parts.",
   },
   {
@@ -80,15 +114,16 @@ const WEBMCP_TOOLS = [
     desc: "Attach Fluency, Lexical Resource, Grammar, and Pronunciation scores.",
   },
   {
-    name: "read_learning_summary",
+    name: "get_learning_summary",
     desc: "Inspect recent attempt history, overall bands, and weak skill areas.",
   },
 ];
 
 const PROMPT_SUGGESTIONS = [
+  "Create and install an original SAT-style diagnostic focused on algebra and inference.",
+  "Build a six-question universal assessment with multiple choice, numeric entry, and one rubric-evaluated response.",
   "Generate an IELTS Academic Reading test on renewable energy with 13 questions.",
   "Grade my submitted IELTS Writing Task 2 essay against official band descriptors.",
-  "Review my latest Speaking test transcript and recommend Band 8+ vocabulary improvements.",
 ];
 
 export function Home({
@@ -99,15 +134,13 @@ export function Home({
   onRetryListeningAudio,
   content,
   onReview,
-}: {
-  onStart: (mode: Mode, section: Section) => void;
-  onResume: () => void;
-  session: ExamSession;
-  listeningAudio: ListeningAudioSession;
-  onRetryListeningAudio: () => void;
-  content: ActiveContentDocuments;
-  onReview?: (section: Section) => void;
-}): React.ReactElement {
+  assessments,
+  assessmentSession,
+  assessmentHistory,
+  onStartAssessment,
+  onResumeAssessment,
+  onReviewAssessment,
+}: HomeProps): React.ReactElement {
   const [learningSummary, setLearningSummary] = useState<LearningSummary | null>(null);
   const [toolsModalOpen, setToolsModalOpen] = useState(false);
   const [copiedPromptIndex, setCopiedPromptIndex] = useState<number | null>(null);
@@ -154,13 +187,13 @@ export function Home({
       <header className="w-full border-b border-neutral-200/80 bg-white sticky top-0 z-30">
         <div className="max-w-[1400px] mx-auto flex h-[60px] items-center justify-between px-4 sm:px-8">
           <div className="flex items-center gap-2 sm:gap-6 min-w-0">
-            <ExamBrandMark />
+            <WorkspaceBrandMark />
             <div className="hidden sm:flex flex-col text-xs border-l pl-6 h-8 justify-center min-w-0">
               <span className="font-bold text-neutral-900 leading-tight">
-                Computer-Delivered IELTS
+                Assessment Practice Workspace
               </span>
               <span className="text-neutral-500 text-[11px] truncate leading-tight">
-                Practice &amp; Evaluation Workspace
+                Native IELTS · Universal Assessments
               </span>
             </div>
           </div>
@@ -179,10 +212,10 @@ export function Home({
         {/* Title & Philosophy Block */}
         <div className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-950">
-            IELTS Practice Environment
+            Agent-Native Assessment Environment
           </h1>
           <p className="text-base text-neutral-600 leading-relaxed font-normal max-w-3xl">
-            A quiet, authentic environment for computer-delivered IELTS simulation, drafting, and evaluation.
+            Install structured assessments with your agent, complete them in a focused interface, and receive deterministic or rubric-based evaluation.
           </p>
           <div className="border-l-2 border-neutral-300 pl-4 py-1 text-sm text-neutral-600 italic">
             “The application provides structure. Your agent provides intelligence.”
@@ -195,14 +228,14 @@ export function Home({
             <div className="space-y-1.5">
               <div className="inline-flex items-center gap-2">
                 <span className="text-[10px] font-bold tracking-wider uppercase bg-neutral-900 text-white px-2 py-0.5 rounded">
-                  Full Simulation
+                  Native IELTS
                 </span>
                 <span className="text-xs text-neutral-500 inline-flex items-center gap-1">
                   <Clock size={12} /> ~2 hrs 45 mins · 4 sections
                 </span>
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-neutral-900">
-                Official Exam Simulation
+                Full IELTS Simulation
               </h2>
               <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed max-w-2xl">
                 Listening (30m) → Reading (60m) → Writing (60m) → Speaking (14m) with authentic exam-day timing and section sequencing.
@@ -244,11 +277,18 @@ export function Home({
           )}
         </section>
 
+        <UniversalAssessmentLibrary
+          assessments={assessments}
+          assessmentSession={assessmentSession}
+          onStartAssessment={onStartAssessment}
+          onResumeAssessment={onResumeAssessment}
+        />
+
         {/* Modular Section Practice List */}
         <section className="space-y-4">
           <div className="flex items-center justify-between border-b border-neutral-200/80 pb-2.5">
             <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-              Practice Modules
+              Native IELTS Modules
             </h2>
             <span className="text-xs text-neutral-400">Untimed or standard pacing</span>
           </div>
@@ -349,19 +389,24 @@ export function Home({
         </section>
 
         {/* Recent Attempts (if existing) */}
-        {learningSummary && learningSummary.totalAttempts > 0 && (
+        {((learningSummary && learningSummary.totalAttempts > 0) || assessmentHistory.length > 0) && (
           <section className="space-y-4">
             <div className="flex items-center justify-between border-b border-neutral-200/80 pb-2.5">
               <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
                 Recent Attempts
               </h2>
               <span className="text-xs text-neutral-400">
-                {learningSummary.totalAttempts} total saved locally
+                {(learningSummary?.totalAttempts ?? 0) + assessmentHistory.length} recent and IELTS attempts saved locally
               </span>
             </div>
 
             <div className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-white text-xs shadow-2xs">
-              {learningSummary.sections.reading.recent.slice(0, 2).map((attempt) => (
+              <UniversalAssessmentHistoryRows
+                history={assessmentHistory}
+                onReview={onReviewAssessment}
+              />
+
+              {learningSummary?.sections.reading.recent.slice(0, 2).map((attempt) => (
                 <div
                   key={attempt.attemptId}
                   className="flex items-center justify-between p-4"
@@ -395,7 +440,7 @@ export function Home({
                 </div>
               ))}
 
-              {learningSummary.sections.listening.recent.slice(0, 2).map((attempt) => (
+              {learningSummary?.sections.listening.recent.slice(0, 2).map((attempt) => (
                 <div
                   key={attempt.attemptId}
                   className="flex items-center justify-between p-4"
@@ -429,7 +474,7 @@ export function Home({
                 </div>
               ))}
 
-              {learningSummary.sections.writing.recent.slice(0, 2).map((attempt) => (
+              {learningSummary?.sections.writing.recent.slice(0, 2).map((attempt) => (
                 <div
                   key={attempt.attemptId}
                   className="flex items-center justify-between p-4"
@@ -497,7 +542,7 @@ export function Home({
                   WebMCP Integration
                 </h2>
                 <p className="text-xs text-neutral-500 mt-1">
-                  Page-native capabilities enabling your AI agent to create tests, grade essays, and evaluate speaking.
+                  Page-native capabilities for installing assessments, reading submissions, and returning structured evaluation.
                 </p>
               </div>
               <button
@@ -518,7 +563,7 @@ export function Home({
                   How your agent works with this site
                 </h3>
                 <p className="text-xs text-neutral-600 leading-relaxed">
-                  Through WebMCP, your agent (such as ChatGPT or Claude) interacts directly with this exam simulator. It can generate customized test materials, retrieve submitted writing to evaluate against official IELTS band descriptors, and review speaking transcripts—all stored locally on your device.
+                  Through WebMCP, your agent works with the same local assessment state as this interface. It can install universal or native IELTS content, read immutable submissions, and return validated rubric feedback without an application-owned model or credential.
                 </p>
               </div>
 
@@ -527,7 +572,7 @@ export function Home({
                 <span className="h-2 w-2 rounded-full bg-emerald-500 mt-0.5 shrink-0" />
                 <div className="space-y-0.5">
                   <div className="font-semibold text-neutral-900">
-                    6 browser tools active
+                    {WEBMCP_TOOLS.length} browser tools active
                   </div>
                   <div className="text-neutral-500 text-[11px]">
                     Available directly to connected AI agents while this workspace is open in your browser.

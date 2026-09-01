@@ -11,8 +11,14 @@ type StoredContentRow = {
   documentJson: string;
 };
 
+export type InvalidStoredContentHandler = (
+  error: Error,
+  row: Pick<StoredContentRow, "contentKey" | "section">,
+) => void;
+
 export async function loadActiveContent(
   database: SQLocal,
+  onInvalidContent?: InvalidStoredContentHandler,
 ): Promise<PracticeContentDocument[]> {
   const rows = await database.sql<StoredContentRow>`
     SELECT
@@ -25,12 +31,22 @@ export async function loadActiveContent(
     ORDER BY content_documents.section
   `;
 
-  return rows.map((row) => {
-    const document = parsePracticeContentDocument(JSON.parse(row.documentJson));
-    if (document.contentKey !== row.contentKey || document.section !== row.section) {
-      throw new Error(`Stored content ${row.contentKey} does not match its index.`);
+  return rows.flatMap((row) => {
+    try {
+      const document = parsePracticeContentDocument(JSON.parse(row.documentJson));
+      if (document.contentKey !== row.contentKey || document.section !== row.section) {
+        throw new Error(`Stored content ${row.contentKey} does not match its index.`);
+      }
+      return [document];
+    } catch (error) {
+      // Persisted documents are an untrusted boundary. Keep the row for possible
+      // future migration, but let the application use its bundled section fallback.
+      onInvalidContent?.(
+        error instanceof Error ? error : new Error(String(error)),
+        { contentKey: row.contentKey, section: row.section },
+      );
+      return [];
     }
-    return document;
   });
 }
 
@@ -78,9 +94,12 @@ export async function saveAndActivateContent(
   });
 }
 
-export function createContentStore(database: SQLocal): ContentStore {
+export function createContentStore(
+  database: SQLocal,
+  onInvalidContent?: InvalidStoredContentHandler,
+): ContentStore {
   return {
-    loadActive: () => loadActiveContent(database),
+    loadActive: () => loadActiveContent(database, onInvalidContent),
     saveAndActivate: (document) => saveAndActivateContent(database, document),
   };
 }
