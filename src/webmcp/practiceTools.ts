@@ -4,6 +4,7 @@ import {
   type ExamApplicationCommands,
 } from '@/application/commands'
 import { getPracticeContentJsonSchema } from '@/domain/contentDocument'
+import { KOKORO_LISTENING_AUTHORING_GUIDANCE } from '@/domain/objectiveContent'
 import { toolFailure, throwIfCancelled, zodIssues } from './toolResult'
 
 type PracticeToolDependencies = {
@@ -27,7 +28,7 @@ export function createPracticeToolDefinitions({
       name: 'install_practice_set',
       title: 'Install IELTS practice set',
       description:
-        'Validate, save, and activate one complete IELTS Listening, Reading, or Writing practice set. The set becomes visible on the practice home screen. Do not call while the learner has an active attempt.',
+        `Validate, save, and activate one complete IELTS Listening, Reading, or Writing practice set. The set becomes visible on the practice home screen. Do not call while the learner has an active attempt. ${KOKORO_LISTENING_AUTHORING_GUIDANCE}`,
       inputSchema: getPracticeContentJsonSchema(),
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute: async (input, { signal }) => {

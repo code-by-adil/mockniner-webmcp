@@ -68,16 +68,28 @@ function AppHeader() {
 
 function Home({
   onStart,
+  onResume,
+  session,
   listeningAudio,
   onRetryListeningAudio,
   content,
 }: {
   onStart: (mode: Mode, section: Section) => void;
+  onResume: () => void;
+  session: ExamSession;
   listeningAudio: ListeningAudioSession;
   onRetryListeningAudio: () => void;
   content: ActiveContentDocuments;
 }) {
   const listeningReady = listeningAudio.readyToPlay;
+  const resumableSection = session.currentSection &&
+    !session.completedSections.includes(session.currentSection)
+    ? session.currentSection
+    : null;
+  const canResume = Boolean(
+    resumableSection &&
+    (resumableSection !== "listening" || listeningReady),
+  );
   return (
     <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
         <AppHeader />
@@ -96,12 +108,14 @@ function Home({
             </p>
             <button
               type="button"
-              onClick={() => onStart("full", "listening")}
-              disabled={!listeningReady}
+              onClick={resumableSection ? onResume : () => onStart("full", "listening")}
+              disabled={resumableSection ? !canResume : !listeningReady}
               className="mt-7 inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--exam-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <PlayCircle size={18} />
-              Start full practice test
+              {resumableSection
+                ? `Resume ${SECTION_META[resumableSection].title}`
+                : "Start full practice test"}
             </button>
           </div>
 
@@ -158,11 +172,18 @@ function Home({
                   ) : null}
                   <button
                     type="button"
-                    onClick={() => onStart("section", section)}
-                    disabled={section === "listening" && !listeningReady}
+                    onClick={resumableSection === section
+                      ? onResume
+                      : () => onStart("section", section)}
+                    disabled={Boolean(
+                      (resumableSection && resumableSection !== section) ||
+                      (section === "listening" && !listeningReady),
+                    )}
                     className="mt-6 inline-flex w-full items-center justify-between gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--exam-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <span>Start {item.title}</span>
+                    <span>
+                      {resumableSection === section ? "Resume" : "Start"} {item.title}
+                    </span>
                     <ArrowRight size={16} />
                   </button>
                 </article>
@@ -344,6 +365,8 @@ export default function App() {
     return (
       <Home
         onStart={commands.start}
+        onResume={commands.resume}
+        session={state}
         listeningAudio={listeningAudio}
         onRetryListeningAudio={listeningAudio.retry}
         content={content}

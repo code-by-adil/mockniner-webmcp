@@ -39,6 +39,10 @@ describe('practice-set WebMCP tool', () => {
       },
     })
     expect(tool!.annotations).toMatchObject({ readOnlyHint: false })
+    expect(tool!.description).toContain('Part 1 is an everyday transactional conversation between exactly two speakers')
+    expect(tool!.description).toContain('Part 3 is an educational or training discussion between two to four speakers')
+    expect(JSON.stringify(tool!.inputSchema)).toContain('Direct, natural spoken language')
+    expect(JSON.stringify(tool!.inputSchema)).toContain('British female')
   })
 
   it('returns paths for a malformed practice set', async () => {

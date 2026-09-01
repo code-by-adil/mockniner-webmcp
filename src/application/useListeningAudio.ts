@@ -5,10 +5,12 @@ import type {
   KokoroWorkerRequest,
   KokoroWorkerResponse,
 } from "@/infrastructure/media/kokoro.worker";
+import { KOKORO_CACHE_VERSION } from "@/infrastructure/media/kokoroConfig";
 
 type ListeningAudioState = {
   contentKey: string;
   phase: "loading" | "generating" | "ready" | "error";
+  hydrated: boolean;
   chunks: StoredListeningAudioChunk[];
   totalChunks: number | null;
   error: string | null;
@@ -24,6 +26,7 @@ function initialState(document: ListeningContentDocument): ListeningAudioState {
   return {
     contentKey: document.contentKey,
     phase: document.audio.type === "bundled" ? "ready" : "loading",
+    hydrated: document.audio.type === "bundled",
     chunks: [],
     totalChunks: document.audio.type === "bundled" ? 1 : null,
     error: null,
@@ -78,18 +81,17 @@ export function useListeningAudio(
         import("@/infrastructure/database/listeningAudioRepository"),
       ]);
       const database = await getLocalDatabase();
-      const stored = await repository.listListeningAudioChunks(
+      const stored = await repository.prepareListeningAudioCache(
         database,
         document.contentKey,
+        KOKORO_CACHE_VERSION,
       );
-      if (stored.some((chunk, index) => chunk.sequence !== index)) {
-        throw new Error("Stored listening audio is not a contiguous sequence.");
-      }
       if (!active) return;
 
       setState({
         contentKey: document.contentKey,
         phase: "loading",
+        hydrated: true,
         chunks: stored,
         totalChunks: null,
         error: null,
@@ -118,6 +120,7 @@ export function useListeningAudio(
             persistence = persistence.then(async () => {
               const common = {
                 contentKey: document.contentKey,
+                cacheVersion: KOKORO_CACHE_VERSION,
                 sequence: response.chunk.sequence,
                 partId: response.chunk.partId,
                 segmentIndex: response.chunk.segmentIndex,
@@ -142,6 +145,10 @@ export function useListeningAudio(
                   chunks: [...value.chunks, storedChunk],
                 };
               });
+              worker?.postMessage({
+                type: "persisted",
+                sequence: response.chunk.sequence,
+              } satisfies KokoroWorkerRequest);
             });
             void persistence.catch(fail);
             return;
@@ -183,12 +190,18 @@ export function useListeningAudio(
 
   return {
     phase: current.phase,
+    hydrated: current.hydrated,
     chunks: current.chunks,
     totalChunks: current.totalChunks,
     error: current.error,
     completedChunks: current.chunks.length,
     readyToPlay:
-      document.audio.type === "bundled" || current.phase === "ready",
+      document.audio.type === "bundled" ||
+      current.phase === "ready" ||
+      (
+        current.chunks.length >= 2 &&
+        current.chunks.some((chunk) => chunk.kind === "speech")
+      ),
     retry,
   };
 }

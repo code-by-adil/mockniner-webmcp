@@ -65,6 +65,16 @@ export async function saveAndActivateContent(
       VALUES (${document.section}, ${document.contentKey})
       ON CONFLICT(section) DO UPDATE SET content_key = excluded.content_key
     `;
+    if (document.section === "listening") {
+      await transaction.sql`
+        DELETE FROM listening_audio_chunks
+        WHERE content_key IN (
+          SELECT content_key
+          FROM content_documents
+          WHERE section = 'listening' AND content_key <> ${document.contentKey}
+        )
+      `;
+    }
   });
 }
 

@@ -16,7 +16,9 @@ built-in test. Its `audio` field has this form:
   "type": "kokoro",
   "speakers": [
     { "id": "host", "voice": "af_heart" },
-    { "id": "guest", "voice": "bm_george" }
+    { "id": "guest", "voice": "bm_george" },
+    { "id": "student", "voice": "bf_emma" },
+    { "id": "tutor", "voice": "am_fenrir" }
   ],
   "parts": [
     {
@@ -40,7 +42,10 @@ built-in test. Its `audio` field has this form:
       ]
     },
     { "partId": 2, "segments": [{ "type": "speech", "speakerId": "host", "text": "Part two script..." }] },
-    { "partId": 3, "segments": [{ "type": "speech", "speakerId": "guest", "text": "Part three script..." }] },
+    { "partId": 3, "segments": [
+      { "type": "speech", "speakerId": "student", "text": "Could we compare the two survey methods?" },
+      { "type": "speech", "speakerId": "tutor", "text": "Yes, but explain which sample each method reaches." }
+    ] },
     { "partId": 4, "segments": [{ "type": "speech", "speakerId": "host", "text": "Part four script..." }] }
   ]
 }
@@ -53,12 +58,17 @@ The application currently accepts four vetted English voices:
 - `bf_emma` — British English, female
 - `bm_george` — British English, male
 
-Speaker IDs are document-local. Every speech segment references one declared
-speaker. The four audio parts must be in order and correspond to the four
-Listening question parts. A speech segment is a semantic speaker turn, not a
-TTS chunk. The application uses Kokoro's `TextSplitterStream` to divide each
-turn into sentence-sized generation chunks. The agent therefore owns the
-script, while the application owns the audio implementation. Silence is
+Speaker IDs are document-local. Part 1 uses exactly two speakers, Part 2 one,
+Part 3 two to four, and Part 4 one. Every spoken sentence belongs to exactly one
+declared speaker turn; labels such as `Speaker 1:` do not belong in the text.
+Speakers in the same multi-speaker part use distinct, stable voices. The four
+audio parts must be in order and correspond to the four Listening question
+parts. A speech segment is a semantic speaker turn, not a TTS chunk. The
+application uses Kokoro's `TextSplitterStream` to retain natural sentences.
+It preserves a complete sentence up to Kokoro's safe 500-phoneme envelope and
+only falls back to punctuation, then a word boundary, if one sentence exceeds
+that hard limit. The agent therefore owns the script, while the application
+owns the audio implementation. Silence is
 explicit and deterministic; supported purposes are `conversation_pause`,
 `question_time`, and `part_transition`.
 
@@ -68,8 +78,8 @@ limits reject accidentally unbounded generation without making the agent
 manually optimize audio chunks.
 
 The authoritative executable contract is the Zod schema in
-`src/domain/objectiveContent.ts`. The future WebMCP installation tool should
-accept that complete document and invoke the existing `installContent` command.
+`src/domain/objectiveContent.ts`. The `install_practice_set` WebMCP tool accepts
+that complete document and invokes the existing `installContent` command.
 No TTS-specific WebMCP tool or second audio payload is needed.
 
 ## Runtime
@@ -96,24 +106,34 @@ sentence or explicit silence:
 1. Kokoro generates one short speech chunk, or the app records an explicit
    silence chunk.
 2. The chunk is immediately saved to the SQLocal SQLite database in OPFS.
-3. React is notified that another contiguous chunk is ready.
-4. Playback starts as soon as the first chunk exists while the worker continues
-   generating and saving the remaining chunks.
+3. The page acknowledges durable storage; only then does the worker generate
+   the next chunk.
+4. React is notified that another contiguous chunk is ready.
+5. Playback starts once the first two chunks are durable while the worker
+   continues generating and saving the remaining chunks.
 
 The player uses one HTML audio element and advances through the saved sequence.
 If playback catches generation, it waits for the next persisted chunk and then
-continues automatically. Reloading resumes from saved chunks instead of
-regenerating them. The existing bundled recording remains supported through
+continues automatically. Cache rows are versioned and WAV headers, lengths,
+durations, and sequence continuity are checked before reuse. An invalid suffix
+is deleted and regenerated. Exiting and resuming the attempt, or reloading the
+page, restores the saved cursor and chunks instead of regenerating them. The
+cache retains generated media only for the active Listening document; activating
+a replacement removes the previous document's WAV rows while preserving its
+installed content and submitted attempt history. Late writes from a superseded
+worker are rejected. The existing bundled recording remains supported through
 `{ "type": "bundled", "assetKey": "local-original" }`.
 
 ## Operational boundary
 
 - Model files are downloaded once per browser cache lifecycle.
-- Generated WAV chunks and listening progress stay in browser-private storage.
+- Active generated WAV chunks and listening progress stay in browser-private
+  storage.
 - Clearing site data removes generated audio and attempts.
 - No API key, backend, embedded chatbot, FFmpeg, MP3 encoder, voice cloning, or
   application-side model service is involved.
-- This phase does not register or change any WebMCP tools.
+- The existing `install_practice_set` tool carries the authoring guidance in
+  both its description and generated JSON Schema.
 
 Kokoro integration sources: the
 [`kokoro-js@1.2.1` package documentation](https://www.npmjs.com/package/kokoro-js),

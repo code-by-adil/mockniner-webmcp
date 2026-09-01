@@ -7,6 +7,12 @@ import type {
   ListeningAudioPersistedState,
   ListeningAudioUiStatus,
 } from "./listeningAudioTypes";
+import {
+  chunkOffsetsMs,
+  findPartChunkIndex,
+  getInitialChunkPosition,
+  getNextChunkIndex,
+} from "./kokoroPlaybackTimeline";
 
 type Props = {
   audioSession: ListeningAudioSession;
@@ -24,35 +30,6 @@ function playbackErrorMessage(error: unknown): string {
   return error instanceof Error && error.message
     ? error.message
     : "Unable to play the generated listening audio.";
-}
-
-function chunkOffsetsMs(
-  chunks: StoredListeningAudioChunk[],
-): number[] {
-  const offsets: number[] = [];
-  let nextOffset = 0;
-  for (const chunk of chunks) {
-    offsets.push(nextOffset);
-    nextOffset += chunk.durationMs;
-  }
-  return offsets;
-}
-
-function getInitialChunkPosition(
-  chunks: StoredListeningAudioChunk[],
-  offsetsMs: number[],
-  currentTimeSec: number,
-): { index: number; localMs: number } {
-  const targetMs = Math.max(0, currentTimeSec * 1000);
-  let index = chunks.findIndex((chunk, chunkIndex) => {
-    const start = offsetsMs[chunkIndex] ?? 0;
-    return targetMs >= start && targetMs < start + chunk.durationMs;
-  });
-  if (index === -1) index = Math.max(0, chunks.length - 1);
-  return {
-    index,
-    localMs: Math.max(0, targetMs - (offsetsMs[index] ?? 0)),
-  };
 }
 
 function GeneratedSpeechAudio({
@@ -74,22 +51,35 @@ function GeneratedSpeechAudio({
   onEnded: () => void;
   onError: () => void;
 }) {
-  const [audioUrl] = useState(() => chunk.audio
-    ? URL.createObjectURL(
-        new Blob([chunk.audio], { type: chunk.mimeType ?? "audio/wav" }),
-      )
-    : null);
-
-  useEffect(() => () => {
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-  }, [audioUrl]);
-
-  if (!audioUrl) return null;
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !chunk.audio) return;
+    const urlApi = globalThis.URL;
+    if (
+      typeof globalThis.Blob !== "function" ||
+      typeof urlApi?.createObjectURL !== "function"
+    ) {
+      queueMicrotask(() => audio.dispatchEvent(new Event("error")));
+      return;
+    }
+    const revokeObjectUrl = typeof urlApi.revokeObjectURL === "function"
+      ? urlApi.revokeObjectURL.bind(urlApi)
+      : null;
+    const nextUrl = urlApi.createObjectURL(
+      new globalThis.Blob([chunk.audio], { type: chunk.mimeType ?? "audio/wav" }),
+    );
+    audio.src = nextUrl;
+    audio.load();
+    return () => {
+      audio.removeAttribute("src");
+      audio.load();
+      revokeObjectUrl?.(nextUrl);
+    };
+  }, [audioRef, chunk.audio, chunk.mimeType]);
 
   return (
     <audio
       ref={audioRef}
-      src={audioUrl}
       preload="auto"
       onCanPlay={onCanPlay}
       onPlay={onPlay}
@@ -152,22 +142,59 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
 
   const advance = useCallback((): void => {
     setIsPlaying(false);
+    setDismissedSilenceSequence(null);
     silenceStartedAtRef.current = null;
     silenceElapsedRef.current = 0;
     pendingSpeechSeekRef.current = 0;
 
+    const nextIndex = getNextChunkIndex(
+      chunkIndex,
+      chunks.length,
+      audioSession.phase,
+      audioSession.totalChunks,
+    );
+    if (nextIndex == null) {
+      shouldContinueRef.current = false;
+      return;
+    }
+
     if (nextChunk) {
-      setChunkIndex((current) => current + 1);
+      if (nextChunk.partId === dismissedJumpPart) {
+        setDismissedJumpPart(null);
+      }
+      onPersistStateRef.current({
+        currentTimeSec: (offsetsMs[nextIndex] ?? 0) / 1000,
+        volume,
+      });
       if (nextChunk.kind === "silence" && shouldContinueRef.current) {
         silenceStartedAtRef.current = performance.now();
         setSilenceRemainingMs(nextChunk.durationMs);
         setIsPlaying(true);
       }
-      return;
     }
+    setChunkIndex(nextIndex);
+  }, [
+    audioSession.phase,
+    audioSession.totalChunks,
+    chunkIndex,
+    chunks.length,
+    dismissedJumpPart,
+    nextChunk,
+    offsetsMs,
+    volume,
+  ]);
 
-    shouldContinueRef.current = false;
-  }, [nextChunk]);
+  useEffect(() => {
+    if (
+      currentChunk?.kind !== "silence" ||
+      !shouldContinueRef.current ||
+      isReviewMode ||
+      isPlaying
+    ) return;
+    silenceStartedAtRef.current = performance.now();
+    setSilenceRemainingMs(currentChunk.durationMs);
+    setIsPlaying(true);
+  }, [currentChunk, isPlaying, isReviewMode]);
 
   const playCurrent = useCallback(async (): Promise<void> => {
     if (isReviewMode || !currentChunk) return;
@@ -261,26 +288,29 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
   }, [currentOffsetMs, volume]);
 
   const seekToPart = useCallback((partId: number): void => {
-    const targetIndex = chunks.findIndex((chunk) => chunk.partId === partId);
+    const targetIndex = findPartChunkIndex(chunks, partId);
     if (targetIndex < 0) return;
     audioRef.current?.pause();
     setIsPlaying(false);
     silenceElapsedRef.current = 0;
     pendingSpeechSeekRef.current = 0;
     setChunkIndex(targetIndex);
-    setDismissedJumpPart(partId);
+    setDismissedJumpPart(null);
     shouldContinueRef.current = true;
+    onPersistStateRef.current({
+      currentTimeSec: (offsetsMs[targetIndex] ?? 0) / 1000,
+      volume,
+    });
     const targetChunk = chunks[targetIndex];
     if (targetChunk?.kind === "silence") {
       silenceStartedAtRef.current = performance.now();
       setSilenceRemainingMs(targetChunk.durationMs);
       setIsPlaying(true);
     }
-  }, [chunks]);
+  }, [chunks, offsetsMs, volume]);
 
   const skipSilence = useCallback((): void => {
     if (!currentChunk || currentChunk.kind !== "silence") return;
-    setDismissedSilenceSequence(currentChunk.sequence);
     advance();
   }, [advance, currentChunk]);
 
@@ -352,7 +382,7 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
             className="exam-control-button inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded border px-3 py-1.5 text-xs font-bold sm:flex-none"
           >
             <SkipForward size={14} aria-hidden="true" />
-            Skip silence ({formatTime(silenceRemainingMs / 1000)})
+            Skip silence ({formatTime(Math.ceil(silenceRemainingMs / 1000))})
           </button>
           <button
             type="button"

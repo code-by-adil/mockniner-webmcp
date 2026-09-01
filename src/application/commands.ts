@@ -42,6 +42,7 @@ type CommandDependencies = {
 
 export type ExamApplicationCommands = {
   start: (mode: ExamMode, section: SectionKey) => void
+  resume: () => void
   goHome: () => void
   continueExam: () => void
   setPart: (section: SectionKey, part: number) => void
@@ -115,6 +116,9 @@ export function createExamApplicationCommands({
     start(mode, requestedSection) {
       const section = mode === 'full' ? 'listening' : requestedSection
       dispatch({ type: 'START', mode, section, startedAt: now().toISOString() })
+    },
+    resume() {
+      dispatch({ type: 'RESUME' })
     },
     goHome() {
       dispatch({ type: 'GO_HOME' })

@@ -17,6 +17,17 @@ export const KOKORO_VOICES = [
   "bm_george",
 ] as const;
 
+export const KOKORO_LISTENING_AUTHORING_GUIDANCE = [
+  "For Listening, write a complete four-part spoken script whose answers occur in question order.",
+  "Part 1 is an everyday transactional conversation between exactly two speakers.",
+  "Part 2 is an everyday informational monologue by one speaker.",
+  "Part 3 is an educational or training discussion between two to four speakers, normally students and optionally a tutor.",
+  "Part 4 is an academic monologue by one speaker.",
+  "Every spoken sentence must be direct, natural speech inside a speech segment with exactly one speakerId; start a new segment whenever the speaker changes and do not include transcript labels such as 'Speaker 1:' in the text.",
+  "Keep each speaker's voice stable. Within a multi-speaker part, give every speaker a distinct voice and use male/female contrast when it fits the scenario.",
+  "Available voices are af_heart (American female), am_fenrir (American male), bf_emma (British female), and bm_george (British male).",
+].join(" ");
+
 const kokoroVoiceSchema = z.enum(KOKORO_VOICES);
 
 const listeningAudioSchema = z.discriminatedUnion("type", [
@@ -27,16 +38,25 @@ const listeningAudioSchema = z.discriminatedUnion("type", [
   z.strictObject({
     type: z.literal("kokoro"),
     speakers: z.array(z.strictObject({
-      id: z.string().trim().min(1).max(50).regex(/^[a-z][a-z0-9_-]*$/),
-      voice: kokoroVoiceSchema,
-    })).min(1).max(12),
+      id: z.string().trim().min(1).max(50).regex(/^[a-z][a-z0-9_-]*$/)
+        .describe("Stable semantic speaker ID used by speech segments, such as customer, adviser, student, or tutor."),
+      voice: kokoroVoiceSchema.describe(
+        "Stable Kokoro voice for this speaker: af_heart American female, am_fenrir American male, bf_emma British female, or bm_george British male.",
+      ),
+    })).min(1).max(12).describe(
+      "Speaker-to-voice registry. Reuse each identity consistently; speakers sharing a part must use distinct voices.",
+    ),
     parts: z.array(z.strictObject({
       partId: z.number().int().min(1).max(4),
       segments: z.array(z.discriminatedUnion("type", [
         z.strictObject({
           type: z.literal("speech"),
-          speakerId: z.string().trim().min(1).max(50),
-          text: z.string().trim().min(1).max(4_000),
+          speakerId: z.string().trim().min(1).max(50).describe(
+            "The one declared speaker delivering every sentence in this segment.",
+          ),
+          text: z.string().trim().min(1).max(4_000).describe(
+            "Direct, natural spoken language for this speaker turn. Do not include speaker labels and do not place another speaker's words in this text.",
+          ),
         }),
         z.strictObject({
           type: z.literal("silence"),
@@ -47,9 +67,11 @@ const listeningAudioSchema = z.discriminatedUnion("type", [
             "part_transition",
           ]).optional(),
         }),
-      ])).min(1).max(100),
-    })).length(4),
-  }),
+      ])).min(1).max(100).describe(
+        "Ordered speaker turns and explicit silences. Start a new speech segment whenever the speaker changes.",
+      ),
+    })).length(4).describe(KOKORO_LISTENING_AUTHORING_GUIDANCE),
+  }).describe(KOKORO_LISTENING_AUTHORING_GUIDANCE),
 ]);
 
 const radioOptionSchema = z.strictObject({
@@ -386,6 +408,15 @@ export const objectiveContentDocumentSchema = z.discriminatedUnion("section", [
     }
 
     const knownSpeakers = new Set(speakerIds);
+    const voiceBySpeaker = new Map(
+      document.audio.speakers.map((speaker) => [speaker.id, speaker.voice] as const),
+    );
+    const speakerLimits = [
+      { minimum: 2, maximum: 2 },
+      { minimum: 1, maximum: 1 },
+      { minimum: 2, maximum: 4 },
+      { minimum: 1, maximum: 1 },
+    ] as const;
     let speechCharacters = 0;
     let silenceDurationMs = 0;
     document.audio.parts.forEach((audioPart, partIndex) => {
@@ -402,6 +433,36 @@ export const objectiveContentDocumentSchema = z.discriminatedUnion("section", [
           code: "custom",
           path: ["audio", "parts", partIndex, "segments"],
           message: `Kokoro audio part ${audioPart.partId} must contain speech.`,
+        });
+      }
+
+      const partSpeakerIds = [...new Set(
+        audioPart.segments.flatMap((segment) =>
+          segment.type === "speech" ? [segment.speakerId] : []),
+      )];
+      const limit = speakerLimits[partIndex];
+      if (
+        limit &&
+        (partSpeakerIds.length < limit.minimum || partSpeakerIds.length > limit.maximum)
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["audio", "parts", partIndex, "segments"],
+          message: limit.minimum === limit.maximum
+            ? `Kokoro audio part ${audioPart.partId} must use exactly ${limit.minimum} speaker${limit.minimum === 1 ? "" : "s"}.`
+            : `Kokoro audio part ${audioPart.partId} must use between ${limit.minimum} and ${limit.maximum} speakers.`,
+        });
+      }
+
+      const partVoices = partSpeakerIds.flatMap((speakerId) => {
+        const voice = voiceBySpeaker.get(speakerId);
+        return voice ? [voice] : [];
+      });
+      if (new Set(partVoices).size !== partVoices.length) {
+        context.addIssue({
+          code: "custom",
+          path: ["audio", "parts", partIndex, "segments"],
+          message: `Speakers sharing Kokoro audio part ${audioPart.partId} must use distinct voices.`,
         });
       }
 

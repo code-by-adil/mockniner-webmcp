@@ -46,6 +46,7 @@ export type ExamSession = {
 
 export type SessionAction =
   | { type: 'START'; mode: ExamMode; section: SectionKey; startedAt: string }
+  | { type: 'RESUME' }
   | { type: 'SET_PART'; section: SectionKey; part: number }
   | { type: 'SET_ANSWER'; section: 'listening' | 'reading'; questionId: number; value: string }
   | { type: 'SET_WRITING'; task: 1 | 2; value: string }
@@ -157,6 +158,13 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
         startedAt: action.startedAt,
         startedAtBySection: { [action.section]: action.startedAt },
       }
+    case 'RESUME':
+      if (
+        state.view !== 'home' ||
+        !state.currentSection ||
+        state.completedSections.includes(state.currentSection)
+      ) return state
+      return { ...state, view: 'exam' }
     case 'SET_PART':
       return {
         ...state,

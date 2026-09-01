@@ -1,12 +1,15 @@
 import { KokoroTTS } from "kokoro-js";
 import type { KokoroListeningAudio } from "@/domain/objectiveContent";
+import { KOKORO_RUNTIME } from "./kokoroConfig";
 import { createKokoroPlan, type KokoroPlanChunk } from "./kokoroScript";
 
-export type KokoroWorkerRequest = {
-  type: "generate";
-  audio: KokoroListeningAudio;
-  completedSequences: number[];
-};
+export type KokoroWorkerRequest =
+  | {
+      type: "generate";
+      audio: KokoroListeningAudio;
+      completedSequences: number[];
+    }
+  | { type: "persisted"; sequence: number };
 
 type GeneratedKokoroChunk =
   | (Extract<KokoroPlanChunk, { kind: "speech" }> & {
@@ -35,6 +38,7 @@ type WorkerPort = {
 };
 
 const port = globalThis as unknown as WorkerPort;
+const persistenceResolvers = new Map<number, () => void>();
 
 function errorMessage(error: unknown): string {
   return error instanceof Error && error.message
@@ -50,19 +54,31 @@ async function loadModel(): Promise<KokoroTTS> {
     );
   }
   const model = await KokoroTTS.from_pretrained(
-    "onnx-community/Kokoro-82M-v1.0-ONNX",
-    { dtype: "fp32", device: "webgpu" },
+    KOKORO_RUNTIME.modelId,
+    { dtype: KOKORO_RUNTIME.dtype, device: KOKORO_RUNTIME.device },
   );
   port.postMessage({ type: "ready" });
   return model;
 }
 
+function publishChunkAndWait(chunk: GeneratedKokoroChunk): Promise<void> {
+  return new Promise((resolve) => {
+    persistenceResolvers.set(chunk.sequence, resolve);
+    port.postMessage({ type: "chunk", chunk });
+  });
+}
+
 port.addEventListener("message", (event) => {
-  if (event.data.type !== "generate") return;
+  if (event.data.type === "persisted") {
+    const resolve = persistenceResolvers.get(event.data.sequence);
+    persistenceResolvers.delete(event.data.sequence);
+    resolve?.();
+    return;
+  }
   const request = event.data;
 
   void (async () => {
-    const chunks = createKokoroPlan(request.audio);
+    const chunks = await createKokoroPlan(request.audio);
     port.postMessage({ type: "planned", totalChunks: chunks.length });
     const completed = new Set(request.completedSequences);
     const missingSpeech = chunks.some(
@@ -74,12 +90,9 @@ port.addEventListener("message", (event) => {
       if (completed.has(chunk.sequence)) continue;
 
       if (chunk.kind === "silence") {
-        port.postMessage({
-          type: "chunk",
-          chunk: {
-            ...chunk,
-            durationMs: chunk.durationMs,
-          },
+        await publishChunkAndWait({
+          ...chunk,
+          durationMs: chunk.durationMs,
         });
         continue;
       }
@@ -87,18 +100,15 @@ port.addEventListener("message", (event) => {
       if (!tts) throw new Error("Kokoro did not initialize.");
       const audio = await tts.generate(chunk.text, {
         voice: chunk.voice,
-        speed: 1,
+        speed: KOKORO_RUNTIME.speed,
       });
       const durationMs = Math.round(
         (audio.audio.length / audio.sampling_rate) * 1000,
       );
-      port.postMessage({
-        type: "chunk",
-        chunk: {
-          ...chunk,
-          durationMs,
-          audio: audio.toBlob(),
-        },
+      await publishChunkAndWait({
+        ...chunk,
+        durationMs,
+        audio: audio.toBlob(),
       });
     }
 

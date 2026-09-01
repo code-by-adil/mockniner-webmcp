@@ -701,6 +701,14 @@ export const ListeningAudioBar: React.FC<Props> = ({
     );
   }
 
+  if (!audioSession.hydrated) {
+    return (
+      <span className="exam-subtle-text text-[10px] font-bold">
+        Restoring saved listening audio…
+      </span>
+    );
+  }
+
   return (
     <KokoroListeningAudioBar
       key={`kokoro:${document.contentKey}`}

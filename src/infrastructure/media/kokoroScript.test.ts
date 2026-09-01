@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { KokoroListeningAudio } from "@/domain/objectiveContent";
 import { createKokoroPlan } from "./kokoroScript";
+import { KOKORO_RUNTIME } from "./kokoroConfig";
 
 const audio: KokoroListeningAudio = {
   type: "kokoro",
@@ -42,8 +43,10 @@ const audio: KokoroListeningAudio = {
 };
 
 describe("createKokoroPlan", () => {
-  it("uses Kokoro's sentence splitter to create one serial generation queue", () => {
-    expect(createKokoroPlan(audio)).toEqual([
+  const characterCount = async (text: string) => text.length;
+
+  it("uses Kokoro's sentence splitter to create one serial generation queue", async () => {
+    await expect(createKokoroPlan(audio, characterCount)).resolves.toEqual([
       {
         sequence: 0,
         partId: 1,
@@ -91,5 +94,70 @@ describe("createKokoroPlan", () => {
         voice: "af_heart",
       },
     ]);
+  });
+
+  it("keeps a complete long sentence intact while it fits the safe context", async () => {
+    const sentence = `${"This deliberately long spoken sentence remains coherent because ".repeat(7)}it still fits.`;
+    const input = structuredClone(audio);
+    input.parts[0]!.segments = [{ type: "speech", speakerId: "host", text: sentence }];
+
+    const plan = await createKokoroPlan(input, characterCount);
+
+    expect(plan[0]).toMatchObject({ kind: "speech", text: sentence });
+  });
+
+  it("keeps a clause-rich sentence intact using Kokoro's real phoneme count", async () => {
+    const sentence = "Although the committee originally expected the evening workshop to finish early, the students asked so many thoughtful questions about the river survey, the interview schedule, the revised maps, and the final presentation that the tutor extended the session and carefully answered every concern before everyone returned to the library together, where they compared their notes, corrected two measurements, discussed the most surprising responses, and agreed on a clear plan for the following morning.";
+    const input = structuredClone(audio);
+    input.parts[0]!.segments = [{ type: "speech", speakerId: "host", text: sentence }];
+
+    const plan = await createKokoroPlan(input);
+
+    expect(plan[0]).toMatchObject({ kind: "speech", text: sentence });
+  });
+
+  it("only splits an individual sentence when it exceeds the hard safe context", async () => {
+    const sentence = `${"A meaningful phrase with several connected words, ".repeat(18)}finally ends here.`;
+    const input = structuredClone(audio);
+    input.parts[0]!.segments = [{ type: "speech", speakerId: "host", text: sentence }];
+
+    const plan = await createKokoroPlan(input, characterCount);
+    const speech = plan.filter((chunk): chunk is Extract<
+      typeof chunk,
+      { kind: "speech" }
+    > => chunk.kind === "speech" && chunk.partId === 1);
+
+    expect(speech.length).toBeGreaterThan(1);
+    expect(speech.every((chunk) => chunk.text.length <= KOKORO_RUNTIME.maxPhonemes)).toBe(true);
+    expect(speech.map((chunk) => chunk.text).join(" ")).toBe(sentence);
+  });
+
+  it("normalizes generated newlines before sentence splitting", async () => {
+    const input = structuredClone(audio);
+    input.parts[0]!.segments = [{
+      type: "speech",
+      speakerId: "host",
+      text: "Email help@example.com.\nThen wait here.",
+    }];
+
+    const plan = await createKokoroPlan(input, characterCount);
+
+    expect(plan.slice(0, 2)).toMatchObject([
+      { kind: "speech", text: "Email help@example.com." },
+      { kind: "speech", text: "Then wait here." },
+    ]);
+  });
+
+  it("rejects a pathological single word that cannot fit safely", async () => {
+    const input = structuredClone(audio);
+    input.parts[0]!.segments = [{
+      type: "speech",
+      speakerId: "host",
+      text: "x".repeat(KOKORO_RUNTIME.maxPhonemes + 1),
+    }];
+
+    await expect(createKokoroPlan(input, characterCount)).rejects.toThrow(
+      "single spoken word",
+    );
   });
 });

@@ -99,6 +99,13 @@ const migrations = [
         ON listening_audio_chunks(content_key, sequence)`,
     ],
   },
+  {
+    version: 5,
+    statements: [
+      `ALTER TABLE listening_audio_chunks
+        ADD COLUMN cache_version TEXT NOT NULL DEFAULT 'legacy-v1'`,
+    ],
+  },
 ] as const
 
 export async function migrateDatabase(database: SQLocal): Promise<void> {

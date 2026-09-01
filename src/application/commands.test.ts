@@ -126,6 +126,21 @@ describe('exam application commands', () => {
     expect(harness.getState().writingDrafts[1]).toBe('Unsaved learner response')
   })
 
+  it('resumes the same unfinished attempt through the command layer', () => {
+    const harness = createHarness()
+    harness.commands.start('section', 'reading')
+    harness.commands.setObjectiveAnswer('reading', 12, 'trunks')
+    harness.commands.goHome()
+
+    harness.commands.resume()
+
+    expect(harness.getState()).toMatchObject({
+      view: 'exam',
+      currentSection: 'reading',
+      answers: { reading: { 12: 'trunks' } },
+    })
+  })
+
   it('rejects invalid content before persistence or activation', async () => {
     const harness = createHarness()
     await expect(

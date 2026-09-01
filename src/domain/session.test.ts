@@ -84,6 +84,27 @@ describe('full exam state transitions', () => {
     expect(answered.answers.reading[12]).toBe('trunks')
   })
 
+  it('resumes an unfinished attempt without resetting answers or playback', () => {
+    const started = sessionReducer(initialSession, {
+      type: 'START',
+      mode: 'section',
+      section: 'listening',
+      startedAt: '2026-08-31T10:00:00.000Z',
+    })
+    const progressed = sessionReducer(
+      sessionReducer(started, {
+        type: 'SET_ANSWER', section: 'listening', questionId: 1, value: 'Carter',
+      }),
+      { type: 'SET_LISTENING_PLAYBACK', playback: { currentTimeSec: 18.5, volume: 0.7 } },
+    )
+    const home = sessionReducer(progressed, { type: 'GO_HOME' })
+    const resumed = sessionReducer(home, { type: 'RESUME' })
+
+    expect(resumed.view).toBe('exam')
+    expect(resumed.answers.listening[1]).toBe('Carter')
+    expect(resumed.listeningPlayback).toEqual({ currentTimeSec: 18.5, volume: 0.7 })
+  })
+
   it('opens a submitted objective section in read-only review state', () => {
     const started = sessionReducer(initialSession, {
       type: 'START',

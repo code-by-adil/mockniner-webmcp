@@ -101,22 +101,30 @@ describe("canonical IELTS objective JSON", () => {
           { id: "narrator", voice: "bf_emma" },
           { id: "guest", voice: "am_fenrir" },
         ],
-        parts: Array.from({ length: 4 }, (_, index) => ({
-          partId: index + 1,
-          segments: [
-            {
-              type: "speech",
-              speakerId: "narrator",
-              text: `You will now hear Part ${index + 1}. The application splits this turn into generation chunks.`,
-            },
-            { type: "silence", durationMs: 1_000, purpose: "question_time" },
-            {
-              type: "speech",
-              speakerId: "guest",
-              text: "Thank you. I am ready to begin.",
-            },
-          ],
-        })),
+        parts: [
+          {
+            partId: 1,
+            segments: [
+              { type: "speech", speakerId: "narrator", text: "How can I help you today?" },
+              { type: "speech", speakerId: "guest", text: "I would like to reserve a room." },
+            ],
+          },
+          {
+            partId: 2,
+            segments: [{ type: "speech", speakerId: "narrator", text: "Welcome to the visitor centre." }],
+          },
+          {
+            partId: 3,
+            segments: [
+              { type: "speech", speakerId: "narrator", text: "Which topic should we research?" },
+              { type: "speech", speakerId: "guest", text: "I suggest local transport." },
+            ],
+          },
+          {
+            partId: 4,
+            segments: [{ type: "speech", speakerId: "narrator", text: "Today we will examine migration patterns." }],
+          },
+        ],
       },
     };
 
@@ -126,7 +134,7 @@ describe("canonical IELTS objective JSON", () => {
     expect(parsed.audio.type).toBe("kokoro");
     if (parsed.audio.type !== "kokoro") return;
     expect(parsed.audio.parts).toHaveLength(4);
-    expect(parsed.audio.parts[0]?.segments).toHaveLength(3);
+    expect(parsed.audio.parts[0]?.segments).toHaveLength(2);
   });
 
   it("rejects a Kokoro speaker turn that references an undeclared speaker", () => {
@@ -152,6 +160,34 @@ describe("canonical IELTS objective JSON", () => {
     if (result.success) return;
     expect(result.error.issues.some((issue) =>
       issue.message.includes("is not declared"),
+    )).toBe(true);
+  });
+
+  it("enforces the official Listening speaker pattern per part", () => {
+    const generated = structuredClone(listeningJson) as Record<string, unknown>;
+    generated.contentKey = "agent-listening-invalid-part-speakers";
+    generated.audio = {
+      type: "kokoro",
+      speakers: [
+        { id: "one", voice: "bf_emma" },
+        { id: "two", voice: "bm_george" },
+      ],
+      parts: Array.from({ length: 4 }, (_, index) => ({
+        partId: index + 1,
+        segments: [
+          { type: "speech", speakerId: "one", text: "This is direct speech." },
+          ...(index === 1
+            ? [{ type: "speech", speakerId: "two", text: "Part two should not have a second speaker." }]
+            : []),
+        ],
+      })),
+    };
+
+    const result = objectiveContentDocumentSchema.safeParse(generated);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.some((issue) =>
+      issue.message.includes("part 2 must use exactly 1 speaker"),
     )).toBe(true);
   });
 
