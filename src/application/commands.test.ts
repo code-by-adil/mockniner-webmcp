@@ -9,11 +9,17 @@ import type {
 } from '@/domain/types'
 import { createExamApplicationCommands } from './commands'
 import type { AttemptWriter } from './attemptWriter'
+import type { AttemptReader } from './attemptReader'
+import type { PracticeContentDocument } from '@/domain/contentDocument'
 
 function createHarness({
   saveSpeakingAttempt,
+  attemptReader,
+  storedContent = [],
 }: {
   saveSpeakingAttempt?: AttemptWriter['saveSpeakingAttempt']
+  attemptReader?: AttemptReader
+  storedContent?: PracticeContentDocument[]
 } = {}) {
   let state: ExamSession = initialSession
   let content = {
@@ -24,13 +30,20 @@ function createHarness({
   const persistEvaluation = vi.fn(async () => undefined)
   const persistSpeakingEvaluation = vi.fn(async () => undefined)
   const saveAndActivate = vi.fn(async () => undefined)
+  const loadByKey = vi.fn(async (contentKey: string) =>
+    storedContent.find((document) => document.contentKey === contentKey) ?? null,
+  )
   const commands = createExamApplicationCommands({
     getState: () => state,
     getContent: () => content,
     setContent: (next) => {
       content = next
     },
-    getContentStore: async () => ({ loadActive: async () => [], saveAndActivate }),
+    getContentStore: async () => ({
+      loadActive: async () => [],
+      loadByKey,
+      saveAndActivate,
+    }),
     dispatch: (action) => {
       state = sessionReducer(state, action)
     },
@@ -63,6 +76,25 @@ function createHarness({
       })),
       saveSpeakingEvaluation: persistSpeakingEvaluation,
     }),
+    getAttemptReader: async () => attemptReader ?? {
+      readLearningSummary: async () => ({
+        totalAttempts: 0,
+        sections: {
+          listening: { attemptCount: 0, recentAverageBand: null, recent: [] },
+          reading: { attemptCount: 0, recentAverageBand: null, recent: [] },
+          writing: {
+            attemptCount: 0,
+            evaluatedCount: 0,
+            recentAverageOverallBand: null,
+            recentAverageCriteria: null,
+            recent: [],
+          },
+          speaking: { attemptCount: 0 },
+        },
+      }),
+      readObjectiveAttempt: async () => null,
+      readWritingAttempt: async () => null,
+    },
   })
   return {
     commands,
@@ -71,6 +103,7 @@ function createHarness({
     persistEvaluation,
     persistSpeakingEvaluation,
     saveAndActivate,
+    loadByKey,
   }
 }
 
@@ -155,6 +188,123 @@ describe('exam application commands', () => {
       view: 'exam',
       currentSection: 'reading',
       answers: { reading: { 12: 'trunks' } },
+    })
+  })
+
+  it('opens the exact selected objective attempt and its matching content', async () => {
+    const oldDocument = {
+      ...readingDocument,
+      contentKey: 'agent-reading-old',
+      name: 'Older Reading practice',
+    }
+    const newerAttempt: ObjectiveSubmission = {
+      attemptId: '44444444-4444-4444-8444-444444444444',
+      contentKey: readingDocument.contentKey,
+      section: 'reading',
+      answers: { 1: 'FALSE' },
+      result: {
+        section: 'reading', raw: 0, total: 40, band: 0, answered: 1,
+        correctQuestionIds: [],
+      },
+      startedAt: '2026-09-01T10:00:00.000Z',
+      submittedAt: '2026-09-01T11:00:00.000Z',
+    }
+    const olderAttempt: ObjectiveSubmission = {
+      ...newerAttempt,
+      attemptId: '55555555-5555-4555-8555-555555555555',
+      contentKey: oldDocument.contentKey,
+      answers: { 1: 'TRUE' },
+      submittedAt: '2026-08-31T11:00:00.000Z',
+    }
+    const attempts = new Map([
+      [newerAttempt.attemptId, newerAttempt],
+      [olderAttempt.attemptId, olderAttempt],
+    ])
+    const readObjectiveAttempt = vi.fn(async (attemptId: string) =>
+      attempts.get(attemptId) ?? null,
+    )
+    const harness = createHarness({
+      storedContent: [oldDocument],
+      attemptReader: {
+        readLearningSummary: vi.fn(),
+        readObjectiveAttempt,
+        readWritingAttempt: vi.fn(),
+      },
+    })
+
+    await harness.commands.openAttempt(newerAttempt.attemptId, 'reading')
+    expect(harness.getState().review).toMatchObject({
+      kind: 'objective',
+      submission: { attemptId: newerAttempt.attemptId },
+      document: { contentKey: readingDocument.contentKey },
+      part: 1,
+      returnTo: 'home',
+    })
+
+    harness.commands.closeReview()
+    await harness.commands.openAttempt(olderAttempt.attemptId, 'reading')
+
+    expect(readObjectiveAttempt).toHaveBeenNthCalledWith(1, newerAttempt.attemptId)
+    expect(readObjectiveAttempt).toHaveBeenNthCalledWith(2, olderAttempt.attemptId)
+    expect(harness.loadByKey).toHaveBeenCalledWith(oldDocument.contentKey)
+    expect(harness.getState()).toMatchObject({
+      view: 'review',
+      currentSection: null,
+      review: {
+        kind: 'objective',
+        submission: { attemptId: olderAttempt.attemptId, answers: { 1: 'TRUE' } },
+        document: { contentKey: oldDocument.contentKey },
+        part: 1,
+        returnTo: 'home',
+      },
+    })
+    expect(harness.getContent().reading).toEqual(readingDocument)
+  })
+
+  it('loads the selected evaluated Writing attempt before opening review', async () => {
+    const submission: WritingSubmission = {
+      attemptId: '66666666-6666-4666-8666-666666666666',
+      contentKey: writingDocument.contentKey,
+      tasks: [
+        { task: writingDocument.tasks[0], response: 'First response.', wordCount: 2 },
+        { task: writingDocument.tasks[1], response: 'Second response.', wordCount: 2 },
+      ],
+      startedAt: '2026-09-01T10:00:00.000Z',
+      submittedAt: '2026-09-01T11:00:00.000Z',
+    }
+    const taskEvaluation = {
+      band: 7,
+      taskAchievement: 7,
+      coherenceCohesion: 7,
+      lexicalResource: 7,
+      grammaticalRange: 7,
+      feedback: 'Clear.',
+      annotations: [],
+    }
+    const evaluation = {
+      attemptId: submission.attemptId,
+      overallBand: 7,
+      summary: 'Clear responses.',
+      task1: taskEvaluation,
+      task2: taskEvaluation,
+      evaluatedAt: '2026-09-01T11:05:00.000Z',
+    }
+    const readWritingAttempt = vi.fn(async () => ({ submission, evaluation }))
+    const harness = createHarness({
+      attemptReader: {
+        readLearningSummary: vi.fn(),
+        readObjectiveAttempt: vi.fn(),
+        readWritingAttempt,
+      },
+    })
+
+    await harness.commands.openAttempt(submission.attemptId, 'writing')
+
+    expect(readWritingAttempt).toHaveBeenCalledWith(submission.attemptId)
+    expect(harness.getState()).toMatchObject({
+      view: 'review',
+      currentSection: null,
+      review: { kind: 'writing', submission, evaluation, part: 1, returnTo: 'home' },
     })
   })
 

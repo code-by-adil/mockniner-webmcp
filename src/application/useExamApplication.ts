@@ -11,11 +11,15 @@ import {
   type ExamApplicationCommands,
 } from './commands'
 import { reportWebHandledProductFailure } from '@/shared/observability/report-error'
+import type { LearningSummary } from '@/domain/learningSummary'
+
+const bundledContent = [listeningDocument, readingDocument, writingDocument]
 
 export function useExamApplication(): {
   state: ReturnType<typeof loadSession>
   content: ActiveContentDocuments
   contentReady: boolean
+  learningSummary: LearningSummary | null
   commands: ExamApplicationCommands
 } {
   const [state, dispatch] = useReducer(sessionReducer, undefined, loadSession)
@@ -25,6 +29,7 @@ export function useExamApplication(): {
     writing: writingDocument,
   })
   const [contentReady, setContentReady] = useState(false)
+  const [learningSummary, setLearningSummary] = useState<LearningSummary | null>(null)
   useEffect(() => {
     saveSession(state)
   }, [state])
@@ -37,13 +42,17 @@ export function useExamApplication(): {
         const { createContentStore } = await import(
           '@/infrastructure/database/contentRepository'
         )
-        return createContentStore(database, (error, row) => {
-          reportWebHandledProductFailure(error, {
-            feature: 'content-catalog-row-load',
-            contentKey: row.contentKey,
-            section: row.section,
-          })
-        }).loadActive()
+        return createContentStore(
+          database,
+          (error, row) => {
+            reportWebHandledProductFailure(error, {
+              feature: 'content-catalog-row-load',
+              contentKey: row.contentKey,
+              section: row.section,
+            })
+          },
+          bundledContent,
+        ).loadActive()
       })
       .then((storedDocuments) => {
         if (cancelled) return
@@ -62,6 +71,27 @@ export function useExamApplication(): {
     }
   }, [])
 
+  useEffect(() => {
+    if (state.view !== 'home') return
+    let cancelled = false
+    void Promise.all([
+      import('@/infrastructure/database/client'),
+      import('@/infrastructure/database/attemptReader'),
+    ])
+      .then(async ([{ getLocalDatabase }, { createAttemptReader }]) =>
+        createAttemptReader(await getLocalDatabase()).readLearningSummary(5),
+      )
+      .then((summary) => {
+        if (!cancelled) setLearningSummary(summary)
+      })
+      .catch((error) => {
+        reportWebHandledProductFailure(error, { feature: 'attempt-history-load' })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [state.view])
+
   const commands = useMemo(
     () =>
       createExamApplicationCommands({
@@ -71,16 +101,27 @@ export function useExamApplication(): {
         setContent,
         getAttemptWriter: async () =>
           (await import('@/infrastructure/database/attemptWriter')).getAttemptWriter(),
+        getAttemptReader: async () => {
+          const [{ getLocalDatabase }, { createAttemptReader }] = await Promise.all([
+            import('@/infrastructure/database/client'),
+            import('@/infrastructure/database/attemptReader'),
+          ])
+          return createAttemptReader(await getLocalDatabase())
+        },
         getContentStore: async () => {
           const [{ getLocalDatabase }, { createContentStore }] = await Promise.all([
             import('@/infrastructure/database/client'),
             import('@/infrastructure/database/contentRepository'),
           ])
-          return createContentStore(await getLocalDatabase())
+          return createContentStore(
+            await getLocalDatabase(),
+            undefined,
+            bundledContent,
+          )
         },
       }),
     [content, dispatch, state],
   )
 
-  return { state, content, contentReady, commands }
+  return { state, content, contentReady, learningSummary, commands }
 }

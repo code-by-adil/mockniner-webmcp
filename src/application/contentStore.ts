@@ -4,5 +4,6 @@ import type {
 
 export type ContentStore = {
   loadActive: () => Promise<PracticeContentDocument[]>;
+  loadByKey: (contentKey: string) => Promise<PracticeContentDocument | null>;
   saveAndActivate: (document: PracticeContentDocument) => Promise<void>;
 };

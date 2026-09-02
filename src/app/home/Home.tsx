@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ArrowRight,
   BookOpen,
@@ -28,6 +28,7 @@ import {
   UniversalAssessmentLibrary,
   type UniversalAssessmentHomeProps,
 } from "./UniversalAssessmentLibrary";
+import { NativeAttemptHistoryRows } from "./NativeAttemptHistoryRows";
 
 type Section = SectionKey;
 type Mode = ExamMode;
@@ -38,7 +39,11 @@ type HomeProps = UniversalAssessmentHomeProps & {
   listeningAudio: ListeningAudioSession;
   onRetryListeningAudio: () => void;
   content: ActiveContentDocuments;
-  onReview?: (section: Section) => void;
+  learningSummary: LearningSummary | null;
+  onReviewAttempt: (
+    attemptId: string,
+    section: "listening" | "reading" | "writing",
+  ) => Promise<void>;
 };
 
 const SECTION_CONFIG = {
@@ -86,7 +91,8 @@ export function Home({
   listeningAudio,
   onRetryListeningAudio,
   content,
-  onReview,
+  learningSummary,
+  onReviewAttempt,
   assessments,
   assessmentSession,
   assessmentHistory,
@@ -97,30 +103,8 @@ export function Home({
   onDeleteAssessment,
   onReviewAssessment,
 }: HomeProps): React.ReactElement {
-  const [learningSummary, setLearningSummary] = useState<LearningSummary | null>(null);
   const [toolsModalOpen, setToolsModalOpen] = useState(false);
   const [copiedPromptIndex, setCopiedPromptIndex] = useState<number | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void Promise.all([
-      import("@/infrastructure/database/client"),
-      import("@/infrastructure/database/attemptRepository"),
-    ])
-      .then(async ([{ getLocalDatabase }, { readLearningSummary }]) => {
-        const db = await getLocalDatabase();
-        return readLearningSummary(db, 5);
-      })
-      .then((summary) => {
-        if (!cancelled) setLearningSummary(summary);
-      })
-      .catch(() => {
-        // SQLite history reading is optional
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [session]);
 
   const handleCopyPrompt = (promptText: string, index: number) => {
     void navigator.clipboard.writeText(promptText);
@@ -355,7 +339,7 @@ export function Home({
                 Recent Attempts
               </h2>
               <span className="text-xs text-neutral-400">
-                {(learningSummary?.totalAttempts ?? 0) + assessmentHistory.length} recent and IELTS attempts saved locally
+                {(learningSummary?.totalAttempts ?? 0) + assessmentHistory.length} universal and IELTS attempts saved locally
               </span>
             </div>
 
@@ -365,107 +349,12 @@ export function Home({
                 onReview={onReviewAssessment}
               />
 
-              {learningSummary?.sections.reading.recent.slice(0, 2).map((attempt) => (
-                <div
-                  key={attempt.attemptId}
-                  className="flex items-center justify-between p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <BookOpen size={16} className="text-neutral-400" />
-                    <div>
-                      <span className="font-semibold text-neutral-800">Reading Practice</span>
-                      <span className="text-neutral-400 text-[11px] ml-2">
-                        {new Date(attempt.submittedAt).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-bold text-neutral-900">
-                      Band {attempt.band} ({attempt.raw}/{attempt.total})
-                    </span>
-                    {onReview && (
-                      <button
-                        type="button"
-                        onClick={() => onReview("reading")}
-                        className="rounded border border-neutral-200 px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50 cursor-pointer"
-                      >
-                        Review
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-
-              {learningSummary?.sections.listening.recent.slice(0, 2).map((attempt) => (
-                <div
-                  key={attempt.attemptId}
-                  className="flex items-center justify-between p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <Headphones size={16} className="text-neutral-400" />
-                    <div>
-                      <span className="font-semibold text-neutral-800">Listening Practice</span>
-                      <span className="text-neutral-400 text-[11px] ml-2">
-                        {new Date(attempt.submittedAt).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-bold text-neutral-900">
-                      Band {attempt.band} ({attempt.raw}/{attempt.total})
-                    </span>
-                    {onReview && (
-                      <button
-                        type="button"
-                        onClick={() => onReview("listening")}
-                        className="rounded border border-neutral-200 px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50 cursor-pointer"
-                      >
-                        Review
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-
-              {learningSummary?.sections.writing.recent.slice(0, 2).map((attempt) => (
-                <div
-                  key={attempt.attemptId}
-                  className="flex items-center justify-between p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText size={16} className="text-neutral-400" />
-                    <div>
-                      <span className="font-semibold text-neutral-800">Writing Practice</span>
-                      <span className="text-neutral-400 text-[11px] ml-2">
-                        {new Date(attempt.submittedAt).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-bold text-neutral-900">
-                      {attempt.overallBand ? `Band ${attempt.overallBand}` : "Awaiting Evaluation"}
-                    </span>
-                    {onReview && attempt.overallBand && (
-                      <button
-                        type="button"
-                        onClick={() => onReview("writing")}
-                        className="rounded border border-neutral-200 px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50 cursor-pointer"
-                      >
-                        Review
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+              {learningSummary ? (
+                <NativeAttemptHistoryRows
+                  summary={learningSummary}
+                  onReview={onReviewAttempt}
+                />
+              ) : null}
             </div>
           </section>
         )}

@@ -16,6 +16,7 @@ import {
 } from '@/domain/speakingEvaluation'
 import type {
   ExamMode,
+  ExamReview,
   ExamSession,
   ListeningPlaybackState,
   SessionAction,
@@ -34,12 +35,14 @@ import type {
   CompleteSpeakingAttemptInput,
 } from './attemptWriter'
 import type { ContentStore } from './contentStore'
+import type { AttemptReader } from './attemptReader'
 
 type CommandDependencies = {
   getState: () => ExamSession
   dispatch: (action: SessionAction) => void
   now?: () => Date
   getAttemptWriter: () => Promise<AttemptWriter>
+  getAttemptReader: () => Promise<AttemptReader>
   getContent: () => ActiveContentDocuments
   setContent: (documents: ActiveContentDocuments) => void
   getContentStore: () => Promise<ContentStore>
@@ -73,7 +76,11 @@ export type ExamApplicationCommands = {
   attachSpeakingEvaluation: (
     input: SpeakingEvaluationInput,
   ) => Promise<SpeakingEvaluation>
-  openReview: (section: SectionKey) => void
+  openReview: (section: SectionKey) => Promise<void>
+  openAttempt: (
+    attemptId: string,
+    section: 'listening' | 'reading' | 'writing',
+  ) => Promise<void>
   closeReview: () => void
   reset: () => void
 }
@@ -94,9 +101,12 @@ function requireActiveSection(state: ExamSession, section: SectionKey): void {
 }
 
 function requireVisibleSection(state: ExamSession, section: SectionKey): void {
+  const visibleSection = state.view === 'review'
+    ? state.review?.section
+    : state.currentSection
   if (
     (state.view !== 'exam' && state.view !== 'review') ||
-    state.currentSection !== section
+    visibleSection !== section
   ) {
     throw new Error(`${section} is not the visible exam section.`)
   }
@@ -116,10 +126,73 @@ export function createExamApplicationCommands({
   dispatch,
   now = () => new Date(),
   getAttemptWriter,
+  getAttemptReader,
   getContent,
   setContent,
   getContentStore,
 }: CommandDependencies): ExamApplicationCommands {
+  const openReview = (review: ExamReview) => {
+    dispatch({ type: 'OPEN_REVIEW', review })
+  }
+
+  const openStoredAttempt = async (
+    attemptId: string,
+    section: 'listening' | 'reading' | 'writing',
+    returnTo: 'home' | 'result',
+  ): Promise<void> => {
+    const reader = await getAttemptReader()
+    if (section === 'writing') {
+      const stored = await reader.readWritingAttempt(attemptId)
+      if (!stored) {
+        throw new Error(`Writing attempt ${attemptId} was not found.`)
+      }
+      if (!stored.evaluation) {
+        throw new Error(`Writing attempt ${attemptId} has not been evaluated.`)
+      }
+      openReview({
+        kind: 'writing',
+        section,
+        submission: stored.submission,
+        evaluation: stored.evaluation,
+        part: 1,
+        returnTo,
+      })
+      return
+    }
+
+    const submission = await reader.readObjectiveAttempt(attemptId)
+    if (!submission) {
+      throw new Error(`${section} attempt ${attemptId} was not found.`)
+    }
+    if (submission.section !== section) {
+      throw new Error(
+        `Attempt ${attemptId} belongs to ${submission.section}, not ${section}.`,
+      )
+    }
+    const activeDocument = getContent()[section]
+    const document = activeDocument.contentKey === submission.contentKey
+      ? activeDocument
+      : await (await getContentStore()).loadByKey(submission.contentKey)
+    if (!document) {
+      throw new Error(
+        `Content ${submission.contentKey} for attempt ${attemptId} was not found.`,
+      )
+    }
+    if (document.section !== section) {
+      throw new Error(
+        `Content ${submission.contentKey} belongs to ${document.section}, not ${section}.`,
+      )
+    }
+    openReview({
+      kind: 'objective',
+      section,
+      submission,
+      document,
+      part: 1,
+      returnTo,
+    })
+  }
+
   return {
     start(mode, requestedSection) {
       const section = mode === 'full' ? 'listening' : requestedSection
@@ -247,8 +320,31 @@ export function createExamApplicationCommands({
       dispatch({ type: 'ATTACH_SPEAKING_EVALUATION', evaluation })
       return evaluation
     },
-    openReview(section) {
-      dispatch({ type: 'OPEN_REVIEW', section })
+    async openReview(section) {
+      const state = getState()
+      if (section === 'listening' || section === 'reading') {
+        const submission = state.objectiveSubmissions[section]
+        if (!submission) return
+        await openStoredAttempt(submission.attemptId, section, 'result')
+        return
+      }
+      if (section === 'writing') {
+        if (!state.writingSubmission || !state.writingEvaluation) return
+        await openStoredAttempt(state.writingSubmission.attemptId, section, 'result')
+        return
+      }
+      if (!state.speakingSubmission || !state.speakingEvaluation) return
+      openReview({
+        kind: 'speaking',
+        section,
+        submission: state.speakingSubmission,
+        evaluation: state.speakingEvaluation,
+        part: 1,
+        returnTo: 'result',
+      })
+    },
+    async openAttempt(attemptId, section) {
+      await openStoredAttempt(attemptId, section, 'home')
     },
     closeReview() {
       dispatch({ type: 'CLOSE_REVIEW' })

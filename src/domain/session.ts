@@ -17,6 +17,10 @@ import {
   writingEvaluationSchema,
   writingSubmissionSchema,
 } from './attemptValidation'
+import {
+  objectiveContentDocumentSchema,
+  type ObjectiveContentDocument,
+} from './objectiveContent'
 
 export type ExamMode = 'full' | 'section'
 export type SessionView = 'home' | 'exam' | 'transition' | 'result' | 'review'
@@ -25,6 +29,34 @@ export type ListeningPlaybackState = {
   currentTimeSec: number
   volume: number
 }
+
+type ReviewReturnView = 'home' | 'result'
+
+export type ExamReview =
+  | {
+      kind: 'objective'
+      section: 'listening' | 'reading'
+      submission: ObjectiveSubmission
+      document: ObjectiveContentDocument
+      part: number
+      returnTo: ReviewReturnView
+    }
+  | {
+      kind: 'writing'
+      section: 'writing'
+      submission: WritingSubmission
+      evaluation: WritingEvaluation
+      part: number
+      returnTo: ReviewReturnView
+    }
+  | {
+      kind: 'speaking'
+      section: 'speaking'
+      submission: SpeakingSubmission
+      evaluation: SpeakingEvaluation
+      part: number
+      returnTo: ReviewReturnView
+    }
 
 export type ExamSession = {
   view: SessionView
@@ -42,6 +74,7 @@ export type ExamSession = {
   writingEvaluation?: WritingEvaluation
   speakingSubmission?: SpeakingSubmission
   speakingEvaluation?: SpeakingEvaluation
+  review?: ExamReview
   completedSections: SectionKey[]
   startedAt?: string
   startedAtBySection: Partial<Record<SectionKey, string>>
@@ -61,7 +94,7 @@ export type SessionAction =
   | { type: 'COMPLETE_SPEAKING'; submission: SpeakingSubmission }
   | { type: 'ATTACH_SPEAKING_EVALUATION'; evaluation: SpeakingEvaluation }
   | { type: 'CONTINUE'; startedAt: string }
-  | { type: 'OPEN_REVIEW'; section: SectionKey }
+  | { type: 'OPEN_REVIEW'; review: ExamReview }
   | { type: 'CLOSE_REVIEW' }
   | { type: 'GO_HOME' }
   | { type: 'RESET' }
@@ -89,6 +122,51 @@ export const initialSession: ExamSession = {
 
 const sectionSchema = z.enum(['listening', 'reading', 'writing', 'speaking'])
 const timestampSchema = z.iso.datetime({ offset: true })
+const reviewReturnViewSchema = z.enum(['home', 'result'])
+const examReviewSchema: z.ZodType<ExamReview> = z.discriminatedUnion('kind', [
+  z
+    .strictObject({
+      kind: z.literal('objective'),
+      section: z.enum(['listening', 'reading']),
+      submission: objectiveSubmissionSchema,
+      document: objectiveContentDocumentSchema,
+      part: z.number().int().positive(),
+      returnTo: reviewReturnViewSchema,
+    })
+    .refine(
+      (review) =>
+        review.submission.section === review.section &&
+        review.document.section === review.section &&
+        review.document.contentKey === review.submission.contentKey,
+      { message: 'The objective review content does not match its submission.' },
+    ),
+  z
+    .strictObject({
+      kind: z.literal('writing'),
+      section: z.literal('writing'),
+      submission: writingSubmissionSchema,
+      evaluation: writingEvaluationSchema,
+      part: z.number().int().positive(),
+      returnTo: reviewReturnViewSchema,
+    })
+    .refine(
+      (review) => review.evaluation.attemptId === review.submission.attemptId,
+      { message: 'The Writing review evaluation does not match its submission.' },
+    ),
+  z
+    .strictObject({
+      kind: z.literal('speaking'),
+      section: z.literal('speaking'),
+      submission: speakingSubmissionSchema,
+      evaluation: speakingEvaluationSchema,
+      part: z.number().int().positive(),
+      returnTo: reviewReturnViewSchema,
+    })
+    .refine(
+      (review) => review.evaluation.attemptId === review.submission.attemptId,
+      { message: 'The Speaking review evaluation does not match its submission.' },
+    ),
+])
 
 const examSessionSchema: z.ZodType<ExamSession> = z
   .strictObject({
@@ -124,6 +202,7 @@ const examSessionSchema: z.ZodType<ExamSession> = z
     writingEvaluation: writingEvaluationSchema.optional(),
     speakingSubmission: speakingSubmissionSchema.optional(),
     speakingEvaluation: speakingEvaluationSchema.optional(),
+    review: examReviewSchema.optional(),
     completedSections: z.array(sectionSchema),
     startedAt: timestampSchema.optional(),
     startedAtBySection: z.strictObject({
@@ -200,6 +279,13 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
         view: 'exam',
       }
     case 'SET_PART':
+      if (state.view === 'review') {
+        if (state.review?.section !== action.section) return state
+        return {
+          ...state,
+          review: { ...state.review, part: action.part },
+        }
+      }
       return {
         ...state,
         partBySection: { ...state.partBySection, [action.section]: action.part },
@@ -256,6 +342,14 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
         ...state,
         currentSection: 'writing',
         writingEvaluation: action.evaluation,
+        review: {
+          kind: 'writing',
+          section: 'writing',
+          submission: state.writingSubmission,
+          evaluation: action.evaluation,
+          part: 1,
+          returnTo: 'result',
+        },
         view: 'review',
       }
     case 'COMPLETE_SPEAKING':
@@ -266,6 +360,14 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
         ...state,
         currentSection: 'speaking',
         speakingEvaluation: action.evaluation,
+        review: {
+          kind: 'speaking',
+          section: 'speaking',
+          submission: state.speakingSubmission,
+          evaluation: action.evaluation,
+          part: 1,
+          returnTo: 'result',
+        },
         view: 'review',
       }
     case 'CONTINUE': {
@@ -286,24 +388,18 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
         : { ...state, view: 'result' }
     }
     case 'OPEN_REVIEW': {
-      const reviewable =
-        action.section === 'listening' || action.section === 'reading'
-          ? Boolean(state.objectiveSubmissions[action.section])
-          : action.section === 'writing'
-            ? Boolean(state.writingSubmission && state.writingEvaluation)
-            : Boolean(state.speakingSubmission && state.speakingEvaluation)
-      if (!reviewable) return state
       return {
         ...state,
-        currentSection: action.section,
-        partBySection: { ...state.partBySection, [action.section]: 1 },
+        review: action.review,
         view: 'review',
       }
     }
-    case 'CLOSE_REVIEW':
-      return { ...state, view: 'result' }
+    case 'CLOSE_REVIEW': {
+      const view = state.review?.returnTo ?? 'result'
+      return { ...state, review: undefined, view }
+    }
     case 'GO_HOME':
-      return { ...state, view: 'home' }
+      return { ...state, review: undefined, view: 'home' }
     case 'RESET':
       return initialSession
   }
@@ -313,7 +409,10 @@ function parseStoredSession(value: string | null): ExamSession | null {
   if (!value) return null
   try {
     const result = examSessionSchema.safeParse(JSON.parse(value))
-    return result.success ? result.data : null
+    if (!result.success) return null
+    return result.data.view === 'review' && !result.data.review
+      ? { ...result.data, view: 'result' }
+      : result.data
   } catch {
     return null
   }

@@ -50,6 +50,27 @@ export async function loadActiveContent(
   });
 }
 
+export async function loadContentByKey(
+  database: SQLocal,
+  contentKey: string,
+): Promise<PracticeContentDocument | null> {
+  const [row] = await database.sql<StoredContentRow>`
+    SELECT
+      content_key AS contentKey,
+      section,
+      document_json AS documentJson
+    FROM content_documents
+    WHERE content_key = ${contentKey}
+  `;
+  if (!row) return null;
+
+  const document = parsePracticeContentDocument(JSON.parse(row.documentJson));
+  if (document.contentKey !== row.contentKey || document.section !== row.section) {
+    throw new Error(`Stored content ${row.contentKey} does not match its index.`);
+  }
+  return document;
+}
+
 export async function saveAndActivateContent(
   database: SQLocal,
   document: PracticeContentDocument,
@@ -97,9 +118,14 @@ export async function saveAndActivateContent(
 export function createContentStore(
   database: SQLocal,
   onInvalidContent?: InvalidStoredContentHandler,
+  bundledDocuments: PracticeContentDocument[] = [],
 ): ContentStore {
   return {
     loadActive: () => loadActiveContent(database, onInvalidContent),
+    loadByKey: async (contentKey) =>
+      (await loadContentByKey(database, contentKey)) ??
+      bundledDocuments.find((document) => document.contentKey === contentKey) ??
+      null,
     saveAndActivate: (document) => saveAndActivateContent(database, document),
   };
 }

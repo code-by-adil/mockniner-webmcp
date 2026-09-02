@@ -237,7 +237,7 @@ function Results({
 }
 
 export default function App() {
-  const { state, content, contentReady, commands } = useExamApplication();
+  const { state, content, contentReady, learningSummary, commands } = useExamApplication();
   const assessmentApplication = useAssessmentApplication();
   const listeningAudio = useListeningAudio(content.listening);
   const assessmentToolSurface = getAssessmentToolSurface(
@@ -260,7 +260,9 @@ export default function App() {
     speakingToolSurface: nativeToolSurfaces.speaking,
     enabled: contentReady && assessmentApplication.assessmentReady,
   });
-  const section = state.currentSection;
+  const section = state.view === "review"
+    ? state.review?.section ?? null
+    : state.currentSection;
   const mode = state.mode ?? "section";
 
   if (!contentReady || !assessmentApplication.assessmentReady) {
@@ -313,7 +315,8 @@ export default function App() {
         listeningAudio={listeningAudio}
         onRetryListeningAudio={listeningAudio.retry}
         content={content}
-        onReview={commands.openReview}
+        learningSummary={learningSummary}
+        onReviewAttempt={commands.openAttempt}
         assessments={assessmentApplication.assessments}
         assessmentSession={assessmentApplication.state}
         assessmentHistory={assessmentApplication.history}
@@ -343,16 +346,19 @@ export default function App() {
   }
 
   if (section === "listening" || section === "reading") {
+    const review = state.review?.kind === "objective" && state.review.section === section
+      ? state.review
+      : null;
     const isReviewMode = state.view === "review";
-    const document = content[section];
-    const submission = state.objectiveSubmissions[section];
-    if (isReviewMode && !submission) {
-      throw new Error(`${section} review submission is unavailable.`);
+    if (isReviewMode && !review) {
+      throw new Error(`${section} review snapshot is unavailable.`);
     }
+    const document = review?.document ?? content[section];
+    const submission = review?.submission;
     const commonProps = {
       document,
       answers: isReviewMode ? submission!.answers : state.answers[section],
-      currentPart: state.partBySection[section],
+      currentPart: review?.part ?? state.partBySection[section],
       secondsRemaining: state.secondsRemaining[section],
       onBack: isReviewMode ? commands.closeReview : commands.goHome,
       isReviewMode,
@@ -381,12 +387,12 @@ export default function App() {
   }
 
   if (section === "writing") {
-    if (state.view === "review" && state.writingSubmission && state.writingEvaluation) {
+    if (state.view === "review" && state.review?.kind === "writing") {
       return (
         <LocalWritingReview
-          submission={state.writingSubmission}
-          evaluation={state.writingEvaluation}
-          currentPart={state.partBySection.writing === 2 ? 2 : 1}
+          submission={state.review.submission}
+          evaluation={state.review.evaluation}
+          currentPart={state.review.part === 2 ? 2 : 1}
           onExit={commands.closeReview}
           onPartChange={(part) => commands.setPart("writing", part)}
         />
@@ -407,11 +413,11 @@ export default function App() {
     );
   }
 
-  if (state.view === "review" && state.speakingSubmission && state.speakingEvaluation) {
+  if (state.view === "review" && state.review?.kind === "speaking") {
     return (
       <LocalSpeakingReview
-        submission={state.speakingSubmission}
-        evaluation={state.speakingEvaluation}
+        submission={state.review.submission}
+        evaluation={state.review.evaluation}
         onExit={commands.closeReview}
       />
     );

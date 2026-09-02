@@ -7,6 +7,7 @@ import {
   sessionReducer,
 } from './session'
 import { writingDocument } from '@/content/writing'
+import { listeningDocument } from '@/content/objective'
 import type {
   ObjectiveResult,
   ObjectiveSubmission,
@@ -220,7 +221,17 @@ describe('full exam state transitions', () => {
       type: 'CONTINUE',
       startedAt: '2026-08-31T10:31:00.000Z',
     })
-    const review = sessionReducer(results, { type: 'OPEN_REVIEW', section: 'listening' })
+    const review = sessionReducer(results, {
+      type: 'OPEN_REVIEW',
+      review: {
+        kind: 'objective',
+        section: 'listening',
+        submission: listeningSubmission,
+        document: listeningDocument,
+        part: 1,
+        returnTo: 'result',
+      },
+    })
     const attemptedEdit = sessionReducer(review, {
       type: 'SET_ANSWER',
       section: 'listening',
@@ -235,23 +246,67 @@ describe('full exam state transitions', () => {
     expect(sessionReducer(review, { type: 'CLOSE_REVIEW' }).view).toBe('result')
   })
 
-  it('opens Writing review only after evaluation, matching MockNiner route behavior', () => {
+  it('keeps an unfinished attempt unchanged while a history review is open', () => {
+    const unfinished = sessionReducer(
+      sessionReducer(
+        sessionReducer(initialSession, {
+          type: 'START',
+          mode: 'section',
+          section: 'reading',
+          startedAt: '2026-08-31T10:00:00.000Z',
+        }),
+        { type: 'SET_PART', section: 'reading', part: 2 },
+      ),
+      { type: 'GO_HOME' },
+    )
+    const review = sessionReducer(unfinished, {
+      type: 'OPEN_REVIEW',
+      review: {
+        kind: 'objective',
+        section: 'listening',
+        submission: listeningSubmission,
+        document: listeningDocument,
+        part: 1,
+        returnTo: 'home',
+      },
+    })
+    const movedReview = sessionReducer(review, {
+      type: 'SET_PART',
+      section: 'listening',
+      part: 3,
+    })
+    const closed = sessionReducer(movedReview, { type: 'CLOSE_REVIEW' })
+
+    expect(movedReview.review?.part).toBe(3)
+    expect(movedReview.partBySection.listening).toBe(1)
+    expect(closed).toMatchObject({
+      view: 'home',
+      currentSection: 'reading',
+      partBySection: { reading: 2 },
+    })
+    expect(getResumableSection(closed)).toBe('reading')
+  })
+
+  it('opens Writing review with the matching evaluation snapshot', () => {
     const submitted = sessionReducer(
       { ...initialSession, view: 'result' },
       { type: 'COMPLETE_WRITING', submission: writingSubmission },
     )
-    const beforeEvaluation = sessionReducer(submitted, {
-      type: 'OPEN_REVIEW',
-      section: 'writing',
-    })
     const evaluated = sessionReducer(submitted, {
       type: 'ATTACH_WRITING_EVALUATION',
       evaluation: writingEvaluation,
     })
 
-    expect(beforeEvaluation).toBe(submitted)
     expect(evaluated.view).toBe('review')
     expect(evaluated.currentSection).toBe('writing')
+    expect(evaluated.review).toEqual({
+      kind: 'writing',
+      section: 'writing',
+      submission: writingSubmission,
+      evaluation: writingEvaluation,
+      part: 1,
+      returnTo: 'result',
+    })
     expect(sessionReducer(evaluated, { type: 'CLOSE_REVIEW' }).view).toBe('result')
   })
 

@@ -2,7 +2,12 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { SQLocal } from "sqlocal";
 import { writingDocument } from "@/content/writing";
 import { migrateDatabase } from "./migrations";
-import { loadActiveContent, saveAndActivateContent } from "./contentRepository";
+import {
+  createContentStore,
+  loadActiveContent,
+  loadContentByKey,
+  saveAndActivateContent,
+} from "./contentRepository";
 
 let database: SQLocal;
 
@@ -46,6 +51,23 @@ describe("local content repository", () => {
         name: "Different content with the same key",
       }),
     ).rejects.toThrow("already installed with different data");
+  });
+
+  it("loads one exact persisted document by content key", async () => {
+    await saveAndActivateContent(database, writingDocument);
+
+    await expect(
+      loadContentByKey(database, writingDocument.contentKey),
+    ).resolves.toEqual(writingDocument);
+    await expect(loadContentByKey(database, "missing-content")).resolves.toBeNull();
+  });
+
+  it("resolves bundled content that predates the content catalog", async () => {
+    const store = createContentStore(database, undefined, [writingDocument]);
+
+    await expect(store.loadByKey(writingDocument.contentKey)).resolves.toEqual(
+      writingDocument,
+    );
   });
 
   it("loads valid sections even when an older active document no longer validates", async () => {
