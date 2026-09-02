@@ -68,6 +68,7 @@ type Dependencies = {
     update: (current: AssessmentHistoryEntry[]) => AssessmentHistoryEntry[],
   ) => void;
   getRepository: () => Promise<AssessmentRepository>;
+  flushDrafts?: () => Promise<void>;
 };
 
 export function createAssessmentCommands({
@@ -77,10 +78,11 @@ export function createAssessmentCommands({
   setAssessments,
   setHistory,
   getRepository,
+  flushDrafts = async () => {},
 }: Dependencies): AssessmentApplicationCommands {
   const submissions = new Map<string, Promise<AssessmentSubmission>>();
   const currentAssessment = () => {
-    const assessment = getAssessments().find(
+    const assessment = getState().packageSnapshot ?? getAssessments().find(
       (candidate) => candidate.packageId === getState().packageId,
     );
     if (!assessment)
@@ -238,6 +240,7 @@ export function createAssessmentCommands({
         submittedAt: new Date().toISOString(),
       };
       const saving = (async () => {
+        await flushDrafts();
         const submission = await (await getRepository()).saveAttempt(snapshot);
         setHistory((current) =>
           [

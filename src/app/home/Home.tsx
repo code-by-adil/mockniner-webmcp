@@ -10,6 +10,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
+import { StorageButton } from '@/app/WorkspaceStorage';
 import { SECTION_META, SECTION_ORDER } from "@/domain/sections";
 import {
   getResumableSection,
@@ -108,12 +109,7 @@ export function Home({
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs shrink-0">
-            <div className="inline-flex items-center gap-1.5 text-neutral-500 text-[11px]">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span>Saved on this device</span>
-            </div>
-          </div>
+          <StorageButton />
         </div>
       </header>
 

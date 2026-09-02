@@ -5,9 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { satPracticeAssessment } from "@/content/sat";
 import type { AssessmentSubmission } from "@/domain/assessment";
 import {
-  ASSESSMENT_SESSION_STORAGE_KEY,
   initialAssessmentSession,
-  saveAssessmentSession,
 } from "@/domain/assessmentSession";
 import type {
   ObjectiveSubmission,
@@ -19,6 +17,22 @@ import { useAssessmentApplication } from "./useAssessmentApplication";
 import { getIeltsExample } from '@/content/ieltsExamples';
 import { defaultSpeakingPlan } from '@/domain/speakingPlan';
 import { loadSession } from '@/infrastructure/ieltsSessionStorage';
+import { draftSaves } from '@/infrastructure/saveCoordinator';
+import { ASSESSMENT_SESSION_STORAGE_KEY, saveAssessmentSession } from '@/infrastructure/assessmentSessionStorage';
+
+// Persistence is a boundary here; real SQLite upgrade/rollback tests live in
+// draftRepository.test.ts. These adapters retain the old fixtures for hook tests.
+vi.mock('@/infrastructure/database/draftRepository', () => ({ getDraftRepository: async () => {
+  const native = await import('@/infrastructure/ieltsSessionStorage');
+  const universal = await import('@/infrastructure/assessmentSessionStorage');
+  return {
+    issues: [],
+    loadIelts: async (reader: Parameters<typeof native.loadSession>[0]) => ({ session: await native.loadSession(reader), documents: [] }),
+    saveIelts: native.saveSession,
+    loadAssessment: async () => universal.loadAssessmentSession(),
+    saveAssessment: universal.saveAssessmentSession,
+  };
+} }));
 
 const repositories = vi.hoisted(() => ({
   ielts: {
@@ -96,6 +110,7 @@ beforeEach(() => {
   root = createRoot(host);
 });
 afterEach(async () => {
+  await draftSaves.flush();
   await act(async () => {
     await vi.dynamicImportSettled();
   });
@@ -111,15 +126,15 @@ describe("real application hook lifecycle", () => {
     const plan = { ...defaultSpeakingPlan, contentKey: 'durable-speaking', title: 'Durable interview' };
     let id!: string;
     await act(async () => {
-      native.commands.start('section', 'speaking');
+      await native.commands.start('section', 'speaking');
       id = native.state.attemptId!;
-      native.commands.configureSpeakingPlan(plan);
+      await native.commands.configureSpeakingPlan(plan);
       expect(await loadSession(repositories.ielts)).toMatchObject({ attemptId: id, speakingPlan: plan });
-      native.commands.start('section', 'reading');
+      await native.commands.start('section', 'reading');
     });
     await act(async () => root.render(<div>Unmounted</div>));
     await act(async () => root.render(<Native />));
-    await act(async () => { native.commands.goHome(); native.commands.resume(id); });
+    await act(async () => { await native.commands.goHome(); await native.commands.resume(id); });
     expect(native.state).toMatchObject({ attemptId: id, speakingPlan: plan, currentSection: 'speaking' });
   });
   it('rejects configuration and navigation when storage fails, without changing the current draft', async () => {
@@ -129,8 +144,8 @@ describe("real application hook lifecycle", () => {
     const storage = localStorage;
     vi.stubGlobal('localStorage', { getItem: storage.getItem.bind(storage), removeItem: storage.removeItem.bind(storage), setItem() { throw new Error('Quota exceeded'); } });
     try {
-      expect(() => native.commands.configureSpeakingPlan(defaultSpeakingPlan)).toThrow('Quota exceeded');
-      expect(() => native.commands.start('section', 'reading')).toThrow('Quota exceeded');
+      await expect(native.commands.configureSpeakingPlan(defaultSpeakingPlan)).rejects.toThrow('Quota exceeded');
+      await expect(native.commands.start('section', 'reading')).rejects.toThrow('Quota exceeded');
       expect(native.state).toBe(before);
     } finally { vi.stubGlobal('localStorage', storage); }
   });
@@ -201,7 +216,7 @@ describe("real application hook lifecycle", () => {
     });
     expect(universal.assessmentReady).toBe(false);
     expect(universal.loadError).toContain("could not be loaded");
-    expect(universal.state.responses).toEqual({ "item-1": "Saved answer" });
+    expect(universal.state.responses).toEqual({}); // Not exposed until its catalog loads.
     expect(localStorage.getItem(ASSESSMENT_SESSION_STORAGE_KEY)).toBe(before);
   });
 

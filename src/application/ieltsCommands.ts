@@ -40,12 +40,13 @@ import type { AttemptReader } from "./attemptReader";
 import { ApplicationError } from "@/domain/errors";
 import { resolveWritingEvaluation } from "@/domain/writingAnnotations";
 import { findContentBlockingDraft, getIeltsDrafts, sessionReducer } from "@/domain/session";
-import { speakingPlanSchema, type SpeakingPlan } from '@/domain/speakingPlan';
+import { defaultSpeakingPlan, speakingPlanSchema, type SpeakingPlan } from '@/domain/speakingPlan';
 
 type CommandDependencies = {
   getState: () => IeltsSession;
   dispatch: (action: SessionAction) => void;
-  persistSession?: (session: IeltsSession) => void;
+  persistSession?: (session: IeltsSession) => void | Promise<void>;
+  flushDrafts?: () => Promise<void>;
   now?: () => Date;
   getRepository: () => Promise<AttemptReader & AttemptWriter>;
   getContent: () => ActiveContentDocuments;
@@ -54,10 +55,10 @@ type CommandDependencies = {
 };
 
 export type IeltsCommands = {
-  start: (mode: IeltsMode, section: SectionKey) => void;
-  resume: (attemptId?: string) => void;
-  configureSpeakingPlan: (plan: SpeakingPlan) => void;
-  goHome: () => void;
+  start: (mode: IeltsMode, section: SectionKey) => void | Promise<void>;
+  resume: (attemptId?: string) => void | Promise<void>;
+  configureSpeakingPlan: (plan: SpeakingPlan) => void | Promise<void>;
+  goHome: () => void | Promise<void>;
   continueExam: () => void;
   setPart: (section: SectionKey, part: number) => void;
   setObjectiveAnswer: (
@@ -119,6 +120,7 @@ export function createIeltsCommands({
   getState,
   dispatch,
   persistSession = () => {},
+  flushDrafts = async () => {},
   now = () => new Date(),
   getRepository,
   getContent,
@@ -128,7 +130,10 @@ export function createIeltsCommands({
   // Metadata-changing commands must be durable before tools report success.
   const commit = (action: SessionAction) => {
     const next = sessionReducer(getState(), action);
-    try { persistSession(next); }
+    try {
+      const saved = persistSession(next);
+      if (saved) return saved.then(() => { dispatch(action); return flushDrafts(); });
+    }
     catch (cause) { throw new ApplicationError('DRAFT_SAVE_FAILED', cause instanceof Error ? `Could not save the practice draft: ${cause.message}` : 'Could not save the practice draft.', true); }
     dispatch(action);
   };
@@ -201,16 +206,18 @@ export function createIeltsCommands({
   return {
     start(mode, requestedSection) {
       const section = mode === "full" ? "listening" : requestedSection;
-      commit({
+      return commit({
         type: "START",
         mode,
         section,
+        contentKeys: Object.fromEntries(Object.entries(getContent()).filter(([key]) => mode === 'full' || key === section).map(([key, document]) => [key, document.contentKey])),
+        speakingPlan: mode === 'full' || section === 'speaking' ? defaultSpeakingPlan : undefined,
         startedAt: now().toISOString(),
         attemptId: crypto.randomUUID(),
       });
     },
     resume(targetAttemptId) {
-      commit({
+      return commit({
         type: "RESUME",
         targetAttemptId,
         startedAt: now().toISOString(),
@@ -218,11 +225,11 @@ export function createIeltsCommands({
       });
     },
     goHome() {
-      commit({ type: "GO_HOME" });
+      return commit({ type: "GO_HOME" });
     },
     configureSpeakingPlan(input) {
       requireActiveSection(getState(), 'speaking');
-      commit({ type: 'SET_SPEAKING_PLAN', plan: speakingPlanSchema.parse(input) });
+      return commit({ type: 'SET_SPEAKING_PLAN', plan: speakingPlanSchema.parse(input) });
     },
     continueExam() {
       dispatch({
@@ -275,10 +282,11 @@ export function createIeltsCommands({
       assertContentUnlocked();
       await store.saveAndActivate(document);
       setContent(replaceActiveContent(getContent(), document));
-      commit({ type: getIeltsDrafts(getState()).length ? 'GO_HOME' : 'RESET' });
+      await commit({ type: getIeltsDrafts(getState()).length ? 'GO_HOME' : 'RESET' });
       return document;
     },
     async submitObjective(section) {
+      await flushDrafts();
       const state = getState();
       requireActiveSection(state, section);
       const document = requireActiveObjectiveContent(getContent(), section);
@@ -301,6 +309,7 @@ export function createIeltsCommands({
       return submission;
     },
     async submitWriting() {
+      await flushDrafts();
       const state = getState();
       requireActiveSection(state, "writing");
       const document = getContent().writing;
@@ -356,6 +365,7 @@ export function createIeltsCommands({
       return evaluation;
     },
     async submitSpeaking(input) {
+      await flushDrafts();
       const activeState = getState();
       requireActiveSection(activeState, "speaking");
       const submission = await (

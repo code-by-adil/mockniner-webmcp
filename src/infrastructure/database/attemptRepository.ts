@@ -1,4 +1,6 @@
 import type { SQLocal } from "sqlocal";
+import { completeDraft } from './draftRepository';
+import { readRecentHistory, type HistoryEntry } from './historyRepository';
 import { recordNativeAttemptActivity } from './practiceActivity';
 import { resolveWritingEvaluation } from "@/domain/writingAnnotations";
 import { ApplicationError } from "@/domain/errors";
@@ -22,7 +24,6 @@ import {
   parseStoredObjectiveResult,
   parseStoredWritingEvaluation,
   parseStoredWritingSubmission,
-  parseStoredSpeakingEvaluation,
 } from "@/domain/attemptValidation";
 
 type AttemptRow = {
@@ -50,217 +51,42 @@ type AttemptCountRow = {
   attemptCount: number;
 };
 
-type ObjectiveLearningRow = {
-  id: string;
-  contentKey: string;
-  submittedAt: string;
-  resultJson: string;
-};
-
-type WritingLearningRow = {
-  id: string;
-  contentKey: string;
-  status: AttemptRow["status"];
-  submittedAt: string;
-  evaluationJson: string | null;
-};
-
 function roundedAverage(values: number[]): number | null {
-  if (values.length === 0) return null;
-  return (
-    Math.round(
-      (values.reduce((sum, value) => sum + value, 0) / values.length) * 10,
-    ) / 10
+  return values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length * 10) / 10 : null;
+}
+
+export async function readLearningSummary(database: SQLocal, recentLimit: number): Promise<LearningSummary> {
+  const countRows = await database.sql<AttemptCountRow>`SELECT section, status, COUNT(*) AS attemptCount FROM attempts GROUP BY section, status`;
+  const count = (section: AttemptRow['section'], status?: AttemptRow['status']) =>
+    countRows.filter(row => row.section === section && (!status || row.status === status)).reduce((sum, row) => sum + Number(row.attemptCount), 0);
+  const limit = Math.max(1, Math.min(50, Math.trunc(recentLimit)));
+  const [listeningRows, readingRows, writingRows, speakingRows] = await Promise.all(
+    (['listening', 'reading', 'writing', 'speaking'] as const).map(kind => readRecentHistory(database, kind, limit)),
   );
-}
-
-function averageCriteria(
-  values: WritingCriteriaSummary[],
-): WritingCriteriaSummary | null {
-  if (values.length === 0) return null;
-  return {
-    taskAchievement: roundedAverage(
-      values.map((value) => value.taskAchievement),
-    )!,
-    coherenceCohesion: roundedAverage(
-      values.map((value) => value.coherenceCohesion),
-    )!,
-    lexicalResource: roundedAverage(
-      values.map((value) => value.lexicalResource),
-    )!,
-    grammaticalRange: roundedAverage(
-      values.map((value) => value.grammaticalRange),
-    )!,
-  };
-}
-
-function evaluationCriteria(
-  evaluation: WritingEvaluation,
-): WritingCriteriaSummary {
-  return {
-    taskAchievement:
-      (evaluation.task1.taskAchievement + evaluation.task2.taskAchievement) / 2,
-    coherenceCohesion:
-      (evaluation.task1.coherenceCohesion +
-        evaluation.task2.coherenceCohesion) /
-      2,
-    lexicalResource:
-      (evaluation.task1.lexicalResource + evaluation.task2.lexicalResource) / 2,
-    grammaticalRange:
-      (evaluation.task1.grammaticalRange + evaluation.task2.grammaticalRange) /
-      2,
-  };
-}
-
-async function readObjectiveLearningSummary(
-  database: SQLocal,
-  section: "listening" | "reading",
-  attemptCount: number,
-  recentLimit: number,
-): Promise<ObjectiveLearningSummary> {
-  const rows = await database.sql<ObjectiveLearningRow>`
-    SELECT
-      attempts.id,
-      attempts.content_key AS contentKey,
-      attempts.submitted_at AS submittedAt,
-      objective_submissions.result_json AS resultJson
-    FROM attempts
-    INNER JOIN objective_submissions
-      ON objective_submissions.attempt_id = attempts.id
-    WHERE attempts.section = ${section}
-    ORDER BY attempts.submitted_at DESC
-    LIMIT ${recentLimit}
-  `;
-  const recent = rows.map((row) => {
-    const result = parseStoredObjectiveResult(row.resultJson);
-    if (result.section !== section) {
-      throw new Error(`The stored ${section} result has the wrong section.`);
-    }
-    return {
-      attemptId: row.id,
-      contentKey: row.contentKey,
-      band: result.band,
-      raw: result.raw,
-      total: result.total,
-      answered: result.answered,
-      submittedAt: row.submittedAt,
-    };
+  const objective = (section: 'reading' | 'listening', rows: HistoryEntry[]): ObjectiveLearningSummary => ({
+    attemptCount: count(section), recentAverageBand: roundedAverage(rows.map(row => row.band!)),
+    recent: rows.map(row => ({ attemptId: row.attemptId, contentKey: row.contentKey!, submittedAt: row.submittedAt,
+      band: row.band!, raw: row.rawScore!, total: 40, answered: row.answered! })),
   });
+  const evaluated = writingRows!.items.filter(row => row.band !== undefined);
+  const criteriaKeys = ['taskAchievement', 'coherenceCohesion', 'lexicalResource', 'grammaticalRange'] as const;
+  const averageCriteria = evaluated.length ? Object.fromEntries(criteriaKeys.map(key => [key, roundedAverage(evaluated.map(row => row.criteria![key]))!])) as WritingCriteriaSummary : null;
   return {
-    attemptCount,
-    recentAverageBand: roundedAverage(recent.map((attempt) => attempt.band)),
-    recent,
-  };
-}
-
-export async function readLearningSummary(
-  database: SQLocal,
-  recentLimit: number,
-): Promise<LearningSummary> {
-  const countRows = await database.sql<AttemptCountRow>`
-    SELECT section, status, COUNT(*) AS attemptCount
-    FROM attempts
-    GROUP BY section, status
-  `;
-  const counts = new Map(
-    countRows.map((row) => [
-      `${row.section}:${row.status}`,
-      Number(row.attemptCount),
-    ]),
-  );
-  const statusCount = (
-    section: AttemptRow["section"],
-    status: AttemptRow["status"],
-  ) => counts.get(`${section}:${status}`) ?? 0;
-  const count = (section: AttemptRow["section"]) =>
-    statusCount(section, "submitted") + statusCount(section, "evaluated");
-
-  const [listening, reading, writingRows, speakingRows] = await Promise.all([
-    readObjectiveLearningSummary(
-      database,
-      "listening",
-      count("listening"),
-      recentLimit,
-    ),
-    readObjectiveLearningSummary(
-      database,
-      "reading",
-      count("reading"),
-      recentLimit,
-    ),
-    database.sql<WritingLearningRow>`
-      SELECT
-        attempts.id,
-        attempts.content_key AS contentKey,
-        attempts.status,
-        attempts.submitted_at AS submittedAt,
-        writing_evaluations.evaluation_json AS evaluationJson
-      FROM attempts
-      LEFT JOIN writing_evaluations
-        ON writing_evaluations.attempt_id = attempts.id
-      WHERE attempts.section = 'writing'
-      ORDER BY attempts.submitted_at DESC
-      LIMIT ${recentLimit}
-    `,
-    database.sql<{ id: string; submittedAt: string; evaluationJson: string | null }>`
-      SELECT attempts.id, attempts.submitted_at AS submittedAt,
-        speaking_evaluations.evaluation_json AS evaluationJson
-      FROM attempts LEFT JOIN speaking_evaluations ON speaking_evaluations.attempt_id = attempts.id
-      WHERE attempts.section = 'speaking'
-      ORDER BY attempts.submitted_at DESC LIMIT ${recentLimit}
-    `,
-  ]);
-
-  const writingRecent = writingRows.map((row) => {
-    const evaluation = row.evaluationJson
-      ? parseStoredWritingEvaluation(row.evaluationJson)
-      : null;
-    if (evaluation && evaluation.attemptId !== row.id) {
-      throw new Error(
-        "The stored Writing evaluation does not match its attempt.",
-      );
-    }
-    return {
-      attemptId: row.id,
-      contentKey: row.contentKey,
-      status: row.status,
-      ...(evaluation
-        ? {
-            overallBand: evaluation.overallBand,
-            criteria: evaluationCriteria(evaluation),
-          }
-        : {}),
-      submittedAt: row.submittedAt,
-    };
-  });
-  const evaluated = writingRecent.filter(
-    (attempt) => attempt.overallBand !== undefined,
-  );
-  const writing = {
-    attemptCount: count("writing"),
-    evaluatedCount: statusCount("writing", "evaluated"),
-    recentAverageOverallBand: roundedAverage(
-      evaluated.map((attempt) => attempt.overallBand!),
-    ),
-    recentAverageCriteria: averageCriteria(
-      evaluated.map((attempt) => attempt.criteria!),
-    ),
-    recent: writingRecent,
-  };
-
-  return {
-    totalAttempts: [...counts.values()].reduce((sum, value) => sum + value, 0),
+    totalAttempts: countRows.reduce((sum, row) => sum + Number(row.attemptCount), 0),
     sections: {
-      listening,
-      reading,
-      writing,
-      speaking: { attemptCount: count("speaking"), recent: speakingRows.map((row) => {
-        const evaluation = row.evaluationJson ? parseStoredSpeakingEvaluation(row.evaluationJson) : null;
-        if (evaluation && evaluation.attemptId !== row.id) throw new Error('The stored Speaking evaluation does not match its attempt.');
-        return { attemptId: row.id, submittedAt: row.submittedAt,
-          evaluationStatus: evaluation?.status === 'insufficient_evidence' ? 'insufficient_evidence' as const : evaluation ? 'evaluated' as const : 'awaiting_evaluation' as const,
-          ...(evaluation && evaluation.status !== 'insufficient_evidence' ? { overallBand: evaluation.overallBand } : {}) };
-      }) },
+      listening: objective('listening', listeningRows!.items), reading: objective('reading', readingRows!.items),
+      writing: {
+        attemptCount: count('writing'), evaluatedCount: count('writing', 'evaluated'),
+        recentAverageOverallBand: roundedAverage(evaluated.map(row => row.band!)), recentAverageCriteria: averageCriteria,
+        recent: writingRows!.items.map(row => ({ attemptId: row.attemptId, contentKey: row.contentKey!, submittedAt: row.submittedAt,
+          status: row.evaluationStatus === 'evaluated' ? 'evaluated' : 'submitted',
+          ...(row.band !== undefined ? { overallBand: row.band, criteria: row.criteria } : {}) })),
+      },
+      speaking: { attemptCount: count('speaking'), recent: speakingRows!.items.map(row => ({
+        attemptId: row.attemptId, submittedAt: row.submittedAt,
+        evaluationStatus: row.evaluationStatus === 'not_required' ? 'awaiting_evaluation' : row.evaluationStatus,
+        ...(row.band !== undefined ? { overallBand: row.band } : {}),
+      })) },
     },
   };
 }
@@ -307,6 +133,7 @@ export async function saveObjectiveAttempt(
     ]);
 
     await recordNativeAttemptActivity(transaction, submission.attemptId, 'attempt_submitted');
+    await completeDraft(transaction, submission.attemptId);
     return submission;
   });
 }
@@ -384,6 +211,7 @@ export async function saveWritingAttempt(
     ]);
 
     await recordNativeAttemptActivity(transaction, submission.attemptId, 'attempt_submitted');
+    await completeDraft(transaction, submission.attemptId);
     return submission;
   });
 }

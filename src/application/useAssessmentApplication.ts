@@ -14,11 +14,13 @@ import type {
 } from "@/domain/assessment";
 import {
   assessmentSessionReducer,
-  getDraftAssessmentPackageId,
-  loadAssessmentSession,
-  saveAssessmentSession,
+  initialAssessmentSession,
+  type AssessmentSessionAction,
 } from "@/domain/assessmentSession";
 import { reportHandledError } from "@/shared/reportHandledError";
+import { flushSync } from 'react-dom';
+import { getDraftRepository } from '@/infrastructure/database/draftRepository';
+import { draftSaves } from '@/infrastructure/saveCoordinator';
 import {
   createAssessmentCommands,
   mergeAssessmentPackages,
@@ -32,8 +34,7 @@ const getRepository = async () =>
 export function useAssessmentApplication() {
   const [state, dispatch] = useReducer(
     assessmentSessionReducer,
-    undefined,
-    loadAssessmentSession,
+    initialAssessmentSession,
   );
   const [assessments, setAssessments] = useState<AssessmentPackage[]>([
     satPracticeAssessment,
@@ -47,6 +48,11 @@ export function useAssessmentApplication() {
   }, [state, assessments]);
   const getState = useCallback(() => current.current.state, []);
   const getAssessments = useCallback(() => current.current.assessments, []);
+  const dispatchAndSave = useCallback((action: AssessmentSessionAction) => {
+    const next = assessmentSessionReducer(getState(), action);
+    flushSync(() => dispatch(action));
+    draftSaves.enqueue('assessment', async () => (await getDraftRepository()).saveAssessment(next));
+  }, [getState]);
   // The factory stores these getters. It only reads them when a command runs after commit.
   const commands = useMemo(
     () =>
@@ -54,15 +60,15 @@ export function useAssessmentApplication() {
       createAssessmentCommands({
         getState,
         getAssessments,
-        dispatch,
+        dispatch: dispatchAndSave,
+        flushDrafts: draftSaves.flush,
         setAssessments,
         setHistory,
         getRepository,
       }),
-    [getState, getAssessments],
+    [getState, getAssessments, dispatchAndSave],
   );
 
-  useEffect(() => saveAssessmentSession(state), [state]);
   useEffect(() => {
     let cancelled = false;
     const onInvalid = (
@@ -82,9 +88,13 @@ export function useAssessmentApplication() {
           repository.readHistory(10, onInvalid),
         ]),
       )
-      .then(([packages, attempts]) => {
+      .then(async ([packages, attempts]) => {
+        const installed = mergeAssessmentPackages(packages);
+        const drafts = await getDraftRepository();
+        const session = await drafts.loadAssessment(installed);
         if (cancelled) return;
-        setAssessments(mergeAssessmentPackages(packages));
+        setAssessments(installed);
+        dispatch({ type: 'RESTORE', session });
         setHistory(attempts);
         setAssessmentReady(true);
       })
@@ -99,15 +109,6 @@ export function useAssessmentApplication() {
       cancelled = true;
     };
   }, []);
-  const draftPackageId = getDraftAssessmentPackageId(state);
-  useEffect(() => {
-    if (
-      assessmentReady &&
-      draftPackageId &&
-      !assessments.some((assessment) => assessment.packageId === draftPackageId)
-    )
-      dispatch({ type: "RESET" });
-  }, [assessmentReady, assessments, draftPackageId]);
 
   return {
     state,
@@ -117,7 +118,7 @@ export function useAssessmentApplication() {
     history,
     commands,
     currentAssessment:
-      assessments.find(
+      state.packageSnapshot ?? assessments.find(
         (assessment) => assessment.packageId === state.packageId,
       ) ?? null,
   };

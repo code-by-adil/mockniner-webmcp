@@ -85,23 +85,23 @@ export function createPracticeNavigation(deps: {
     navigating = true
     try {
       assertCanLeave()
-      if (input.action === 'library') { deps.native.goHome(); deps.assessment.goHome(); return { view: 'home' } }
+      if (input.action === 'library') { await deps.native.goHome(); deps.assessment.goHome(); return { view: 'home' } }
       if (input.action === 'result') {
-        if (input.kind === 'assessment') { await deps.assessment.openAttempt(input.attemptId); deps.native.goHome() }
+        if (input.kind === 'assessment') { await deps.assessment.openAttempt(input.attemptId); await deps.native.goHome() }
         else { await deps.native.openAttempt(input.attemptId, input.kind); deps.assessment.goHome() }
         return { view: 'result', kind: input.kind, attemptId: input.attemptId }
       }
       if (input.action === 'resume') {
         const draft = getResumablePractices(deps.getWorkspace()).find(d => d.kind === input.kind && d.attemptId === input.attemptId)
         if (!draft) throw new ApplicationError('RESUMABLE_ATTEMPT_NOT_FOUND', 'That attempt is not the saved unfinished attempt. Read get_practice_library for its current ID.', true)
-        if (draft.kind === 'ielts') { requireListening(draft.section); deps.assessment.goHome(); deps.native.goHome(); deps.native.resume(draft.attemptId) }
-        else { deps.native.goHome(); deps.assessment.resume() }
+        if (draft.kind === 'ielts') { requireListening(draft.section); deps.assessment.goHome(); await deps.native.goHome(); await deps.native.resume(draft.attemptId) }
+        else { await deps.native.goHome(); deps.assessment.resume() }
         return { view: 'exam', kind: input.kind, resumedFromAttemptId: input.attemptId }
       }
       assertNoDraft(input.kind)
       if (input.kind === 'assessment') {
         if (!deps.getWorkspace().assessments.some(p => p.packageId === input.packageId)) throw new ApplicationError('PRACTICE_NOT_FOUND', 'That assessment is not installed. Read get_practice_library.', true)
-        deps.assessment.start(input.packageId!); deps.native.goHome()
+        deps.assessment.start(input.packageId!); await deps.native.goHome()
       } else {
         if (input.contentKey && deps.getWorkspace().content[input.kind as keyof ActiveContentDocuments]?.contentKey !== input.contentKey) {
           const content = await deps.loadContent(input.contentKey)
@@ -112,7 +112,7 @@ export function createPracticeNavigation(deps: {
           if (input.kind === 'listening') { deps.assessment.goHome(); return { view: 'home', status: 'audio_preparing', contentKey: input.contentKey } }
         }
         requireListening(input.kind === 'full_ielts' ? 'listening' : input.kind)
-        deps.native.start(input.kind === 'full_ielts' ? 'full' : 'section', input.kind === 'full_ielts' ? 'listening' : input.kind)
+        await deps.native.start(input.kind === 'full_ielts' ? 'full' : 'section', input.kind === 'full_ielts' ? 'listening' : input.kind)
         deps.assessment.goHome()
       }
       return { view: 'exam', kind: input.kind, status: 'started' }

@@ -36,22 +36,23 @@ export function useSpeakingRecorder() {
     if (activeRef.current === capture) activeRef.current = null
   }, [])
 
-  const transcribeRecordings = useCallback(async <T extends RecordedSpeakingResponse>(responses: T[]): Promise<T[]> => {
+  const transcribeRecordings = useCallback(async <T extends RecordedSpeakingResponse>(responses: T[], onTranscribed?: (response: T) => Promise<void>): Promise<T[]> => {
     const version = versionRef.current
     const completed: T[] = []
     for (const [index, response] of responses.entries()) {
       if (version !== versionRef.current) throw abortError()
       const prefix = `Answer ${index + 1} of ${responses.length}: `
-      let transcript = transcriptsRef.current.get(response.audio)
+      let transcript = response.transcript.trim() || transcriptsRef.current.get(response.audio)
       try {
         transcript ??= await requireTranscriber().transcribe(response.audio, (message) => setTranscriptionStatus(prefix + message))
         if (version !== versionRef.current) throw abortError()
         if (!transcript.trim()) throw new Error('No speech was recognised.')
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') throw error
-        throw new Error(`${prefix}${error instanceof Error ? error.message : 'Transcription failed.'} Your recordings remain in this tab. Retry processing the interview.`)
+        throw new Error(`${prefix}${error instanceof Error ? error.message : 'Transcription failed.'} Your completed recordings are saved on this device. Retry processing the interview.`)
       }
       transcriptsRef.current.set(response.audio, transcript)
+      await onTranscribed?.({ ...response, transcript })
       completed.push({ ...response, transcript })
     }
     return completed

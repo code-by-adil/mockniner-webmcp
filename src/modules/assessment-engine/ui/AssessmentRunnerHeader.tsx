@@ -5,6 +5,7 @@ import type { AssessmentPart, AssessmentResource } from "@/domain/assessment";
 import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { AssessmentCalculatorDialog } from "./AssessmentCalculatorDialog";
 import { AssessmentReferenceDialog } from "./AssessmentReferenceDialog";
+import { StorageButton } from '@/app/WorkspaceStorage';
 
 export function AssessmentRunnerHeader({
   assessmentTitle,
@@ -82,6 +83,7 @@ export function AssessmentRunnerHeader({
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <StorageButton />
             {resources.map((resource) => (
               <button
                 key={resource.id}

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from 'react-dom';
+import { draftSaves } from '@/infrastructure/saveCoordinator';
 import { createPracticeNavigation, getResumablePractices, type PracticeWorkspace } from '@/application/practiceNavigation';
 import type { PracticeContentDocument } from '@/domain/contentDocument';
 import { createPracticeTools } from './practiceTools';
@@ -195,7 +196,18 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     tools.push(createSpeakingInterviewToolDefinition(interview.configure), createSpeakingProgressToolDefinition(interview.read));
     void Promise.all(
       tools.map((tool) =>
-        modelContext.registerTool(tool, { signal: controller.signal }),
+        modelContext.registerTool({ ...tool, execute: async (input, options) => {
+          if (tool.annotations?.readOnlyHint) return tool.execute(input, options);
+          try {
+            await draftSaves.flush();
+            const result = await tool.execute(input, options);
+            await draftSaves.flush();
+            return result;
+          } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') throw error;
+            return toolFailure('SAVE_FAILED', error instanceof Error ? error.message : 'Changes could not be saved. Retry saving in the page.', true);
+          }
+        } }, { signal: controller.signal }),
       ),
     ).then(() => {
       if (!controller.signal.aborted) setRegistrationStatus('ready');

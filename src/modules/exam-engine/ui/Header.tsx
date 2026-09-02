@@ -8,10 +8,10 @@ import {
   ShieldCheck,
   Volume2,
   VolumeX,
-  Wifi,
 } from "lucide-react";
 import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { ExamSettingsMenu } from "./ExamSettingsMenu";
+import { StorageButton } from '@/app/WorkspaceStorage';
 
 interface Props {
   testType?:
@@ -191,13 +191,7 @@ export const Header: React.FC<Props> = ({
               Secure Connection
             </span>
           ) : (
-            <span
-              aria-label="Network connected"
-              role="status"
-              className="hidden sm:flex p-2"
-            >
-              <Wifi size={20} aria-hidden="true" />
-            </span>
+            <StorageButton />
           )}
           {canConfigureAudioPrompts ? (
             <ExamSettingsMenu

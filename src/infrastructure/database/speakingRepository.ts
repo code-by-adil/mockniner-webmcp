@@ -1,4 +1,5 @@
 import type { SQLocal } from "sqlocal";
+import { completeDraft } from './draftRepository';
 import { recordNativeAttemptActivity } from './practiceActivity';
 import { ApplicationError } from "@/domain/errors";
 import type { SpeakingEvaluation, SpeakingSubmission } from "@/domain/types";
@@ -128,6 +129,7 @@ export async function saveSpeakingAttempt(
     ]);
 
     await recordNativeAttemptActivity(transaction, attemptId, 'attempt_submitted');
+    await completeDraft(transaction, attemptId);
     return {
       attemptId,
       contentKey: input.contentKey,

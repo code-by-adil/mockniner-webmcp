@@ -23,6 +23,8 @@ import { SECTION_META, SECTION_ORDER } from "@/domain/sections";
 import type { IeltsMode, IeltsSession } from "@/domain/session";
 import type { SectionKey } from "@/domain/types";
 import { useIeltsApplication } from "@/application/useIeltsApplication";
+import { WorkspaceGate, StorageStatus, StorageButton } from '@/app/WorkspaceStorage';
+import { draftSaves } from '@/infrastructure/saveCoordinator';
 import { useListeningAudio } from "@/application/useListeningAudio";
 import { useWebMcpTools } from "@/webmcp/useWebMcpTools";
 import { useAssessmentApplication } from "@/application/useAssessmentApplication";
@@ -57,10 +59,7 @@ function AppHeader() {
             </span>
           </div>
         </div>
-        <div className="inline-flex items-center gap-1.5 text-neutral-500 text-[11px]">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          <span>Saved on this device</span>
-        </div>
+        <StorageButton />
       </div>
     </header>
   );
@@ -224,8 +223,17 @@ export function Results({
 }
 
 export default function App() {
+  return <WorkspaceGate><StorageStatus><PracticeApp /></StorageStatus></WorkspaceGate>;
+}
+
+function PracticeApp() {
   const { state, content, contentReady, loadError, learningSummary, commands, loadPracticeContent } = useIeltsApplication();
   const assessmentApplication = useAssessmentApplication();
+  const uiCommands = {
+    start: (...args: Parameters<typeof commands.start>) => { void Promise.resolve().then(() => commands.start(...args)).catch(draftSaves.reportFailure); },
+    resume: (...args: Parameters<typeof commands.resume>) => { void Promise.resolve().then(() => commands.resume(...args)).catch(draftSaves.reportFailure); },
+    goHome: () => { void Promise.resolve().then(() => commands.goHome()).catch(draftSaves.reportFailure); },
+  };
   const listeningAudio = useListeningAudio(content.listening);
   const assessmentToolSurface = getAssessmentToolSurface(
     state.view === "home",
@@ -255,6 +263,7 @@ export default function App() {
     return <main className="mx-auto max-w-lg p-8" role="alert">
       <h1 className="text-xl font-semibold">Could not load saved practice</h1>
       <p className="mt-3">{storageError}</p>
+      <div className="mt-4"><StorageButton /></div>
       <button className="mt-5 rounded border px-4 py-2" onClick={() => window.location.reload()}>Retry loading</button>
     </main>;
   }
@@ -303,8 +312,8 @@ export default function App() {
   if (state.view === "home" || !section) {
     return (
       <Home
-        onStart={commands.start}
-        onResume={commands.resume}
+        onStart={uiCommands.start}
+        onResume={uiCommands.resume}
         session={state}
         listeningAudio={listeningAudio}
         onRetryListeningAudio={listeningAudio.retry}
@@ -332,14 +341,14 @@ export default function App() {
         section={section}
         mode={mode}
         speakingAttemptId={state.speakingSubmission?.attemptId}
-        onHome={commands.goHome}
+        onHome={uiCommands.goHome}
         onContinue={commands.continueExam}
       />
     );
   }
 
   if (state.view === "result") {
-    return <Results session={state} onHome={commands.goHome} onReview={commands.openReview} />;
+    return <Results session={state} onHome={uiCommands.goHome} onReview={commands.openReview} />;
   }
 
   if (section === "listening" || section === "reading") {
@@ -357,7 +366,7 @@ export default function App() {
       answers: isReviewMode ? submission!.answers : state.answers[section],
       currentPart: review?.part ?? state.partBySection[section],
       secondsRemaining: state.secondsRemaining[section],
-      onBack: isReviewMode ? commands.closeReview : commands.goHome,
+      onBack: isReviewMode ? commands.closeReview : uiCommands.goHome,
       isReviewMode,
       onAnswerChange: (id: number, value: string) =>
         commands.setObjectiveAnswer(section, id, value),
@@ -402,7 +411,7 @@ export default function App() {
         answers={state.writingDrafts}
         currentPart={state.partBySection.writing === 2 ? 2 : 1}
         secondsRemaining={state.secondsRemaining.writing}
-        onExit={commands.goHome}
+        onExit={uiCommands.goHome}
         onAnswerChange={commands.setWritingDraft}
         onPartChange={(part) => commands.setPart("writing", part)}
         onTick={() => commands.tick("writing")}
@@ -423,7 +432,8 @@ export default function App() {
     );
   }
 
-  return <SpeakingExamRunner key={state.attemptId} onExit={commands.goHome} onSubmit={commands.submitSpeaking}
+  return <SpeakingExamRunner key={state.attemptId} onExit={uiCommands.goHome} onSubmit={commands.submitSpeaking}
+    attemptId={state.attemptId ?? undefined} attemptStartedAt={state.startedAtBySection.speaking}
     initialPlan={state.speakingPlan} onConfigurePlan={commands.configureSpeakingPlan} canLeave={webMcp.canLeaveSpeaking}
     bindSpeakingInterview={webMcp.bindSpeakingInterview} />;
 }

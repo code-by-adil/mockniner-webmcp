@@ -6,13 +6,15 @@ import { formatMinutesAndSeconds } from '@/shared/time'
 import { useSpeakingInterview } from '../useSpeakingInterview'
 import type { SpeakingPlan } from '@/domain/speakingPlan'
 
-export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPlan, onConfigurePlan }: {
+export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPlan, onConfigurePlan, attemptId, attemptStartedAt }: {
   bindSpeakingInterview: BindSpeakingInterview
   onComplete: (input: CompleteSpeakingAttemptInput) => Promise<unknown>
   initialPlan?: SpeakingPlan
-  onConfigurePlan: (plan: SpeakingPlan) => void
+  onConfigurePlan: (plan: SpeakingPlan) => void | Promise<void>
+  attemptId?: string
+  attemptStartedAt?: string
 }) {
-  const interview = useSpeakingInterview({ bindSpeakingInterview, onComplete, initialPlan, onConfigurePlan })
+  const interview = useSpeakingInterview({ bindSpeakingInterview, onComplete, initialPlan, onConfigurePlan, attemptId, attemptStartedAt })
   const { phase, plan, index, secondsLeft, error, completeAnswer, startRecording, canvasRef } = interview
   const [notes, setNotes] = useState('')
   const question = plan.questions[index]!
@@ -28,6 +30,7 @@ export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPl
     return () => window.removeEventListener('keydown', key)
   }, [phase, completeAnswer, startRecording])
 
+  if (phase === 'loading' || phase === 'load-error') return <main className="m-auto max-w-xl p-8"><p role={error ? 'alert' : 'status'}>{error ?? 'Loading your saved interview…'}</p>{error ? <p>Your saved recordings have not been changed. Export your local data before attempting recovery.</p> : null}</main>
   if (phase === 'setup' || phase === 'preparing') return <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 py-10">
     <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--exam-accent-soft)] text-[var(--exam-accent)]"><Mic size={24} /></div>
     <p className="text-xs font-bold uppercase tracking-widest text-[var(--exam-text-muted)]">Speaking practice · 3 parts · {plan.questions.length} questions</p>
@@ -36,14 +39,14 @@ export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPl
     <ul className="mt-5 space-y-3 text-sm leading-6 text-[var(--exam-text)]">
       <li>Part 2 includes one minute to prepare and up to two minutes to speak.</li>
       <li>Your recordings and speech recognition stay on this device. Your agent receives the transcript only after you finish.</li>
-      <li>Use headphones in a quiet place. Keep this tab open until your interview is saved.</li>
+      <li>Each completed answer is saved before the next question. You can leave and resume later; an unfinished recording is not saved.</li>
     </ul>
     {error ? <p role="alert" className="mt-5 rounded-lg bg-red-50 p-4 text-sm text-red-800">{error}</p> : null}
     <button type="button" disabled={phase === 'preparing'} onClick={() => void interview.start()} className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[var(--exam-accent)] px-6 py-3 font-semibold text-white disabled:opacity-60">
       {phase === 'preparing' ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
-      {phase === 'preparing' ? 'Preparing your interview…' : 'Start interview'}
+      {phase === 'preparing' ? 'Preparing your interview…' : interview.recorded ? 'Resume interview' : 'Start interview'}
     </button>
-    <p role="status" className="mt-3 text-center text-xs leading-5 text-[var(--exam-text-muted)]">{phase === 'preparing' ? 'Preparing the microphone, voice and speech recognition. The first visit may take longer.' : 'Have a custom topic? Your agent can install the complete question set here before you start.'}</p>
+    <p role="status" className="mt-3 text-center text-xs leading-5 text-[var(--exam-text-muted)]">{phase === 'preparing' ? 'Preparing the microphone, voice and speech recognition. The first visit may take longer.' : interview.recorded ? `${interview.recorded} of ${plan.questions.length} answers saved on this device.` : 'Have a custom topic? Your agent can install the complete question set here before you start.'}</p>
   </main>
 
   const status = phase === 'speaking' ? 'Listen to the question' : phase === 'thinking' ? 'Preparation time' : phase === 'ready' ? 'Ready to record' : phase === 'starting' ? 'Starting microphone…' : phase === 'recording' ? 'Recording your answer' : phase === 'buffering' ? 'Preparing question audio…' : phase === 'stopping' ? 'Saving your answer…' : phase === 'saving' ? 'Preparing your interview transcript…' : 'Please try again'
@@ -64,6 +67,7 @@ export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPl
     </button> : null}
     {phase === 'error' ? <button type="button" onClick={() => void interview.retryQuestion()} className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-[var(--exam-border)] px-6 py-3 font-semibold"><RotateCcw size={18} />Retry this question</button> : null}
     {phase === 'save-error' ? <button type="button" onClick={() => void interview.finishInterview()} className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[var(--exam-accent)] px-6 py-3 font-semibold text-white"><RotateCcw size={18} />Retry processing interview</button> : null}
+    {phase === 'answer-save-error' ? <button type="button" onClick={() => void completeAnswer()} className="rounded-lg border p-3">Retry saving this answer</button> : null}
     {!['saving', 'save-error'].includes(phase) ? <button type="button" disabled={!['recording', 'thinking', 'ready', 'error'].includes(phase)} onClick={() => void interview.completeAnswer(true)} className="mx-auto mt-4 inline-flex min-h-11 items-center gap-2 px-4 text-sm text-[var(--exam-text-muted)] disabled:opacity-40"><SkipForward size={15} />Skip question</button> : null}
     <p className="mt-4 text-center text-xs leading-5 text-[var(--exam-text-muted)]">{phase === 'saving' ? interview.transcriptionStatus || 'Saving your interview on this device…' : 'Press Space to record. Press it again to submit. The next question starts automatically.'}</p>
   </main>

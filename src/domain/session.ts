@@ -48,6 +48,7 @@ export type IeltsReview =
     }
 
 export type IeltsAttemptState = {
+  contentKeys?: Partial<Record<'listening' | 'reading' | 'writing', string>>
   attemptId: string | null
   view: SessionView
   mode: IeltsMode | null
@@ -79,7 +80,7 @@ export function findContentBlockingDraft(state: IeltsSession, section: SectionKe
 
 export type SessionAction =
   | { type: 'RESTORE'; session: IeltsSession }
-  | { type: 'START'; mode: IeltsMode; section: SectionKey; startedAt: string; attemptId: string }
+  | { type: 'START'; mode: IeltsMode; section: SectionKey; startedAt: string; attemptId: string; contentKeys?: IeltsAttemptState['contentKeys']; speakingPlan?: SpeakingPlan }
   | { type: 'RESUME'; startedAt: string; attemptId: string; targetAttemptId?: string }
   | { type: 'SET_SPEAKING_PLAN'; plan: SpeakingPlan }
   | { type: 'SET_PART'; section: SectionKey; part: number }
@@ -182,6 +183,8 @@ export function sessionReducer(state: IeltsSession, action: SessionAction): Ielt
         attemptId: action.attemptId,
         view: 'exam',
         mode: action.mode,
+        contentKeys: action.contentKeys,
+        speakingPlan: action.speakingPlan,
         currentSection: action.section,
         startedAt: action.startedAt,
         startedAtBySection: { [action.section]: action.startedAt },

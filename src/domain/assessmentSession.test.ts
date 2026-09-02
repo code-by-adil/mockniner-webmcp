@@ -4,13 +4,10 @@ import { greStyleAssessment } from "@/content/gre";
 import { gradeAssessment, parseAssessmentPackage, type AssessmentSubmission } from "./assessment";
 import {
   assessmentSessionReducer,
-  ASSESSMENT_SESSION_STORAGE_KEY,
   getDraftAssessmentPackageId,
   initialAssessmentSession,
   isFinalPart,
   isLastItemInPart,
-  loadAssessmentSession,
-  saveAssessmentSession,
 } from "./assessmentSession";
 
 const nowMs = Date.parse("2026-09-02T10:00:00.000Z");
@@ -245,3 +242,4 @@ describe("assessment session", () => {
     expect(assessmentSessionReducer(resumed, { type: "COMPLETE", submission })).toBe(resumed);
   });
 });
+import { ASSESSMENT_SESSION_STORAGE_KEY, loadAssessmentSession, saveAssessmentSession } from '@/infrastructure/assessmentSessionStorage';

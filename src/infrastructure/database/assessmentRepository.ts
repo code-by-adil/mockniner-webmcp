@@ -1,4 +1,6 @@
 import type { SQLocal } from "sqlocal";
+import { completeDraft } from './draftRepository';
+import { readRecentHistory } from './historyRepository';
 import { recordPracticeActivity } from './practiceActivity';
 import type { AssessmentRepository } from "@/application/assessmentRepository";
 import { ApplicationError } from "@/domain/errors";
@@ -7,7 +9,6 @@ import {
   assessmentEvaluationSchema,
   assessmentResponseMapSchema,
   assessmentResultSchema,
-  getAssessmentEvaluationStatus,
   parseAssessmentPackage,
   type AssessmentEvaluation,
   type AssessmentHistoryEntry,
@@ -210,6 +211,7 @@ export async function saveAssessmentAttempt(
       packageId: stored.submission.packageId, revision: stored.submission.package.revision,
       title: stored.submission.package.title,
     });
+    await completeDraft(transaction, stored.submission.attemptId);
     return stored.submission;
   });
 }
@@ -331,49 +333,13 @@ export async function saveAssessmentEvaluation(
 }
 
 export async function readAssessmentHistory(
-  database: SQLocal,
-  limit = 10,
-  onInvalidAssessment?: InvalidStoredAssessmentHandler,
+  database: SQLocal, limit = 10, onInvalidAssessment?: InvalidStoredAssessmentHandler,
 ): Promise<AssessmentHistoryEntry[]> {
-  const normalizedLimit = Math.max(1, Math.min(50, Math.trunc(limit)));
-  const rows = await database.sql<AttemptRow>`
-    SELECT
-      assessment_attempts.id,
-      assessment_attempts.package_id AS packageId,
-      assessment_attempts.package_snapshot_json AS packageSnapshotJson,
-      assessment_attempts.responses_json AS responsesJson,
-      assessment_attempts.result_json AS resultJson,
-      assessment_attempts.started_at AS startedAt,
-      assessment_attempts.submitted_at AS submittedAt,
-      assessment_evaluations.evaluation_json AS evaluationJson
-    FROM assessment_attempts
-    LEFT JOIN assessment_evaluations
-      ON assessment_evaluations.attempt_id = assessment_attempts.id
-    ORDER BY assessment_attempts.submitted_at DESC
-    LIMIT 50
-  `;
-  return rows
-    .flatMap((row) => {
-      try {
-        const { submission, evaluation } = parseAttemptRow(row);
-        return [
-          {
-            attemptId: submission.attemptId,
-            packageId: submission.packageId,
-            title: submission.package.title,
-            rawScore: submission.result.rawScore,
-            maximumScore: submission.result.maximumScore,
-            evaluationStatus: getAssessmentEvaluationStatus(
-              submission.result,
-              evaluation,
-            ),
-            submittedAt: submission.submittedAt,
-          },
-        ];
-      } catch (error) {
-        onInvalidAssessment?.(asError(error), { kind: "attempt", id: row.id });
-        return [];
-      }
-    })
-    .slice(0, normalizedLimit);
+  const page = await readRecentHistory(database, 'assessment', Math.max(1, Math.min(50, Math.trunc(limit))));
+  for (const row of page.unavailable) onInvalidAssessment?.(new Error(row.message), { kind: 'attempt', id: row.attemptId });
+  return page.items.map(row => ({
+    attemptId: row.attemptId, packageId: row.packageId!, title: row.title, rawScore: row.rawScore!,
+    maximumScore: row.maximumScore!, submittedAt: row.submittedAt,
+    evaluationStatus: row.evaluationStatus === 'insufficient_evidence' ? 'awaiting_evaluation' : row.evaluationStatus,
+  }));
 }

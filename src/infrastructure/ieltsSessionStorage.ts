@@ -4,10 +4,11 @@ import { initialSession, type IeltsAttemptState, type IeltsSession } from "@/dom
 import { speakingPlanSchema } from '@/domain/speakingPlan';
 import { answerMapSchema } from "@/domain/attemptValidation";
 
-const STORAGE_KEY = "ielts-practice-session-v4";
+export const STORAGE_KEY = "ielts-practice-session-v4";
 const section = z.enum(["listening", "reading", "writing", "speaking"]);
 const timestamp = z.iso.datetime({ offset: true });
 const draftSchema = z.object({
+  contentKeys: z.object({ listening: z.string().optional(), reading: z.string().optional(), writing: z.string().optional() }).optional(),
   speakingPlan: speakingPlanSchema.optional(),
   attemptId: z.uuid().nullable().default(null),
   view: z.enum(["home", "exam", "transition", "result", "review"]),
@@ -46,7 +47,7 @@ const resultIdsSchema = z.object({
   writing: z.uuid().optional(),
   speaking: z.uuid().optional(),
 });
-const attemptSnapshotSchema = z.object({
+export const attemptSnapshotSchema = z.object({
   draft: draftSchema,
   resultAttemptIds: resultIdsSchema,
 });
@@ -64,7 +65,7 @@ const legacySchema = draftSchema.extend({
   speakingSubmission: submissionId,
 });
 
-function parseSnapshot(value: string): z.infer<typeof snapshotSchema> {
+export function parseSnapshot(value: string): z.infer<typeof snapshotSchema> {
   const raw: unknown = JSON.parse(value);
   const current = snapshotSchema.safeParse(raw);
   if (current.success) return current.data;
@@ -104,7 +105,7 @@ export async function loadSession(
   return { ...active!, pausedDrafts };
 }
 
-async function restoreAttempt(snapshot: z.infer<typeof attemptSnapshotSchema>, reader: AttemptReader): Promise<IeltsAttemptState> {
+export async function restoreAttempt(snapshot: z.infer<typeof attemptSnapshotSchema>, reader: AttemptReader): Promise<IeltsAttemptState> {
   const { pausedDrafts: _paused, ...initialAttempt } = initialSession;
   const { draft, resultAttemptIds: ids } = snapshot;
   const [listening, reading, writing, speaking] = await Promise.all([
@@ -150,7 +151,7 @@ export function saveSession(session: IeltsSession): void {
   }));
 }
 
-function snapshotAttempt(session: IeltsAttemptState) {
+export function snapshotAttempt(session: IeltsAttemptState) {
   const draft = draftSchema.parse({
     ...session,
     view:

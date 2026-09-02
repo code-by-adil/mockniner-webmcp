@@ -35,7 +35,7 @@ export function createSpeakingInterviewToolDefinition(configure: (input: Speakin
       const parsed = speakingPlanSchema.safeParse(input);
       if (!parsed.success) return toolFailure('INVALID_SPEAKING_PLAN', 'The interview plan is invalid.', true, zodIssues(parsed.error));
       try {
-        return { ok: true, data: configure(parsed.data), sideEffect: { type: 'speaking_interview_configured', visibleView: 'speaking_setup' } };
+        return { ok: true, data: await configure(parsed.data), sideEffect: { type: 'speaking_interview_configured', visibleView: 'speaking_setup' } };
       } catch (error) { return applicationFailure(error); }
     },
   };

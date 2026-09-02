@@ -122,9 +122,6 @@ const migrations = [
   {
     version: 9,
     statements: [
-      `DROP TABLE IF EXISTS assessment_evaluations`,
-      `DROP TABLE IF EXISTS assessment_attempts`,
-      `DROP TABLE IF EXISTS assessment_packages`,
       `CREATE TABLE assessment_packages (
         package_id TEXT PRIMARY KEY,
         schema_version INTEGER NOT NULL CHECK (schema_version = 3),
@@ -163,7 +160,7 @@ const migrations = [
         transcript TEXT NOT NULL, response_status TEXT NOT NULL CHECK (response_status IN ('answered', 'skipped')),
         UNIQUE (attempt_id, prompt_id), UNIQUE (attempt_id, sequence),
         FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,
-        CHECK ((response_status = 'answered' AND audio IS NOT NULL AND byte_length > 0 AND length(trim(transcript)) > 0)
+        CHECK ((response_status = 'answered' AND audio IS NOT NULL AND byte_length > 0)
           OR (response_status = 'skipped' AND audio IS NULL AND byte_length = 0 AND duration_ms = 0 AND transcript = ''))
       )`,
       `INSERT INTO speaking_responses_new SELECT id, attempt_id, prompt_id, part_label, sequence,
@@ -196,6 +193,30 @@ const migrations = [
       )`,
     ],
   },
+  {
+    version: 12,
+    statements: [
+      `CREATE TABLE practice_drafts (
+        id TEXT PRIMARY KEY NOT NULL,
+        family TEXT NOT NULL CHECK (family IN ('ielts', 'assessment')),
+        position INTEGER NOT NULL DEFAULT 0,
+        state_json TEXT NOT NULL CHECK (json_valid(state_json)),
+        updated_at TEXT NOT NULL
+      )`,
+      `CREATE TABLE draft_recordings (
+        attempt_id TEXT NOT NULL REFERENCES practice_drafts(id) ON DELETE CASCADE,
+        sequence INTEGER NOT NULL CHECK (sequence >= 0),
+        response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+        audio BLOB, mime_type TEXT,
+        PRIMARY KEY (attempt_id, sequence)
+      )`,
+      `CREATE TABLE storage_imports (
+        storage_key TEXT PRIMARY KEY NOT NULL, raw_value TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('imported', 'unavailable')),
+        message TEXT, imported_at TEXT NOT NULL
+      )`,
+    ],
+  },
 ] as const
 
 export async function migrateDatabase(database: SQLocal): Promise<void> {
@@ -209,9 +230,24 @@ export async function migrateDatabase(database: SQLocal): Promise<void> {
       'SELECT version FROM app_schema_migrations',
     )
     const appliedVersions = new Set(appliedRows.map((row) => Number(row.version)))
+    if (appliedRows.some(row => Number(row.version) > migrations.at(-1)!.version)) {
+      throw new Error('This database was created by a newer app version. Update the app before opening it; your data has not been changed.')
+    }
 
     for (const migration of migrations) {
       if (appliedVersions.has(migration.version)) continue
+
+      // Earlier universal schemas cannot be interpreted as version 3. Preserve
+      // their tables for export/recovery instead of deleting the learner's work.
+      if (migration.version === 9) {
+        const existing = await transaction.sql<{ name: string }>`SELECT name FROM sqlite_master WHERE type = 'table'`
+        for (const name of ['assessment_evaluations', 'assessment_attempts', 'assessment_packages']) {
+          if (existing.some(table => table.name === name)) {
+            await transaction.sql(`ALTER TABLE ${name} RENAME TO legacy_${name}_v8`)
+          }
+        }
+        await transaction.sql('DROP INDEX IF EXISTS assessment_attempts_package_submitted_at')
+      }
 
       for (const statement of migration.statements) {
         await transaction.sql(statement)

@@ -7,8 +7,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { initialSession, sessionReducer } from "@/domain/session";
-import { loadSession, saveSession } from "@/infrastructure/ieltsSessionStorage";
+import { initialSession, sessionReducer, type SessionAction } from "@/domain/session";
+import { getDraftRepository } from '@/infrastructure/database/draftRepository';
+import { draftSaves } from '@/infrastructure/saveCoordinator';
 import { listeningDocument, readingDocument } from "@/content/objective";
 import { writingDocument } from "@/content/writing";
 import {
@@ -61,6 +62,15 @@ export function useIeltsApplication(persistence = defaultPersistence) {
   }, [state, content]);
   const getState = useCallback(() => current.current.state, []);
   const getContent = useCallback(() => current.current.content, []);
+  const save = useCallback((session: typeof state) => {
+    const documents = getContent();
+    draftSaves.enqueue('ielts', async () => (await getDraftRepository()).saveIelts(session, documents));
+  }, [getContent]);
+  const dispatchAndSave = useCallback((action: SessionAction) => {
+    const next = sessionReducer(getState(), action);
+    flushSync(() => dispatch(action));
+    save(next);
+  }, [getState, save]);
   // The factory stores these getters. It only reads them when a command runs after commit.
   const commands = useMemo(
     () =>
@@ -68,32 +78,34 @@ export function useIeltsApplication(persistence = defaultPersistence) {
       createIeltsCommands({
         getState,
         getContent,
-        dispatch: action => flushSync(() => dispatch(action)),
-        persistSession: saveSession,
+        dispatch: dispatchAndSave,
+        persistSession: async session => {
+          await draftSaves.flush();
+          await (await getDraftRepository()).saveIelts(session, getContent());
+        },
+        flushDrafts: draftSaves.flush,
         // External installation callers must observe the new content and its
         // derived audio status before the installation promise resolves.
         setContent: documents => flushSync(() => setContent(documents)),
         getRepository: persistence.getRepository,
         getContentStore: persistence.getContentStore,
       }),
-    [getState, getContent, persistence],
+    [getState, getContent, persistence, dispatchAndSave],
   );
 
-  useEffect(() => {
-    if (contentReady) saveSession(state);
-  }, [state, contentReady]);
   useEffect(() => {
     let cancelled = false;
     void Promise.all([
       persistence.getContentStore().then((store) => store.loadActive()),
-      persistence.getRepository().then(loadSession),
+      persistence.getRepository(),
     ])
-      .then(([documents, session]) => {
+      .then(async ([documents, reader]) => {
+        const active = documents.reduce(replaceActiveContent, { listening: listeningDocument, reading: readingDocument, writing: writingDocument });
+        const drafts = await getDraftRepository();
+        const restored = await drafts.loadIelts(reader, active);
         if (cancelled) return;
-        setContent((current) =>
-          documents.reduce(replaceActiveContent, current),
-        );
-        dispatch({ type: "RESTORE", session });
+        setContent(restored.documents.reduce(replaceActiveContent, active));
+        dispatch({ type: "RESTORE", session: restored.session });
         setContentReady(true);
       })
       .catch((error) => {

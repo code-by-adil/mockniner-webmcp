@@ -351,14 +351,22 @@ result review continue to work because every submission owns an immutable
 package, response, and result snapshot. These lifecycle actions belong to the
 human interface; they are not button-shaped WebMCP tools.
 
-The universal lane uses three tables in the same local database as native IELTS:
+The universal lane uses three submitted-content tables and the shared draft
+table in the same local database as native IELTS:
 
 ```text
 assessment_packages
 assessment_attempts
 assessment_evaluations
+practice_drafts
 ```
 
+Each new draft pins its complete package snapshot, including revision, from the
+start. Catalog changes cannot replace the content used to render or score it.
+Submission stores the immutable snapshot and removes the draft in one transaction.
+
 Schema version 3 has no adapter for the earlier profile, section, and module
-model. Database migration 9 recreates only these universal tables. It does not
-touch native IELTS packages, attempts, recordings, or evaluations.
+model. On databases that have not applied migration 9, the old universal tables
+are renamed to `legacy_*_v8` before current tables are created. They remain in
+local exports for recovery. Native IELTS records are untouched. This cannot
+recover records already deleted by an older version of migration 9.

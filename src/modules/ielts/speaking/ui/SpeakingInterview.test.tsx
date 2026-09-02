@@ -8,6 +8,9 @@ import { defaultSpeakingPlan, speakingQuestionText } from '@/domain/speakingPlan
 import { SpeakingInterview } from './SpeakingInterview'
 
 const mocks = vi.hoisted(() => ({ start: vi.fn(), stop: vi.fn(), discard: vi.fn(), prepare: vi.fn(), transcribe: vi.fn(), speak: vi.fn(), preload: vi.fn(), prepareAudio: vi.fn(), dispose: vi.fn() }))
+const drafts = vi.hoisted(() => ({ load: vi.fn(), save: vi.fn() }))
+vi.mock('@/infrastructure/database/client', () => ({ getLocalDatabase: async () => ({}) }))
+vi.mock('@/infrastructure/database/speakingDraftRepository', () => ({ loadDraftRecordings: drafts.load, saveDraftRecording: drafts.save }))
 vi.mock('../useSpeakingRecorder', () => ({ useSpeakingRecorder: () => ({
   canvasRef: { current: null }, prepare: mocks.prepare, start: mocks.start, stop: mocks.stop,
   discard: mocks.discard, transcribeRecordings: mocks.transcribe, transcriptionStatus: '',
@@ -33,6 +36,7 @@ beforeEach(async () => {
   mocks.stop.mockResolvedValue({ audio: new Blob(['real microphone fixture']), durationMs: 3000, transcript: '' })
   mocks.transcribe.mockImplementation(async (responses) => responses.map((r: object) => ({ ...r, transcript: 'A recognised test answer.' })))
   complete.mockResolvedValue(undefined)
+  drafts.load.mockResolvedValue([]); drafts.save.mockResolvedValue(undefined)
   bridge = createSpeakingInterviewController()
   host = document.createElement('div'); document.body.append(host); root = createRoot(host)
   let binding!: SpeakingInterviewBinding
@@ -45,6 +49,33 @@ beforeEach(async () => {
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('one local Speaking experience', () => {
+  it('resumes saved audio at the next question and locks its question set', async () => {
+    const question = plan.questions[0]!
+    const recording = { promptId: question.id, partLabel: 'Part 1', sequence: 0, promptText: speakingQuestionText(question), timeLimitSeconds: question.responseSeconds,
+      status: 'answered', audio: new Blob(['saved audio']), durationMs: 2000, transcript: '' }
+    drafts.load.mockResolvedValueOnce([recording])
+    await act(async () => root.render(<SpeakingInterview key="saved" attemptId="11111111-1111-4111-8111-111111111111" attemptStartedAt="2026-09-03T00:00:00.000Z" initialPlan={plan} bindSpeakingInterview={bridge.bind} onComplete={complete} onConfigurePlan={persistPlan} />))
+    expect(host.textContent).toContain('1 of 3 answers saved')
+    expect(bridge.canLeave()).toBe(true)
+    expect(() => bridge.configure(defaultSpeakingPlan)).toThrow('locked')
+    await click('Resume interview')
+    expect(bridge.read()).toMatchObject({ currentQuestion: 2, recordedAnswers: 1 })
+    expect(mocks.speak).toHaveBeenLastCalledWith(speakingQuestionText(plan.questions[1]!), expect.any(AbortSignal), expect.any(Function))
+  })
+  it('keeps a failed recording save for retry, without recording or advancing twice', async () => {
+    await act(async () => root.render(<SpeakingInterview key="durable" attemptId="11111111-1111-4111-8111-111111111111" initialPlan={plan} bindSpeakingInterview={bridge.bind} onComplete={complete} onConfigurePlan={persistPlan} />))
+    await click('Start interview'); await click('Record answer')
+    drafts.save.mockRejectedValueOnce(new Error('Disk full'))
+    await click('Submit answer')
+    expect(host.textContent).toContain('Retry saving this answer')
+    expect(bridge.read()).toMatchObject({ currentQuestion: 1, recordedAnswers: 0 })
+    expect(drafts.save.mock.calls[0]![2]).toMatchObject({ transcript: '', status: 'answered' })
+    expect(mocks.transcribe).not.toHaveBeenCalled()
+    await click('Retry saving this answer')
+    expect(mocks.stop).toHaveBeenCalledOnce()
+    expect(bridge.read()).toMatchObject({ currentQuestion: 2, recordedAnswers: 1 })
+    expect(drafts.save).toHaveBeenCalledTimes(2)
+  })
   it('only updates the configured plan after persistence succeeds', async () => {
     persistPlan.mockImplementationOnce(() => { throw new Error('Storage quota exceeded') })
     expect(() => bridge.configure(defaultSpeakingPlan)).toThrow('quota')

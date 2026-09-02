@@ -9,11 +9,12 @@ export type SpeakingProgress = {
   totalQuestions: number
   recordedAnswers: number
   skippedAnswers: number
+  answersSaved?: boolean
   part?: number
   secondsRemaining?: number | null
 }
 export type SpeakingInterviewBinding = {
-  configure: (plan: SpeakingPlan) => void
+  configure: (plan: SpeakingPlan) => void | Promise<void>
   read: () => SpeakingProgress
 }
 export type BindSpeakingInterview = (binding: SpeakingInterviewBinding) => () => void
@@ -32,13 +33,14 @@ export function createSpeakingInterviewController() {
     canLeave() {
       if (!binding) return false
       const progress = binding.read()
-      return progress.phase === 'setup' && progress.recordedAnswers === 0 && progress.skippedAnswers === 0
+      return progress.phase === 'setup' && (progress.answersSaved === true || progress.recordedAnswers + progress.skippedAnswers === 0)
     },
     configure(input: SpeakingPlan) {
       if (!binding) throw new ApplicationError('SPEAKING_NOT_OPEN', 'Open Speaking practice before installing an interview.', true)
       const plan = speakingPlanSchema.parse(input)
-      binding.configure(plan)
-      return { status: 'ready', title: plan.title, questions: plan.questions.length, nextAction: 'The learner presses Start interview. The app runs every question locally; no per-question agent calls are needed.' }
+      const result = { status: 'ready', title: plan.title, questions: plan.questions.length, nextAction: 'The learner presses Start interview. The app runs every question locally; no per-question agent calls are needed.' }
+      const saved = binding.configure(plan)
+      return saved ? saved.then(() => result) : result
     },
     read: () => binding ? { active: true, ...binding.read() } : { active: false, phase: 'closed' },
   }

@@ -259,7 +259,7 @@ describe('semantic practice navigation and discovery', () => {
 
   it('paginates combined history past 50 attempts and exposes only score metadata', async () => {
     const h = setup()
-    expect(await readPracticeHistory(database, page)).toEqual({ items: [], nextOffset: null })
+    expect(await readPracticeHistory(database, page)).toEqual({ items: [], unavailable: [], nextOffset: null })
     for (let index = 0; index < 53; index++) await h.assessmentRepository.saveAttempt({ ...dates, attemptId: crypto.randomUUID(),
       packageId: satPracticeAssessment.packageId, package: satPracticeAssessment, responses: { 'rw-1': 'private-answer' }, result: gradeAssessment(satPracticeAssessment, {}) })
     await h.nativeRepository.saveWritingAttempt({ ...dates, submittedAt: '2026-09-02T10:00:00.000Z', attemptId: crypto.randomUUID(), contentKey: writingDocument.contentKey,

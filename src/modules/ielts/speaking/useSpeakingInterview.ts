@@ -5,17 +5,22 @@ import { ApplicationError } from '@/domain/errors'
 import { defaultSpeakingPlan, speakingQuestionText, type SpeakingPlan } from '@/domain/speakingPlan'
 import { KokoroSpeakingPlayer } from '@/infrastructure/media/kokoroSpeakingPlayer'
 import { useSpeakingRecorder } from './useSpeakingRecorder'
+import { draftSaves } from '@/infrastructure/saveCoordinator'
+import { loadDraftRecordings, saveDraftRecording } from '@/infrastructure/database/speakingDraftRepository'
+const getLocalDatabase = async () => (await import('@/infrastructure/database/client')).getLocalDatabase()
 
-export type SpeakingPhase = 'setup' | 'preparing' | 'buffering' | 'speaking' | 'thinking' | 'ready' | 'starting' | 'recording' | 'stopping' | 'saving' | 'error' | 'save-error'
+export type SpeakingPhase = 'loading' | 'load-error' | 'setup' | 'preparing' | 'buffering' | 'speaking' | 'thinking' | 'ready' | 'starting' | 'recording' | 'stopping' | 'saving' | 'error' | 'save-error' | 'answer-save-error'
 
-export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initialPlan, onConfigurePlan }: {
+export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initialPlan, onConfigurePlan, attemptId, attemptStartedAt }: {
   bindSpeakingInterview: BindSpeakingInterview
   onComplete: (input: CompleteSpeakingAttemptInput) => Promise<unknown>
   initialPlan?: SpeakingPlan
-  onConfigurePlan: (plan: SpeakingPlan) => void
+  onConfigurePlan: (plan: SpeakingPlan) => void | Promise<void>
+  attemptId?: string
+  attemptStartedAt?: string
 }) {
   const [plan, setPlan] = useState<SpeakingPlan>(initialPlan ?? defaultSpeakingPlan)
-  const [phase, setPhaseState] = useState<SpeakingPhase>('setup')
+  const [phase, setPhaseState] = useState<SpeakingPhase>(attemptId ? 'loading' : 'setup')
   const [index, setIndex] = useState(0)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -24,7 +29,8 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
   const planRef = useRef(plan)
   const indexRef = useRef(0)
   const responses = useRef<SpeakingRecordingInput[]>([])
-  const startedAt = useRef('')
+  const startedAt = useRef(attemptStartedAt ?? '')
+  const pendingResponse = useRef<SpeakingRecordingInput | null>(null)
   const player = useRef<KokoroSpeakingPlayer | null>(null)
   const mounted = useRef(true)
   const operation = useRef<AbortController | null>(null)
@@ -39,6 +45,25 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
     phaseRef.current = next
     if (mounted.current) setPhaseState(next)
   }, [])
+  const persistResponse = useCallback(async (response: SpeakingRecordingInput) => {
+    if (!attemptId) return
+    await draftSaves.flush()
+    await saveDraftRecording(await getLocalDatabase(), attemptId, response)
+  }, [attemptId])
+  useEffect(() => {
+    if (!attemptId) return
+    let cancelled = false
+    void draftSaves.flush().then(getLocalDatabase).then(db => loadDraftRecordings(db, attemptId)).then(saved => {
+      if (cancelled) return
+      responses.current = saved
+      const nextIndex = Math.min(saved.length, planRef.current.questions.length - 1)
+      indexRef.current = nextIndex
+      setIndex(nextIndex)
+      setRecorded(saved.length)
+      setPhase('setup')
+    }).catch(reason => { if (!cancelled) { setError(String(reason)); setPhase('load-error') } })
+    return () => { cancelled = true }
+  }, [attemptId, setPhase])
   const timedPhase = useCallback((next: SpeakingPhase, seconds: number) => {
     deadline.current = performance.now() + seconds * 1000
     setSecondsLeft(seconds)
@@ -58,11 +83,15 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
 
   useEffect(() => bindSpeakingInterview({
     configure(next) {
-      if (phaseRef.current !== 'setup') throw new ApplicationError('SPEAKING_ALREADY_STARTED', 'The question set is locked. Finish or exit this interview before installing another.', true)
+      if (phaseRef.current !== 'setup' || responses.current.length) throw new ApplicationError('SPEAKING_ALREADY_STARTED', 'The question set is locked. Finish or exit this interview before installing another.', true)
       // Save first: failed persistence must not update the UI or report success.
-      onConfigurePlan(next)
-      planRef.current = next
-      setPlan(next)
+      const saved = onConfigurePlan(next)
+      const apply = () => { planRef.current = next; setPlan(next) }
+      if (saved) {
+        setPhase('preparing')
+        return saved.then(apply).finally(() => setPhase('setup'))
+      }
+      apply()
     },
     read: () => ({
       contentKey: planRef.current.contentKey, title: planRef.current.title,
@@ -73,15 +102,16 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       totalQuestions: planRef.current.questions.length,
       recordedAnswers: responses.current.filter(r => r.status === 'answered').length,
       skippedAnswers: responses.current.filter(r => r.status === 'skipped').length,
+      answersSaved: Boolean(attemptId) && !pendingResponse.current,
     }),
-  }), [bindSpeakingInterview, onConfigurePlan])
+  }), [bindSpeakingInterview, onConfigurePlan, attemptId, setPhase])
 
   useEffect(() => {
-    if (phase === 'setup') return
+    if (attemptId ? !['recording', 'starting', 'stopping', 'answer-save-error'].includes(phase) : phase === 'setup') return
     const protectDraft = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
     window.addEventListener('beforeunload', protectDraft)
     return () => window.removeEventListener('beforeunload', protectDraft)
-  }, [phase])
+  }, [phase, attemptId])
 
   const startRecording = useCallback(async () => {
     if (!['thinking', 'ready'].includes(phaseRef.current)) return
@@ -129,7 +159,10 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
     setError(null)
     try {
       const answered = responses.current.filter(r => r.status === 'answered').map(r => ({ ...r, audio: r.audio! }))
-      const transcribed = await latest.current.transcribeRecordings(answered)
+      const transcribed = await latest.current.transcribeRecordings(answered, async response => {
+        await persistResponse(response)
+        responses.current[response.sequence] = response
+      })
       performance.mark('speaking:transcription-finished')
       if (!mounted.current) return
       const byId = new Map(transcribed.map(r => [r.promptId, r]))
@@ -142,34 +175,38 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       setError(reason instanceof Error ? reason.message : 'Could not save the interview. Your recordings are still in this tab.')
       setPhase('save-error')
     } finally { saving.current = false }
-  }, [onComplete, setPhase])
+  }, [onComplete, setPhase, persistResponse])
 
   const completeAnswer = useCallback(async (skip = false) => {
-    if (stopping.current || !(skip ? ['recording', 'thinking', 'ready', 'error'] : ['recording']).includes(phaseRef.current)) return
+    if (stopping.current || !(skip ? ['recording', 'thinking', 'ready', 'error'] : ['recording', 'answer-save-error']).includes(phaseRef.current)) return
     stopping.current = true
     operation.current?.abort()
     setPhase('stopping')
     performance.mark('speaking:answer-finished')
     try {
-      const response = skip ? (await latest.current.discard(), null) : await latest.current.stop()
+      const response = pendingResponse.current ?? (skip ? (await latest.current.discard(), null) : await latest.current.stop())
       if (!mounted.current) return
       if (!skip && !response) throw new Error('No answer was recorded. Please try this question again.')
       const question = planRef.current.questions[indexRef.current]!
-      responses.current.push({
+      const recording: SpeakingRecordingInput = pendingResponse.current ?? {
         promptId: question.id, partLabel: `Part ${question.part}`, sequence: indexRef.current,
         promptText: speakingQuestionText(question), timeLimitSeconds: question.responseSeconds,
         status: skip ? 'skipped' : 'answered', audio: response?.audio ?? null,
         durationMs: response?.durationMs ?? 0, transcript: '',
-      })
+      }
+      pendingResponse.current = recording
+      await persistResponse(recording)
+      pendingResponse.current = null
+      responses.current.push(recording)
       setRecorded(responses.current.length)
       if (indexRef.current + 1 === planRef.current.questions.length) await finishInterview()
       else await playQuestion(indexRef.current + 1)
     } catch (reason) {
       if (!mounted.current) return
       setError(reason instanceof Error ? reason.message : 'Could not save this answer. Record it again.')
-      setPhase('error')
+      setPhase(pendingResponse.current ? 'answer-save-error' : 'error')
     } finally { stopping.current = false }
-  }, [finishInterview, playQuestion, setPhase])
+  }, [finishInterview, playQuestion, setPhase, persistResponse])
 
   const finishAnswerRef = useRef(completeAnswer)
   useLayoutEffect(() => { finishAnswerRef.current = completeAnswer }, [completeAnswer])
@@ -191,9 +228,11 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
     if (phaseRef.current !== 'setup') return
     setPhase('preparing')
     setError(null)
-    startedAt.current = new Date().toISOString()
+    startedAt.current ||= new Date().toISOString()
     performance.mark('speaking:setup-started')
     try {
+      await onConfigurePlan(planRef.current)
+      if (responses.current.length === planRef.current.questions.length) { await finishInterview(); return }
       // Request permission on the Start gesture. Do not record the examiner.
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       stream.getTracks().forEach(track => track.stop())
@@ -202,14 +241,14 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       player.current!.preload(texts)
       // Prepare recognition and the first question concurrently. Remaining
       // questions keep generating without blocking the interview.
-      await Promise.all([latest.current.prepare(), player.current!.prepareAudio(texts[0]!)])
-      if (mounted.current) { performance.mark('speaking:setup-finished'); await playQuestion(0) }
+      await Promise.all([latest.current.prepare(), player.current!.prepareAudio(texts[responses.current.length]!)])
+      if (mounted.current) { performance.mark('speaking:setup-finished'); await playQuestion(responses.current.length) }
     } catch (reason) {
       if (!mounted.current) return
       setError(reason instanceof Error ? reason.message : 'Could not prepare the interview.')
       setPhase('setup')
     }
-  }, [playQuestion, setPhase])
+  }, [playQuestion, setPhase, onConfigurePlan, finishInterview])
 
   return {
     plan, phase, index, secondsLeft, error, recorded, start, completeAnswer,
