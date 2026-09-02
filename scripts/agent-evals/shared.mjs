@@ -25,9 +25,7 @@ export async function loadProjectModules() {
 
   try {
     const [
-      assessmentTools,
-      practiceTools,
-      learningTools,
+      homeAuthoringTools,
       ieltsAuthoring,
       examples,
       assessment,
@@ -35,9 +33,7 @@ export async function loadProjectModules() {
       writing,
     ] =
       await Promise.all([
-        server.ssrLoadModule("/src/webmcp/assessmentTools.ts"),
-        server.ssrLoadModule("/src/webmcp/practiceTools.ts"),
-        server.ssrLoadModule("/src/webmcp/learningTools.ts"),
+        server.ssrLoadModule("/src/webmcp/homeAuthoringTools.ts"),
         server.ssrLoadModule("/src/webmcp/ieltsAuthoring.ts"),
         server.ssrLoadModule("/src/content/assessmentExamples.ts"),
         server.ssrLoadModule("/src/domain/assessment.ts"),
@@ -45,9 +41,7 @@ export async function loadProjectModules() {
         server.ssrLoadModule("/src/content/writing.ts"),
       ]);
     return {
-      assessmentTools,
-      practiceTools,
-      learningTools,
+      homeAuthoringTools,
       ieltsAuthoring,
       examples,
       assessment,

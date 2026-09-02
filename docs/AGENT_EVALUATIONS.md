@@ -25,10 +25,10 @@ requests and one focused recovery case:
 6. an unsupported request to select a sentence directly in a passage;
 7. repair of an invalid package using a returned `error.issues` path.
 
-The prepared suite exposes the same five tool definitions that the application
-registers on its library screen: the native IELTS authoring kit and installation,
+The fixture generator calls the same production home-tool composer as the
+runtime. That composer supplies the native IELTS authoring kit and installation,
 the compact IELTS learning summary, the universal authoring kit, and universal
-installation.
+installation. The evaluation layer does not keep its own tool catalog.
 Submission, evaluation, and Speaking-interview schemas are registered only on
 their relevant result or interview surfaces, so unrelated large schemas do not
 consume authoring context.
@@ -56,7 +56,7 @@ fail the application parser. The tool schemas, authoring examples, supported
 capabilities, and unsupported coverage notes are loaded from production code
 when the suite starts, so the fixtures cannot silently drift from the product.
 
-## Deterministic preflight
+## Deterministic tests
 
 Run the normal test command:
 
@@ -64,11 +64,10 @@ Run the normal test command:
 npm test
 ```
 
-In addition to Vitest, it prepares the evaluation artifacts under the ignored
-`.evals/agent-authoring/fixtures` directory and verifies:
+Vitest verifies these contracts without creating files under `.evals`:
 
-- all expected production tools are present once and in runtime order;
-- native and universal authoring tools remain distinct and unambiguous;
+- the production home composer returns unique, valid WebMCP names and
+  serializable schemas;
 - the always-loaded IELTS installation schema stays below ten percent of the
   complete runtime schema;
 - every authoring kit example passes the current package parser;
@@ -76,7 +75,13 @@ In addition to Vitest, it prepares the evaluation artifacts under the ignored
   reporting limited;
 - every natural-language case compiles to a valid `webmcp-evals` trajectory.
 
-This preflight uses no model and no API key.
+These tests use no model and no API key. Evaluation commands generate their
+ignored JSON inputs before running. To generate the inputs without evaluating
+them, run:
+
+```bash
+node scripts/agent-evals/prepare.mjs
+```
 
 ## Native browser smoke test
 
@@ -86,12 +91,14 @@ Start the application, then run the deterministic browser journey:
 npm run eval:agent:smoke -- --chrome-channel chrome-canary --verbose
 ```
 
-Set `AGENT_EVAL_URL` to test another local or deployed URL. The smoke runner
-uses Chrome's native WebMCP implementation and calls every tool registered on
-the library screen. It checks real discovery, callback execution, local
-persistence, and structured failure handling without a model or API key. Keep
-this separate from the model evaluations. It proves that the browser can call
-the tools, not that a model will choose them correctly.
+Set `AGENT_EVAL_URL` to test another local or deployed URL. The package script
+generates the fixture, then calls the upstream `smoke` command directly. The
+upstream runner resolves matcher constraints to concrete arguments, opens a
+fresh page per case, and calls every tool registered on the library screen. It
+checks real discovery, callback execution, local persistence, and structured
+failure handling without a model or API key. Keep this separate from the model
+evaluations. It proves that the browser can call the tools, not that a model
+will choose them correctly.
 
 ## Static model evaluation
 
@@ -107,7 +114,8 @@ tools return their real generated authoring-kit payloads through deterministic
 mock results; mutation tools return success-shaped mocks. The report gate still
 validates the model's generated arguments with the application parsers.
 
-Reports are written to `.evals/agent-authoring/reports` as JSON and HTML.
+Each run writes JSON and HTML reports to its own directory under
+`.evals/agent-authoring/reports`.
 
 ## Live browser evaluation
 
@@ -144,10 +152,15 @@ With the development server running, execute:
 npm run eval:agent:release -- --backend vercel --model openai:gpt-5.4 --chrome-channel chrome-canary
 ```
 
-Release mode defaults to five runs per case. The wrapper launches a separate
-temporary browser process for every run, then aggregates the reports, so an
-installation in one run cannot cause a package-revision conflict in another.
-It requires:
+For ordinary local and browser evaluations, the wrapper delegates execution,
+`--runs`, matcher constraints, and report rendering to `webmcp-evals`, then
+applies the application-specific semantic validator to the JSON report.
+
+Release mode defaults to five runs per case. It retains one extra behavior the
+upstream runner does not provide: the wrapper launches a separate temporary
+browser process for every run and aggregates the reports. An installation in
+one run therefore cannot cause a package-revision conflict in another. The
+release gate requires:
 
 - at least 90% of all case runs to pass;
 - at least 80% for every individual case;
@@ -165,6 +178,6 @@ claim that every model will behave identically.
 The suite pins `webmcp-evals` to `0.0.4` because it is experimental. It is an
 Apache-2.0 development dependency maintained in the
 [GoogleChromeLabs WebMCP tools repository](https://github.com/GoogleChromeLabs/webmcp-tools/tree/main/webmcp-evals).
-Before upgrading, rerun the deterministic preflight and inspect changes to its
+Before upgrading, rerun the deterministic tests and inspect changes to its
 tool-schema mapping, browser launch flags, trajectory matching, and report
 format.

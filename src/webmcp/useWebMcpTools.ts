@@ -2,8 +2,7 @@ import { useEffect, useRef } from "react";
 import type { ExamApplicationCommands } from "@/application/commands";
 import type { AssessmentApplicationCommands } from "@/application/useAssessmentApplication";
 import { reportWebHandledProductFailure } from "@/shared/observability/report-error";
-import { createLearningToolDefinitions } from "./learningTools";
-import { createPracticeToolDefinitions } from "./practiceTools";
+import { createHomeAuthoringToolDefinitions } from "./homeAuthoringTools";
 import { createWritingToolDefinitions } from "./writingTools";
 import type { WritingToolSurface } from "./writingTools";
 import { createSpeakingToolDefinitions } from "./speakingTools";
@@ -98,14 +97,11 @@ export function useWebMcpTools({
         return repository.readWritingAttempt(await getLocalDatabase(), attemptId);
       };
       const nativeTools: WebMCP.ModelContextTool[] = [];
-      if (nativeAuthoringEnabled) {
+      if (nativeAuthoringEnabled && assessmentToolSurface === "authoring") {
         nativeTools.push(
-          ...createPracticeToolDefinitions({
+          ...createHomeAuthoringToolDefinitions({
             installContent: (input) => installContentRef.current(input),
-          }),
-        );
-        nativeTools.push(
-          ...createLearningToolDefinitions({
+            installAssessment: (input) => installAssessmentRef.current(input),
             readLearningSummary: async (recentLimit) => {
               const [{ getLocalDatabase }, repository] = await Promise.all([
                 import("@/infrastructure/database/client"),
@@ -148,10 +144,21 @@ export function useWebMcpTools({
     void register().catch((error) => reportRegistrationFailure(error, controller.signal));
 
     return () => controller.abort();
-  }, [enabled, nativeAuthoringEnabled, speakingToolSurface, writingToolSurface]);
+  }, [
+    assessmentToolSurface,
+    enabled,
+    nativeAuthoringEnabled,
+    speakingToolSurface,
+    writingToolSurface,
+  ]);
 
   useEffect(() => {
-    if (!enabled || assessmentToolSurface === "none") return;
+    if (
+      !enabled ||
+      assessmentToolSurface === "none" ||
+      assessmentToolSurface === "authoring"
+    )
+      return;
     const modelContext = document.modelContext;
     if (!modelContext) return;
 

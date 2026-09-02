@@ -1,4 +1,5 @@
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { prepareAgentEvalArtifacts } from "./prepare.mjs";
@@ -45,21 +46,26 @@ function withoutRuns(argumentsList) {
   return result;
 }
 
-async function listJsonReports() {
-  await mkdir(reportDirectory, { recursive: true });
-  return (await readdir(reportDirectory))
-    .filter((name) => /^report-\d+\.json$/.test(name))
-    .map((name) => path.join(reportDirectory, name));
-}
-
 async function runEvaluator(argumentsList) {
-  const reportsBefore = new Set(await listJsonReports());
+  const outputDirectory = path.join(reportDirectory, `run-${Date.now()}-${randomUUID()}`);
   const command = path.join(projectRoot, "node_modules", ".bin", "webmcp-evals");
-  const child = spawn(command, argumentsList, {
-    cwd: projectRoot,
-    env: process.env,
-    stdio: "inherit",
-  });
+  const child = spawn(
+    command,
+    [
+      ...argumentsList,
+      "--reporter",
+      "console",
+      "json",
+      "html",
+      "--output-dir",
+      outputDirectory,
+    ],
+    {
+      cwd: projectRoot,
+      env: process.env,
+      stdio: "inherit",
+    },
+  );
   const exitCode = await new Promise((resolve, reject) => {
     child.once("error", reject);
     child.once("exit", (code, signal) => {
@@ -67,21 +73,13 @@ async function runEvaluator(argumentsList) {
       else resolve(code ?? 1);
     });
   });
-  if (exitCode !== 0) process.exit(exitCode);
+  if (exitCode !== 0) throw new Error(`webmcp-evals exited with status ${exitCode}.`);
 
-  const candidates = (await listJsonReports()).filter(
-    (reportPath) => !reportsBefore.has(reportPath),
+  const reportName = (await readdir(outputDirectory)).find(
+    (name) => /^report-\d+\.json$/.test(name),
   );
-  if (candidates.length === 0) throw new Error("webmcp-evals did not produce a new JSON report.");
-  const newest = (
-    await Promise.all(
-      candidates.map(async (reportPath) => ({
-        reportPath,
-        modifiedAt: (await stat(reportPath)).mtimeMs,
-      })),
-    )
-  ).sort((left, right) => right.modifiedAt - left.modifiedAt)[0];
-  return newest.reportPath;
+  if (!reportName) throw new Error("webmcp-evals did not produce a JSON report.");
+  return path.join(outputDirectory, reportName);
 }
 
 async function aggregateReports(reportPaths) {
@@ -118,8 +116,6 @@ const modeArguments =
         "--evals",
         evalsArtifactPath,
       ];
-const reportArguments = ["--reporter", "console", "json", "html", "--output-dir", reportDirectory];
-
 if (release) {
   if (mode !== "browser") throw new Error("Release evaluation requires live browser mode.");
   const runCount = readRuns(cliArguments, 5);
@@ -128,14 +124,14 @@ if (release) {
   for (let index = 0; index < runCount; index += 1) {
     console.log(`\nIsolated browser run ${index + 1}/${runCount}\n`);
     reports.push(
-      await runEvaluator([...modeArguments, ...stableArguments, "--runs", "1", ...reportArguments]),
+      await runEvaluator([...modeArguments, ...stableArguments, "--runs", "1"]),
     );
   }
   const aggregatePath = await aggregateReports(reports);
   await validateAgentEvalReport(aggregatePath, { release: true });
   console.log(`\nValidated aggregate release report: ${aggregatePath}`);
 } else {
-  const reportPath = await runEvaluator([...modeArguments, ...cliArguments, ...reportArguments]);
+  const reportPath = await runEvaluator([...modeArguments, ...cliArguments]);
   await validateAgentEvalReport(reportPath);
   console.log(`\nValidated report: ${reportPath}`);
 }

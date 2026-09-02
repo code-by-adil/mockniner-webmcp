@@ -57,13 +57,10 @@ type AssessmentToolDependencies = {
   getCurrentAttemptId: () => string | undefined;
 };
 
-export function createAssessmentToolDefinitions({
+export function createAssessmentAuthoringToolDefinitions({
   installAssessment,
-  readAssessmentAttempt,
-  attachEvaluation,
-  getCurrentAttemptId,
-}: AssessmentToolDependencies, surface: AssessmentToolSurface = "authoring"): WebMCP.ModelContextTool[] {
-  const authoringTools: WebMCP.ModelContextTool[] = [
+}: Pick<AssessmentToolDependencies, "installAssessment">): WebMCP.ModelContextTool[] {
+  return [
     {
       name: "get_assessment_authoring_kit",
       title: "Get universal assessment authoring kit",
@@ -127,6 +124,17 @@ export function createAssessmentToolDefinitions({
       },
     },
   ];
+}
+
+export function createAssessmentToolDefinitions({
+  installAssessment,
+  readAssessmentAttempt,
+  attachEvaluation,
+  getCurrentAttemptId,
+}: AssessmentToolDependencies, surface: AssessmentToolSurface = "authoring"): WebMCP.ModelContextTool[] {
+  if (surface === "authoring") {
+    return createAssessmentAuthoringToolDefinitions({ installAssessment });
+  }
   const submissionTool: WebMCP.ModelContextTool = {
     name: "get_assessment_submission",
     title: "Read assessment submission",
@@ -223,7 +231,6 @@ export function createAssessmentToolDefinitions({
       }
     },
   };
-  if (surface === "authoring") return authoringTools;
   if (surface === "results") return [submissionTool];
   if (surface === "evaluation") return [submissionTool, evaluationTool];
   return [];

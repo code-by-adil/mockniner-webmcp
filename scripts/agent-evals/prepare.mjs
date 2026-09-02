@@ -47,25 +47,19 @@ const invalidRepairPackage = {
   ],
 };
 
-function toolDefinitions(modules) {
+function evaluationToolSchemas(modules) {
   const never = async () => null;
-  return [
-    ...modules.practiceTools.createPracticeToolDefinitions({ installContent: never }),
-    ...modules.learningTools.createLearningToolDefinitions({ readLearningSummary: never }),
-    ...modules.assessmentTools.createAssessmentToolDefinitions(
-      {
-        installAssessment: never,
-        readAssessmentAttempt: never,
-        attachEvaluation: never,
-        getCurrentAttemptId: () => undefined,
-      },
-      "authoring",
-    ),
-  ].map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    inputSchema: tool.inputSchema ?? null,
-  }));
+  return modules.homeAuthoringTools
+    .createHomeAuthoringToolDefinitions({
+      installContent: never,
+      installAssessment: never,
+      readLearningSummary: never,
+    })
+    .map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema ?? null,
+    }));
 }
 
 function installSuccess(caseId) {
@@ -272,9 +266,9 @@ function browserSmokeEvals(modules) {
   ];
 }
 
-export async function prepareAgentEvalArtifacts() {
+export async function buildAgentEvalArtifacts() {
   const [manifest, modules] = await Promise.all([readCaseManifest(), loadProjectModules()]);
-  const tools = toolDefinitions(modules);
+  const tools = evaluationToolSchemas(modules);
   const evals = manifest.cases.map((definition) =>
     buildEval(
       definition,
@@ -284,13 +278,19 @@ export async function prepareAgentEvalArtifacts() {
   );
   const smokeEvals = browserSmokeEvals(modules);
 
+  return { manifest, tools, evals, smokeEvals, modules };
+}
+
+export async function prepareAgentEvalArtifacts() {
+  const artifacts = await buildAgentEvalArtifacts();
+  const { tools, evals, smokeEvals } = artifacts;
   await mkdir(artifactDirectory, { recursive: true });
   await Promise.all([
     writeFile(toolsArtifactPath, `${JSON.stringify({ tools }, null, 2)}\n`),
     writeFile(evalsArtifactPath, `${JSON.stringify(evals, null, 2)}\n`),
     writeFile(smokeEvalsArtifactPath, `${JSON.stringify(smokeEvals, null, 2)}\n`),
   ]);
-  return { manifest, tools, evals, smokeEvals, modules };
+  return artifacts;
 }
 
 if (process.argv[1] === new URL(import.meta.url).pathname) {
