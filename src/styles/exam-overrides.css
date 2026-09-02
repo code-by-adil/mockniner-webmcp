@@ -1,0 +1,31 @@
+@media (prefers-reduced-motion: reduce) {
+  .ui-layer-exam :where(*),
+  .ui-layer-exam :where(*::before),
+  .ui-layer-exam :where(*::after) {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .ui-layer-exam:not(.exam-floating-surface) {
+    min-height: 100svh;
+    overflow-x: hidden;
+  }
+
+  .ui-layer-exam :where(.exam-answer-input) {
+    min-width: 4.5rem;
+    max-width: min(100%, 12rem);
+  }
+
+  .ui-layer-exam :where(.exam-inline-completion-answer .exam-answer-input) {
+    min-width: 5.5rem;
+    max-width: min(16rem, 64vw);
+  }
+
+  .ui-layer-exam :where(.exam-flowchart-step-group) {
+    width: 100%;
+  }
+}

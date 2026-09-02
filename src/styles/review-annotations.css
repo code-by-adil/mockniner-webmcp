@@ -1,0 +1,219 @@
+.ui-layer-exam :where(.ielts-highlight) {
+  background-color: var(--exam-note-bg);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.ui-layer-exam :where(.ielts-highlight:hover) {
+  background-color: var(--exam-note-hover-bg);
+}
+
+.ui-layer-exam :where(.note-hint) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  background-color: var(--exam-note-bg);
+  border: 1px solid var(--exam-note-border);
+  border-radius: 2px;
+  margin-left: 2px;
+  vertical-align: super;
+  cursor: pointer;
+  font-size: 0;
+  line-height: 1;
+  position: relative;
+  top: -2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  z-index: 20;
+  transition: transform 0.1s;
+}
+
+.ui-layer-exam :where(.note-hint:hover) {
+  background-color: var(--exam-note-hover-bg);
+  transform: scale(1.1);
+}
+
+.ui-layer-exam :where(.note-hint::after) {
+  content: "";
+  width: 10px;
+  height: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23854d0e' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z'/%3E%3Cpolyline points='14 2 14 8 20 8'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.ui-layer-exam :where(.highlight-menu-enter) {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.ui-layer-exam :where(.highlight-menu-enter-active) {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 100ms, transform 100ms;
+}
+
+/* Native dialog + popover (Exam UI). Enter/exit via @starting-style + allow-discrete. */
+.exam-native-dialog {
+  border-style: solid;
+  padding: 0;
+  max-width: min(560px, calc(100vw - 2rem));
+  opacity: 0;
+  scale: 0.96;
+  transition:
+    opacity 0.18s ease,
+    scale 0.18s ease,
+    translate 0.18s ease,
+    overlay 0.18s allow-discrete,
+    display 0.18s allow-discrete;
+}
+
+.exam-native-dialog[open] {
+  opacity: 1;
+  scale: 1;
+}
+
+@starting-style {
+  .exam-native-dialog[open] {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+.exam-native-dialog::backdrop {
+  background-color: transparent;
+  transition:
+    background-color 0.18s ease,
+    overlay 0.18s allow-discrete,
+    display 0.18s allow-discrete;
+}
+
+.exam-native-dialog[open]::backdrop {
+  background-color: rgba(0, 0, 0, 0.55);
+}
+
+@starting-style {
+  .exam-native-dialog[open]::backdrop {
+    background-color: transparent;
+  }
+}
+
+.exam-submit-dialog.exam-native-dialog {
+  padding: 1.5rem;
+  margin: auto;
+}
+
+.exam-answer-picker-dialog.exam-native-dialog,
+.exam-writing-corrections-dialog.exam-native-dialog {
+  margin: auto;
+  max-width: min(28rem, calc(100vw - 1.5rem));
+}
+
+.exam-answer-picker-dialog--sheet.exam-native-dialog,
+.exam-writing-corrections-dialog.exam-native-dialog {
+  margin: auto 0 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: 85vh;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  scale: 1;
+  translate: 0 100%;
+}
+
+.exam-answer-picker-dialog--sheet.exam-native-dialog[open],
+.exam-writing-corrections-dialog.exam-native-dialog[open] {
+  translate: 0 0;
+}
+
+@starting-style {
+  .exam-answer-picker-dialog--sheet.exam-native-dialog[open],
+  .exam-writing-corrections-dialog.exam-native-dialog[open] {
+    opacity: 0;
+    scale: 1;
+    translate: 0 100%;
+  }
+}
+
+.exam-answer-picker-dialog--sheet.exam-native-dialog[open]::backdrop,
+.exam-writing-corrections-dialog.exam-native-dialog[open]::backdrop,
+.exam-answer-picker-dialog--centered.exam-native-dialog[open]::backdrop {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.exam-popover-content[popover] {
+  inset: unset;
+  margin: 0;
+  border: none;
+  padding: 0;
+  background: transparent;
+  overflow: visible;
+  color: inherit;
+  opacity: 0;
+  scale: 0.96;
+  transition:
+    opacity 0.12s ease,
+    scale 0.12s ease,
+    overlay 0.12s allow-discrete,
+    display 0.12s allow-discrete;
+}
+
+.exam-popover-content[popover]:popover-open {
+  opacity: 1;
+  scale: 1;
+}
+
+@starting-style {
+  .exam-popover-content[popover]:popover-open {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+.exam-popover-content--fixed {
+  position: fixed;
+}
+
+.exam-highlight-menu[popover] {
+  border: none;
+  padding: 0;
+  overflow: visible;
+  color: inherit;
+  opacity: 0;
+  scale: 0.95;
+  transition:
+    opacity 0.1s ease,
+    scale 0.1s ease,
+    overlay 0.1s allow-discrete,
+    display 0.1s allow-discrete;
+}
+
+.exam-highlight-menu[popover]:popover-open {
+  opacity: 1;
+  scale: 1;
+}
+
+@starting-style {
+  .exam-highlight-menu[popover]:popover-open {
+    opacity: 0;
+    scale: 0.95;
+  }
+}
+
+@supports (anchor-name: --exam-anchor) {
+  .exam-popover-content--anchored {
+    position-area: var(--exam-popover-position-area, bottom span-left);
+    margin-block-start: var(--exam-popover-offset, 8px);
+    position-try-fallbacks: flip-block, flip-inline;
+  }
+
+  .exam-highlight-menu--anchored {
+    inset: unset;
+    margin: 0;
+    margin-bottom: var(--exam-highlight-menu-offset, 10px);
+    position-area: top;
+    position-try-fallbacks: flip-block;
+  }
+}

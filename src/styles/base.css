@@ -1,0 +1,120 @@
+@theme {
+  --font-sans: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --font-serif: "Times New Roman", Times, serif;
+  --font-mono: "Courier New", Courier, monospace;
+}
+
+:root {
+  --exam-accent: #c1121f;
+  --exam-accent-hover: #a50f19;
+  --exam-accent-border: #8f0d16;
+  --exam-chip-active-bg: #111111;
+  --exam-chip-active-border: #111111;
+  --exam-chip-active-fg: #ffffff;
+  --exam-chip-answered-bg: #e5e7eb;
+  --exam-chip-answered-border: #9ca3af;
+  --exam-chip-answered-fg: #1f2937;
+  --exam-surface: #ffffff;
+  --exam-surface-muted: #f7f7f7;
+  --exam-instruction-bg: #f0f0f0;
+  --exam-text: #111827;
+  --exam-text-muted: #4b5563;
+  --exam-text-subtle: #6b7280;
+  --exam-border: #d1d5db;
+  --exam-border-muted: #e5e7eb;
+  --exam-input-border-idle: #6b7280;
+  --exam-input-border-filled: #4b5563;
+  --exam-input-focus-bg: #f9fafb;
+  --exam-control-bg: #ffffff;
+  --exam-control-hover-bg: #f9fafb;
+  --exam-control-active-bg: #111111;
+  --exam-control-active-fg: #ffffff;
+  --exam-option-selected-bg: #e5e7eb;
+  --exam-option-selected-border: transparent;
+  --exam-option-hover-bg: #f9fafb;
+  --exam-focus-ring: rgba(17, 24, 39, 0.3);
+  --exam-highlight-bg: rgba(17, 24, 39, 0.04);
+  --exam-highlight-ring: rgba(17, 24, 39, 0.12);
+  --exam-note-bg: #fff9c4;
+  --exam-note-hover-bg: #fef08a;
+  --exam-note-border: #ca8a04;
+  --exam-note-fg: #854d0e;
+  --exam-review-bg: #fefce8;
+  --exam-review-fg: #854d0e;
+  --exam-review-border: #fde68a;
+  --exam-danger-bg: #fef2f2;
+  --exam-danger-fg: #b91c1c;
+  --exam-danger-border: #fecaca;
+  --exam-info-bg: #eff6ff;
+  --exam-info-fg: #1d4ed8;
+  --exam-info-border: #bfdbfe;
+  --exam-success-bg: #f0fdf4;
+  --exam-success-fg: #166534;
+  --exam-success-border: #86efac;
+  --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --shadow-2xs: 0 1px 1px rgba(17, 24, 39, 0.03);
+  --shadow-xs: 0 1px 1px rgba(17, 24, 39, 0.04);
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.08);
+  --shadow: 0 1px 2px rgba(17, 24, 39, 0.08);
+  --shadow-md: 0 2px 6px rgba(17, 24, 39, 0.12);
+  --shadow-lg: 0 8px 20px rgba(17, 24, 39, 0.14);
+  --shadow-xl: 0 12px 28px rgba(17, 24, 39, 0.16);
+  --shadow-2xl: 0 18px 44px rgba(17, 24, 39, 0.22);
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+  --spacing: 0.25rem;
+  --default-font-family: var(--font-sans);
+  --default-mono-font-family: var(--font-mono);
+
+  display: block;
+  min-height: 100vh;
+  color: var(--exam-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+  letter-spacing: var(--tracking-normal);
+  background: var(--exam-surface);
+  isolation: isolate;
+  color-scheme: light;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(17, 24, 39, 0.12);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  color: var(--exam-text);
+  background: var(--exam-surface-muted);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:where(button, input, select, textarea) {
+  font: inherit;
+}
+
+:where(input, select, textarea) {
+  color: inherit;
+}

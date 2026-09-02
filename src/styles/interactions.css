@@ -1,0 +1,203 @@
+.ui-layer-exam :where(input[type="number"]::-webkit-inner-spin-button),
+.ui-layer-exam :where(input[type="number"]::-webkit-outer-spin-button) {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+@keyframes exam-target-highlight-fade {
+  0% {
+    background-color: var(--exam-highlight-bg);
+    box-shadow: 0 0 0 4px var(--exam-highlight-ring);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.ui-layer-exam :where(.target-highlight) {
+  animation: exam-target-highlight-fade 2s ease-out forwards;
+  border-radius: 4px;
+  z-index: 10;
+}
+
+.ui-layer-exam :where(.target-highlight .exam-answer-input) {
+  border-color: var(--exam-text);
+}
+
+.ui-layer-exam :where(.exam-inline-completion) {
+  margin: 0;
+  padding-block: 0.65rem;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+  line-height: 2rem;
+}
+
+.ui-layer-exam :where(.exam-inline-completion + .exam-inline-completion) {
+  margin-top: 0.25rem;
+}
+
+.ui-layer-exam :where(.exam-inline-completion-answer) {
+  margin-inline: 0.35rem;
+  vertical-align: baseline;
+}
+
+.ui-layer-exam :where(.exam-inline-completion-answer .exam-answer-input) {
+  width: auto;
+  min-width: 6rem;
+  max-width: min(18rem, 76vw);
+  field-sizing: content;
+}
+
+.ui-layer-exam :where(.exam-inline-question-number) {
+  display: inline;
+  color: var(--exam-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: inherit;
+  vertical-align: baseline;
+}
+
+.ui-layer-exam :where(.exam-inline-question-number:not(.exam-inline-question-number--in-flow))::after {
+  content: ".";
+}
+
+.ui-layer-exam :where(.exam-inline-question-number--in-flow) {
+  margin-right: 0.25rem;
+}
+
+.ui-layer-exam :where(.exam-answer-number-label) {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  z-index: 1;
+  transform: translateY(-50%);
+  color: var(--exam-text-subtle);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.ui-layer-exam :where(.exam-answer-input) {
+  border: 1px solid var(--exam-input-border-idle);
+  background-color: var(--exam-surface);
+  color: var(--exam-text);
+  box-shadow: none;
+  outline: none;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.ui-layer-exam :where(.exam-answer-input.is-filled) {
+  border-color: var(--exam-input-border-filled);
+}
+
+.ui-layer-exam :where(.exam-answer-input.is-empty) {
+  border-color: var(--exam-input-border-idle);
+}
+
+.ui-layer-exam :where(.exam-answer-input:not(.is-review-correct):not(.is-review-incorrect):is(:focus, :focus-visible)) {
+  border-color: var(--exam-text);
+  background-color: var(--exam-input-focus-bg);
+  outline: none;
+  box-shadow: none;
+}
+
+.ui-layer-exam :where(.exam-flowchart) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.ui-layer-exam :where(.exam-flowchart-title) {
+  margin: 0 0 1.25rem;
+  max-width: 40rem;
+  text-align: left;
+  color: var(--exam-text);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.ui-layer-exam :where(.exam-flowchart-steps) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  width: 100%;
+  max-width: 40rem;
+}
+
+.ui-layer-exam :where(.exam-flowchart-step-group) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(100%, 34rem);
+  max-width: 100%;
+}
+
+.ui-layer-exam :where(.exam-flowchart-step) {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--exam-text);
+  border-radius: 0;
+  background: var(--exam-surface);
+}
+
+.ui-layer-exam :where(.exam-flowchart-step-text) {
+  margin: 0;
+  color: var(--exam-text);
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  text-align: left;
+}
+
+.ui-layer-exam :where(.exam-flowchart-arrow) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 1.5rem;
+  color: var(--exam-text);
+}
+
+.ui-layer-exam :where(.exam-flowchart-arrow svg) {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+@keyframes exam-header-popout-wiggle {
+  0% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-5px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.ui-layer-exam :where(.exam-header-popout-wiggle) {
+  animation: exam-header-popout-wiggle 460ms ease-in-out;
+}
+
+.ui-layer-exam :where(.exam-hide-scrollbar) {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.ui-layer-exam :where(.exam-hide-scrollbar::-webkit-scrollbar) {
+  display: none;
+}

@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Play, SkipForward, X } from "lucide-react";
+import { ListeningAudioActions, ListeningPlayButton, ListeningSkipPrompt } from "./ListeningAudioControls";
 import { formatTime } from "@/shared/time";
 import type { ListeningAudioSession } from "@/application/useListeningAudio";
 import type { StoredListeningAudioChunk } from "@/infrastructure/database/listeningAudioRepository";
 import type {
-  ListeningAudioPersistedState,
+  ListeningAudioBarProps,
   ListeningAudioUiStatus,
 } from "./listeningAudioTypes";
 import {
@@ -14,16 +14,8 @@ import {
   getNextChunkIndex,
 } from "./kokoroPlaybackTimeline";
 
-type Props = {
+type Props = ListeningAudioBarProps & {
   audioSession: ListeningAudioSession;
-  currentPart: number;
-  isReviewMode: boolean;
-  placement?: "inline" | "header-popout";
-  audioPromptsEnabled?: boolean;
-  hydrateState?: ListeningAudioPersistedState | null;
-  onPersistState: (next: ListeningAudioPersistedState) => void;
-  onUiStatus?: (status: ListeningAudioUiStatus) => void;
-  isMuted?: boolean;
 };
 
 function playbackErrorMessage(error: unknown): string {
@@ -365,54 +357,25 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
   const actions = showActions ? (
     <>
       {needsUserStart && !isReviewMode ? (
-        <button
-          type="button"
-          onClick={() => void playCurrent()}
-          className="exam-control-button inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded border px-3 py-1.5 text-xs font-bold sm:w-auto"
-        >
-          <Play size={14} aria-hidden="true" />
-          Play audio
-        </button>
+        <ListeningPlayButton onPlay={() => void playCurrent()} />
       ) : null}
       {showSkip ? (
-        <div className="flex w-full items-stretch gap-1.5 sm:w-auto">
-          <button
-            type="button"
-            onClick={skipSilence}
-            className="exam-control-button inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded border px-3 py-1.5 text-xs font-bold sm:flex-none"
-          >
-            <SkipForward size={14} aria-hidden="true" />
-            Skip silence ({formatTime(Math.ceil(silenceRemainingMs / 1000))})
-          </button>
-          <button
-            type="button"
-            onClick={() => setDismissedSilenceSequence(currentChunk?.sequence ?? null)}
-            aria-label="Dismiss skip silence"
-            className="exam-icon-button inline-flex min-h-9 w-9 items-center justify-center rounded border"
-          >
-            <X size={14} aria-hidden="true" />
-          </button>
-        </div>
+        <ListeningSkipPrompt
+          onSkip={skipSilence}
+          onDismiss={() => setDismissedSilenceSequence(currentChunk?.sequence ?? null)}
+          dismissLabel="Dismiss skip silence"
+        >
+          Skip silence ({formatTime(Math.ceil(silenceRemainingMs / 1000))})
+        </ListeningSkipPrompt>
       ) : null}
       {showJump ? (
-        <div className="flex w-full items-stretch gap-1.5 sm:w-auto">
-          <button
-            type="button"
-            onClick={() => seekToPart(currentPart)}
-            className="exam-control-button inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded border px-3 py-1.5 text-xs font-bold sm:flex-none"
-          >
-            <SkipForward size={14} aria-hidden="true" />
-            Jump audio to Part {currentPart}
-          </button>
-          <button
-            type="button"
-            onClick={() => setDismissedJumpPart(currentPart)}
-            aria-label={`Dismiss jump audio to Part ${currentPart}`}
-            className="exam-icon-button inline-flex min-h-9 w-9 items-center justify-center rounded border"
-          >
-            <X size={14} aria-hidden="true" />
-          </button>
-        </div>
+        <ListeningSkipPrompt
+          onSkip={() => seekToPart(currentPart)}
+          onDismiss={() => setDismissedJumpPart(currentPart)}
+          dismissLabel={`Dismiss jump audio to Part ${currentPart}`}
+        >
+          Jump audio to Part {currentPart}
+        </ListeningSkipPrompt>
       ) : null}
       {isLoading && !sourceError ? (
         <span className="exam-subtle-text text-[10px] font-bold">
@@ -456,18 +419,8 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
           onError={() => setAudioError("A generated audio chunk could not be played.")}
         />
       ) : null}
-      {placement === "header-popout" ? (
-        showActions ? (
-          <div className="pointer-events-none fixed left-0 right-0 top-[60px] z-40">
-            <div className="mx-auto flex max-w-[1400px] justify-center px-2 sm:justify-end sm:px-4">
-              <div className="exam-audio-popout pointer-events-auto flex w-full max-w-[calc(100vw-1rem)] flex-wrap items-center gap-2 rounded-b-lg border border-t-0 px-2 py-2 shadow-lg backdrop-blur-sm sm:w-auto sm:px-3">
-                {actions}
-              </div>
-            </div>
-          </div>
-        ) : null
-      ) : showActions ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2">{actions}</div>
+      {showActions ? (
+        <ListeningAudioActions placement={placement}>{actions}</ListeningAudioActions>
       ) : null}
     </>
   );
