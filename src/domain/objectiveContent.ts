@@ -24,7 +24,6 @@ export {
   type ObjectiveMapSymbolElement,
 } from "./objectiveMap";
 export {
-  getObjectiveAnswerKey,
   getObjectiveBlockQuestionIds,
   objectiveContentDocumentSchema,
   parseObjectiveContentDocument,

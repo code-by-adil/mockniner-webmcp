@@ -2,15 +2,15 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { SQLocal } from 'sqlocal'
 import { listeningDocument, readingDocument } from '@/content/objective'
 import { writingDocument } from '@/content/writing'
-import { initialSession, sessionReducer, type ExamSession } from '@/domain/session'
-import { createAttemptReader } from '@/infrastructure/database/attemptReader'
+import { initialSession, sessionReducer, type IeltsSession } from '@/domain/session'
+import { createIeltsRepository } from '@/infrastructure/database/ieltsRepository'
 import { saveObjectiveAttempt } from '@/infrastructure/database/attemptRepository'
 import {
   createContentStore,
   saveAndActivateContent,
 } from '@/infrastructure/database/contentRepository'
 import { migrateDatabase } from '@/infrastructure/database/migrations'
-import { createExamApplicationCommands } from './commands'
+import { createIeltsCommands } from './ieltsCommands'
 
 let database: SQLocal
 
@@ -55,6 +55,7 @@ describe('database-backed native history review', () => {
     await saveAndActivateContent(database, olderDocument)
     await saveAndActivateContent(database, newerDocument)
     const olderAttempt = await saveObjectiveAttempt(database, {
+      attemptId: crypto.randomUUID(),
       section: 'reading',
       contentKey: olderDocument.contentKey,
       answers: { 1: 'TRUE' },
@@ -66,6 +67,7 @@ describe('database-backed native history review', () => {
       submittedAt: '2026-08-31T11:00:00.000Z',
     })
     const newerAttempt = await saveObjectiveAttempt(database, {
+      attemptId: crypto.randomUUID(),
       section: 'reading',
       contentKey: newerDocument.contentKey,
       answers: { 1: 'FALSE' },
@@ -76,23 +78,20 @@ describe('database-backed native history review', () => {
       startedAt: '2026-09-01T10:00:00.000Z',
       submittedAt: '2026-09-01T11:00:00.000Z',
     })
-    const reader = createAttemptReader(database)
+    const reader = createIeltsRepository(database)
     const history = await reader.readLearningSummary(5)
     expect(history.sections.reading.recent.map((attempt) => attempt.attemptId)).toEqual([
       newerAttempt.attemptId,
       olderAttempt.attemptId,
     ])
 
-    let state: ExamSession = initialSession
+    let state: IeltsSession = initialSession
     let content = {
       listening: listeningDocument,
       reading: newerDocument,
       writing: writingDocument,
     }
-    const unavailable = async (): Promise<never> => {
-      throw new Error('This writer is not used by the review query.')
-    }
-    const commands = createExamApplicationCommands({
+    const commands = createIeltsCommands({
       getState: () => state,
       dispatch: (action) => {
         state = sessionReducer(state, action)
@@ -102,14 +101,7 @@ describe('database-backed native history review', () => {
         content = documents
       },
       getContentStore: async () => createContentStore(database),
-      getAttemptReader: async () => reader,
-      getAttemptWriter: async () => ({
-        saveObjectiveAttempt: unavailable,
-        saveWritingAttempt: unavailable,
-        saveWritingEvaluation: unavailable,
-        saveSpeakingAttempt: unavailable,
-        saveSpeakingEvaluation: unavailable,
-      }),
+      getRepository: async () => reader,
     })
 
     await commands.openAttempt(olderAttempt.attemptId, 'reading')

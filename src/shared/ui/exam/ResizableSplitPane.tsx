@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useContext } from 'react';
 import { GripVertical, GripHorizontal } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/useExamLayout';
 import { scrollIntoViewNearest } from '@/shared/ui/exam/scrollIntoViewNearest';
 
 const MobileTopPaneHeaderContext = React.createContext<React.ReactNode>(null);

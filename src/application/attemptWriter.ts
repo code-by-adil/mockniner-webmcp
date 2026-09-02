@@ -10,6 +10,7 @@ import type {
 } from "@/domain/types";
 
 export type SaveObjectiveAttemptInput = {
+  attemptId: string;
   section: "listening" | "reading";
   contentKey: string;
   answers: AnswerMap;
@@ -19,6 +20,7 @@ export type SaveObjectiveAttemptInput = {
 };
 
 export type SaveWritingAttemptInput = {
+  attemptId: string;
   contentKey: string;
   tasks: [WritingSubmittedTask, WritingSubmittedTask];
   startedAt: string;
@@ -37,6 +39,7 @@ export type SpeakingRecordingInput = {
 };
 
 export type SaveSpeakingAttemptInput = {
+  attemptId: string;
   contentKey: string;
   startedAt: string;
   submittedAt: string;
@@ -45,7 +48,7 @@ export type SaveSpeakingAttemptInput = {
 
 export type CompleteSpeakingAttemptInput = Omit<
   SaveSpeakingAttemptInput,
-  "submittedAt"
+  "submittedAt" | "attemptId"
 >;
 
 export type AttemptWriter = {

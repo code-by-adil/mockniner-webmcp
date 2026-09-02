@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { ApplicationError } from '@/domain/errors';
 import { getAssessmentAuthoringKit } from "@/content/assessmentExamples";
 import { satPracticeAssessment } from "@/content/sat";
 import {
@@ -133,9 +134,10 @@ describe("universal assessment WebMCP tools", () => {
 
   it("tells the agent how to resolve an active-attempt install conflict", async () => {
     const installAssessment = vi.fn(async () => {
-      throw new Error(
+      throw new ApplicationError('ASSESSMENT_INSTALL_CONFLICT',
         "Assessment gre-diagnostic cannot be replaced while its attempt is in progress. " +
         "Finish or discard the current attempt, then install the package again.",
+        true,
       );
     });
     const tool = createAssessmentToolDefinitions({

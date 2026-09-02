@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import { listeningDocument, readingDocument } from "@/content/objective";
 import { writingDocument } from "@/content/writing";
 import { initialAssessmentSession } from "@/domain/assessmentSession";
-import { initialSession, type ExamSession } from "@/domain/session";
+import { initialSession, type IeltsSession } from "@/domain/session";
 import { Home } from "./Home";
 
 const noOp = () => undefined;
 const noOpAsync = async () => undefined;
 
-function renderHome(session: ExamSession = initialSession) {
+function renderHome(session: IeltsSession = initialSession) {
   return renderToStaticMarkup(
     <Home
       assessmentLibrary={{

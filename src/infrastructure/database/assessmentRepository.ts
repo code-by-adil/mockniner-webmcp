@@ -1,4 +1,7 @@
 import type { SQLocal } from "sqlocal";
+import type { AssessmentRepository } from "@/application/assessmentRepository";
+import { ApplicationError } from "@/domain/errors";
+import { getLocalDatabase } from "./client";
 import {
   assessmentEvaluationSchema,
   assessmentResponseMapSchema,
@@ -13,6 +16,29 @@ import {
   type AssessmentSubmission,
 } from "@/domain/assessment";
 
+export async function getAssessmentRepository(): Promise<AssessmentRepository> {
+  return createAssessmentRepository(await getLocalDatabase());
+}
+
+export function createAssessmentRepository(
+  database: SQLocal,
+): AssessmentRepository {
+  return {
+    loadPackages: (onInvalid) => loadAssessmentPackages(database, onInvalid),
+    readHistory: (limit, onInvalid) =>
+      readAssessmentHistory(database, limit, onInvalid),
+    savePackage: (assessment) => saveAssessmentPackage(database, assessment),
+    deletePackage: (id) => deleteAssessmentPackage(database, id),
+    saveAttempt: (submission) =>
+      saveAssessmentAttempt(database, {
+        ...submission,
+        assessment: submission.package,
+      }),
+    readAttempt: (id) => readAssessmentAttempt(database, id),
+    saveEvaluation: (evaluation) =>
+      saveAssessmentEvaluation(database, evaluation),
+  };
+}
 type PackageRow = {
   packageId: string;
   revision: number;
@@ -67,11 +93,16 @@ export async function loadAssessmentPackages(
         assessment.packageId !== row.packageId ||
         assessment.revision !== Number(row.revision)
       ) {
-        throw new Error(`Stored assessment package ${row.packageId} does not match its index.`);
+        throw new Error(
+          `Stored assessment package ${row.packageId} does not match its index.`,
+        );
       }
       return [assessment];
     } catch (error) {
-      onInvalidAssessment?.(asError(error), { kind: "package", id: row.packageId });
+      onInvalidAssessment?.(asError(error), {
+        kind: "package",
+        id: row.packageId,
+      });
       return [];
     }
   });
@@ -83,7 +114,10 @@ export async function saveAssessmentPackage(
 ): Promise<void> {
   const documentJson = JSON.stringify(assessment);
   await database.transaction(async (transaction) => {
-    const [existing] = await transaction.sql<{ revision: number; documentJson: string }>`
+    const [existing] = await transaction.sql<{
+      revision: number;
+      documentJson: string;
+    }>`
       SELECT revision, document_json AS documentJson
       FROM assessment_packages
       WHERE package_id = ${assessment.packageId}
@@ -91,13 +125,20 @@ export async function saveAssessmentPackage(
     if (existing) {
       const existingRevision = Number(existing.revision);
       if (existingRevision > assessment.revision) {
-        throw new Error(
+        throw new ApplicationError(
+          "ASSESSMENT_INSTALL_CONFLICT",
           `Assessment ${assessment.packageId} already has newer revision ${existingRevision}.`,
+          true,
         );
       }
-      if (existingRevision === assessment.revision && existing.documentJson !== documentJson) {
-        throw new Error(
+      if (
+        existingRevision === assessment.revision &&
+        existing.documentJson !== documentJson
+      ) {
+        throw new ApplicationError(
+          "ASSESSMENT_INSTALL_CONFLICT",
           `Assessment ${assessment.packageId} revision ${assessment.revision} already exists with different data.`,
+          true,
         );
       }
     }
@@ -152,7 +193,9 @@ export async function saveAssessmentAttempt(
   `;
   const stored = await readAssessmentAttempt(database, submission.attemptId);
   if (!stored) {
-    throw new Error(`Assessment attempt ${submission.attemptId} could not be persisted.`);
+    throw new Error(
+      `Assessment attempt ${submission.attemptId} could not be persisted.`,
+    );
   }
   return stored.submission;
 }
@@ -161,17 +204,25 @@ function parseAttemptRow(row: AttemptRow): {
   submission: AssessmentSubmission;
   evaluation: AssessmentEvaluation | null;
 } {
-  const assessment = parseAssessmentPackage(JSON.parse(row.packageSnapshotJson));
-  const responses = assessmentResponseMapSchema.parse(JSON.parse(row.responsesJson));
+  const assessment = parseAssessmentPackage(
+    JSON.parse(row.packageSnapshotJson),
+  );
+  const responses = assessmentResponseMapSchema.parse(
+    JSON.parse(row.responsesJson),
+  );
   const result = assessmentResultSchema.parse(JSON.parse(row.resultJson));
   if (assessment.packageId !== row.packageId) {
-    throw new Error(`Stored assessment attempt ${row.id} does not match its package snapshot.`);
+    throw new Error(
+      `Stored assessment attempt ${row.id} does not match its package snapshot.`,
+    );
   }
   const evaluation = row.evaluationJson
     ? assessmentEvaluationSchema.parse(JSON.parse(row.evaluationJson))
     : null;
   if (evaluation && evaluation.attemptId !== row.id) {
-    throw new Error(`Stored evaluation does not match assessment attempt ${row.id}.`);
+    throw new Error(
+      `Stored evaluation does not match assessment attempt ${row.id}.`,
+    );
   }
   return {
     submission: {
@@ -238,14 +289,23 @@ export async function saveAssessmentEvaluation(
       SELECT id FROM assessment_attempts WHERE id = ${evaluation.attemptId}
     `;
     if (!attempt) {
-      throw new Error(`Assessment attempt ${evaluation.attemptId} was not found.`);
+      throw new Error(
+        `Assessment attempt ${evaluation.attemptId} was not found.`,
+      );
     }
-    await transaction.sql`
+    const inserted = await transaction.sql<{ attemptId: string }>`
       INSERT INTO assessment_evaluations (attempt_id, evaluation_json, evaluated_at)
       VALUES (
         ${evaluation.attemptId}, ${JSON.stringify(evaluation)}, ${evaluation.evaluatedAt}
       )
+      ON CONFLICT(attempt_id) DO NOTHING
+      RETURNING attempt_id AS attemptId
     `;
+    if (!inserted.length)
+      throw new ApplicationError(
+        "EVALUATION_EXISTS",
+        `Assessment attempt ${evaluation.attemptId} already has an evaluation.`,
+      );
   });
 }
 
@@ -271,21 +331,28 @@ export async function readAssessmentHistory(
     ORDER BY assessment_attempts.submitted_at DESC
     LIMIT 50
   `;
-  return rows.flatMap((row) => {
-    try {
-      const { submission, evaluation } = parseAttemptRow(row);
-      return [{
-        attemptId: submission.attemptId,
-        packageId: submission.packageId,
-        title: submission.package.title,
-        rawScore: submission.result.rawScore,
-        maximumScore: submission.result.maximumScore,
-        evaluationStatus: getAssessmentEvaluationStatus(submission.result, evaluation),
-        submittedAt: submission.submittedAt,
-      }];
-    } catch (error) {
-      onInvalidAssessment?.(asError(error), { kind: "attempt", id: row.id });
-      return [];
-    }
-  }).slice(0, normalizedLimit);
+  return rows
+    .flatMap((row) => {
+      try {
+        const { submission, evaluation } = parseAttemptRow(row);
+        return [
+          {
+            attemptId: submission.attemptId,
+            packageId: submission.packageId,
+            title: submission.package.title,
+            rawScore: submission.result.rawScore,
+            maximumScore: submission.result.maximumScore,
+            evaluationStatus: getAssessmentEvaluationStatus(
+              submission.result,
+              evaluation,
+            ),
+            submittedAt: submission.submittedAt,
+          },
+        ];
+      } catch (error) {
+        onInvalidAssessment?.(asError(error), { kind: "attempt", id: row.id });
+        return [];
+      }
+    })
+    .slice(0, normalizedLimit);
 }

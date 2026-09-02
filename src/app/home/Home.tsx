@@ -13,8 +13,8 @@ import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { SECTION_META, SECTION_ORDER } from "@/domain/sections";
 import {
   getResumableSection,
-  type ExamMode,
-  type ExamSession,
+  type IeltsMode,
+  type IeltsSession,
 } from "@/domain/session";
 import type { SectionKey } from "@/domain/types";
 import type { ActiveContentDocuments } from "@/domain/contentDocument";
@@ -28,12 +28,12 @@ import { RecentAttempts } from "./RecentAttempts";
 import { WebMcpHelpDialog } from "./WebMcpHelpDialog";
 
 type Section = SectionKey;
-type Mode = ExamMode;
+type Mode = IeltsMode;
 type HomeProps = {
   assessmentLibrary: AssessmentLibraryProps;
   onStart: (mode: Mode, section: Section) => void;
   onResume: () => void;
-  session: ExamSession;
+  session: IeltsSession;
   listeningAudio: ListeningAudioSession;
   onRetryListeningAudio: () => void;
   content: ActiveContentDocuments;
@@ -102,10 +102,10 @@ export function Home({
             <AssessmentLabBrand />
             <div className="hidden sm:flex flex-col text-xs border-l pl-6 h-8 justify-center min-w-0">
               <span className="font-bold text-neutral-900 leading-tight">
-                Assessment Practice Workspace
+                Practice
               </span>
               <span className="text-neutral-500 text-[11px] truncate leading-tight">
-                Native IELTS · Universal Assessments
+                IELTS and custom assessments
               </span>
             </div>
           </div>
@@ -124,13 +124,13 @@ export function Home({
         {/* Title & Philosophy Block */}
         <div className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-950">
-            Agent-Native Assessment Environment
+            Choose your practice
           </h1>
           <p className="text-base text-neutral-600 leading-relaxed font-normal max-w-3xl">
-            Install structured assessments with your agent, complete them in a focused interface, and receive deterministic or rubric-based evaluation.
+            Create practice with your agent, answer the questions here, and review your results.
           </p>
           <div className="border-l-2 border-neutral-300 pl-4 py-1 text-sm text-neutral-600 italic">
-            “The application provides structure. Your agent provides intelligence.”
+            The application provides structure. Your agent provides intelligence.
           </div>
         </div>
 
@@ -150,7 +150,7 @@ export function Home({
                 Full IELTS Simulation
               </h2>
               <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed max-w-2xl">
-                {fullExamSequence} with authentic exam-day timing and section sequencing.
+                {fullExamSequence}. Complete each section in order.
               </p>
             </div>
 
@@ -195,9 +195,9 @@ export function Home({
         <section className="space-y-4">
           <div className="flex items-center justify-between border-b border-neutral-200/80 pb-2.5">
             <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-              Native IELTS Modules
+              IELTS practice
             </h2>
-            <span className="text-xs text-neutral-400">Untimed or standard pacing</span>
+            <span className="text-xs text-neutral-400">Timed section practice</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -306,7 +306,7 @@ export function Home({
         {/* Signature Monospace Callout */}
         <footer className="pt-6 border-t border-neutral-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-400">
           <div className="font-mono">
-            Your practice stays local. Your workspace stays yours.
+            Your practice is saved in this browser.
           </div>
           <button
             type="button"

@@ -62,11 +62,11 @@ export function AssessmentLibrary({
             Universal Assessments
           </h2>
           <p className="mt-1 text-xs text-neutral-400">
-            Trusted interaction components · deterministic scoring · standard rubrics
+            Practice sets created by your agent
           </p>
         </div>
         <span className="hidden text-xs text-neutral-400 sm:block">
-          Agent-installable JSON packages
+          Saved in this browser
         </span>
       </div>
 

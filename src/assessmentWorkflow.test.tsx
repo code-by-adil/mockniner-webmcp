@@ -1,20 +1,19 @@
+import { createAssessmentCommands } from "@/application/assessmentCommands";
+import { assessmentSessionReducer, initialAssessmentSession, type AssessmentSession } from "@/domain/assessmentSession";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SQLocal } from "sqlocal";
 import { greStyleAssessment } from "@/content/gre";
 import {
-  assessmentEvaluationInputSchema,
   gradeAssessment,
-  validateAssessmentEvaluation,
-  type AssessmentEvaluation,
   type AssessmentEvaluationInput,
   type AssessmentPackage,
 } from "@/domain/assessment";
 import {
+  createAssessmentRepository,
   readAssessmentAttempt,
   readAssessmentHistory,
   saveAssessmentAttempt,
-  saveAssessmentEvaluation,
   saveAssessmentPackage,
 } from "@/infrastructure/database/assessmentRepository";
 import { migrateDatabase } from "@/infrastructure/database/migrations";
@@ -116,23 +115,17 @@ describe("mixed universal assessment workflow", () => {
       submittedAt: "2026-09-02T10:40:00.000Z",
     });
 
-    const attachEvaluation = async (input: AssessmentEvaluationInput) => {
-      const parsed = assessmentEvaluationInputSchema.parse(input);
-      const stored = await readAssessmentAttempt(database, parsed.attemptId);
-      if (!stored) throw new Error(`Assessment attempt ${parsed.attemptId} was not found.`);
-      if (stored.evaluation) throw new Error(`Assessment attempt ${parsed.attemptId} already has an evaluation.`);
-      validateAssessmentEvaluation(stored.submission, parsed);
-      const evaluation: AssessmentEvaluation = {
-        ...parsed,
-        evaluatedAt: "2026-09-02T10:45:00.000Z",
-      };
-      await saveAssessmentEvaluation(database, evaluation);
-      return evaluation;
-    };
+    let state: AssessmentSession = { ...initialAssessmentSession, view: "result", submission };
+    const commands = createAssessmentCommands({
+      getState: () => state, getAssessments: () => [assessment],
+      dispatch: (action) => { state = assessmentSessionReducer(state, action); },
+      setAssessments: vi.fn(), setHistory: vi.fn(),
+      getRepository: async () => createAssessmentRepository(database),
+    });
     const tools = createAssessmentToolDefinitions({
       installAssessment: vi.fn(),
       readAssessmentAttempt: (id) => readAssessmentAttempt(database, id),
-      attachEvaluation,
+      attachEvaluation: commands.attachEvaluation,
       getCurrentAttemptId: () => attemptId,
     }, "evaluation");
     const submissionTool = tools.find((tool) => tool.name === "get_assessment_submission")!;

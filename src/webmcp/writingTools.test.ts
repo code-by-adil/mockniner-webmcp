@@ -1,3 +1,4 @@
+import { ApplicationError } from "@/domain/errors";
 import { describe, expect, it, vi } from "vitest";
 import { writingDocument } from "@/content/writing";
 import type { WritingEvaluation, WritingSubmission } from "@/domain/types";
@@ -120,102 +121,13 @@ describe("Writing WebMCP tools", () => {
     });
   });
 
-  it("rejects corrections that do not quote the immutable submission", async () => {
-    const attachWritingEvaluation = vi.fn();
-    const tools = createWritingToolDefinitions({
-      readWritingAttempt: async () => ({ submission, evaluation: null }),
-      attachWritingEvaluation,
-      getCurrentWritingAttemptId: () => attemptId,
-    });
-    const tool = tools.find((item) => item.name === "attach_ielts_writing_evaluation")!;
-
-    await expect(
-      tool.execute(
-        {
-          ...evaluationInput,
-          task1: {
-            ...taskEvaluation,
-            annotations: [
-              {
-                id: "invented-quote",
-                taskNumber: 1,
-                originalText: "Words the learner never wrote.",
-                suggestion: "A valid replacement.",
-                explanation: "This should not be attachable.",
-                type: "grammar",
-              },
-            ],
-          },
-        },
-        toolOptions(),
-      ),
-    ).resolves.toMatchObject({
-      ok: false,
-      error: {
-        code: "INVALID_ANNOTATION",
-        retryable: true,
-        issues: [{ path: "task1.annotations.0.originalText" }],
-      },
-    });
-    expect(attachWritingEvaluation).not.toHaveBeenCalled();
-  });
-
-  it("requires annotation task identity and offsets to agree with the quote", async () => {
-    const attachWritingEvaluation = vi.fn();
-    const tools = createWritingToolDefinitions({
-      readWritingAttempt: async () => ({ submission, evaluation: null }),
-      attachWritingEvaluation,
-      getCurrentWritingAttemptId: () => attemptId,
-    });
-    const tool = tools.find((item) => item.name === "attach_ielts_writing_evaluation")!;
-
-    const result = (await tool.execute(
-      {
-        ...evaluationInput,
-        task1: {
-          ...taskEvaluation,
-          annotations: [
-            {
-              id: "wrong-location",
-              taskNumber: 2,
-              originalText: "Task one answer.",
-              suggestion: "A replacement.",
-              explanation: "The task and range must be trustworthy.",
-              type: "coherence",
-              startOffset: 1,
-              endOffset: 17,
-            },
-          ],
-        },
-      },
-      toolOptions(),
-    )) as { ok: false; error: { issues: Array<{ path: string }> } };
-
-    expect(result.ok).toBe(false);
-    expect(result.error.issues.map((issue) => issue.path)).toEqual([
-      "task1.annotations.0.taskNumber",
-      "task1.annotations.0.originalText",
-    ]);
-    expect(attachWritingEvaluation).not.toHaveBeenCalled();
-  });
-
-  it("does not silently replace an existing evaluation", async () => {
-    const existing: WritingEvaluation = {
-      ...evaluationInput,
-      evaluatedAt: "2026-08-31T11:05:00.000Z",
-    };
-    const attachWritingEvaluation = vi.fn();
-    const tools = createWritingToolDefinitions({
-      readWritingAttempt: async () => ({ submission, evaluation: existing }),
-      attachWritingEvaluation,
-      getCurrentWritingAttemptId: () => attemptId,
-    });
-    const tool = tools.find((item) => item.name === "attach_ielts_writing_evaluation")!;
-
-    await expect(tool.execute(evaluationInput, toolOptions())).resolves.toMatchObject({
-      ok: false,
-      error: { code: "EVALUATION_EXISTS", retryable: false },
-    });
-    expect(attachWritingEvaluation).not.toHaveBeenCalled();
+  it.each(["INVALID_ANNOTATION", "EVALUATION_EXISTS", "ATTEMPT_NOT_CURRENT"])("returns application failures without repeating repository reads: %s", async (code) => {
+    const readWritingAttempt = vi.fn();
+    const attachWritingEvaluation = vi.fn(async () => { throw new ApplicationError(code, "Repair the evaluation.", true, [{ path: "task1.annotations.0", message: "Use exact offsets." }]); });
+    const tool = createWritingToolDefinitions({ readWritingAttempt, attachWritingEvaluation, getCurrentWritingAttemptId: () => attemptId })
+      .find((tool) => tool.name === "attach_ielts_writing_evaluation")!;
+    await expect(tool.execute(evaluationInput, toolOptions())).resolves.toMatchObject({ ok: false, error: { code, issues: [{ path: "task1.annotations.0" }] } });
+    expect(attachWritingEvaluation).toHaveBeenCalledOnce();
+    expect(readWritingAttempt).not.toHaveBeenCalled();
   });
 });

@@ -10,16 +10,16 @@ import {
 } from "lucide-react";
 import { ExamUiBoundary } from "@/app/layouts/ExamUiBoundary";
 import { Home } from "@/app/home/Home";
-import { ListeningExamRunner } from "@/modules/section-packs/listening/ui/ListeningExamRunner";
-import { ReadingExamRunner } from "@/modules/section-packs/reading/ui/ReadingExamRunner";
-import { WritingExamRunner } from "@/modules/section-packs/writing/ui/WritingExamRunner";
-import { WritingAttemptReview } from "@/modules/section-packs/writing/ui/WritingAttemptReview";
-import { SpeakingExamRunner } from "@/modules/section-packs/speaking/ui/SpeakingExamRunner";
-import { SpeakingAttemptReview } from "@/modules/section-packs/speaking/ui/SpeakingAttemptReview";
+import { ListeningExamRunner } from "@/modules/ielts/listening/ui/ListeningExamRunner";
+import { ReadingExamRunner } from "@/modules/ielts/reading/ui/ReadingExamRunner";
+import { WritingExamRunner } from "@/modules/ielts/writing/ui/WritingExamRunner";
+import { WritingAttemptReview } from "@/modules/ielts/writing/ui/WritingAttemptReview";
+import { SpeakingExamRunner } from "@/modules/ielts/speaking/ui/SpeakingExamRunner";
+import { SpeakingAttemptReview } from "@/modules/ielts/speaking/ui/SpeakingAttemptReview";
 import { SECTION_META, SECTION_ORDER } from "@/domain/sections";
-import type { ExamMode, ExamSession } from "@/domain/session";
+import type { IeltsMode, IeltsSession } from "@/domain/session";
 import type { SectionKey } from "@/domain/types";
-import { useExamApplication } from "@/application/useExamApplication";
+import { useIeltsApplication } from "@/application/useIeltsApplication";
 import { useListeningAudio } from "@/application/useListeningAudio";
 import { useWebMcpTools } from "@/webmcp/useWebMcpTools";
 import { useAssessmentApplication } from "@/application/useAssessmentApplication";
@@ -29,7 +29,7 @@ import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { getAssessmentToolSurface, getNativeToolSurfaces } from "@/webmcp/toolSurfaces";
 
 type Section = SectionKey;
-type Mode = ExamMode;
+type Mode = IeltsMode;
 
 const SECTION_ICONS = {
   listening: Headphones,
@@ -46,10 +46,10 @@ function AppHeader() {
           <AssessmentLabBrand />
           <div className="hidden sm:flex flex-col text-xs border-l pl-6 h-8 justify-center min-w-0">
             <span className="font-bold text-neutral-900 leading-tight">
-              Assessment Practice Workspace
+              Practice
             </span>
             <span className="text-neutral-500 text-[11px] truncate leading-tight">
-              Practice &amp; Evaluation Workspace
+              IELTS and custom assessments
             </span>
           </div>
         </div>
@@ -94,8 +94,8 @@ function Complete({
           <div className="mt-6 w-full max-w-xl rounded-lg border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-5 py-4 text-left shadow-sm">
             <p className="text-sm font-bold text-[var(--exam-text)]">Ready for agent evaluation</p>
             <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">
-              Ask your agent: “Grade my latest IELTS Writing submission.” It can read this immutable
-              submission and return structured feedback here.
+              Ask your agent to grade your latest IELTS Writing submission.
+              It can read your saved response and return feedback here.
             </p>
           </div>
         ) : section === "speaking" ? (
@@ -139,7 +139,7 @@ function Results({
   onHome,
   onReview,
 }: {
-  session: ExamSession;
+  session: IeltsSession;
   onHome: () => void;
   onReview: (section: Section) => void;
 }) {
@@ -221,7 +221,7 @@ function Results({
 }
 
 export default function App() {
-  const { state, content, contentReady, learningSummary, commands } = useExamApplication();
+  const { state, content, contentReady, loadError, learningSummary, commands } = useIeltsApplication();
   const assessmentApplication = useAssessmentApplication();
   const listeningAudio = useListeningAudio(content.listening);
   const assessmentToolSurface = getAssessmentToolSurface(
@@ -249,10 +249,19 @@ export default function App() {
     : state.currentSection;
   const mode = state.mode ?? "section";
 
+  const storageError = loadError ?? assessmentApplication.loadError;
+  if (storageError) {
+    return <main className="mx-auto max-w-lg p-8" role="alert">
+      <h1 className="text-xl font-semibold">Could not load saved practice</h1>
+      <p className="mt-3">{storageError}</p>
+      <button className="mt-5 rounded border px-4 py-2" onClick={() => window.location.reload()}>Retry loading</button>
+    </main>;
+  }
+
   if (!contentReady || !assessmentApplication.assessmentReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--exam-surface-muted)] text-sm font-semibold text-[var(--exam-text-muted)]">
-        Loading assessment workspace…
+        Loading saved practice…
       </div>
     );
   }

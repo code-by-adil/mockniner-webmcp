@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import type { WritingEvaluation } from './types'
 
 const bandScoreSchema = z
   .number()
@@ -18,8 +17,8 @@ const writingAnnotationSchema = z
     explanation: z.string().min(1).max(4_000),
     type: z.enum(['grammar', 'vocabulary', 'coherence', 'other']),
     shortTitle: z.string().trim().min(1).max(200).optional(),
-    startOffset: z.number().int().nonnegative().optional(),
-    endOffset: z.number().int().nonnegative().optional(),
+    startOffset: z.number().int().nonnegative().optional().describe('Zero-based UTF-16 start offset. Supply both offsets when the exact quote occurs more than once.'),
+    endOffset: z.number().int().nonnegative().optional().describe('Exclusive UTF-16 end offset. The response slice must exactly equal originalText.'),
     contextBefore: z.string().max(1_000).optional(),
     contextAfter: z.string().max(1_000).optional(),
     issueTitle: z.string().trim().min(1).max(200).optional(),
@@ -53,10 +52,3 @@ export const writingEvaluationInputSchema = z
   .strict()
 
 export type WritingEvaluationInput = z.infer<typeof writingEvaluationInputSchema>
-
-export function finalizeWritingEvaluation(
-  input: WritingEvaluationInput,
-  evaluatedAt: string,
-): WritingEvaluation {
-  return { ...input, evaluatedAt }
-}

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ExamApplicationCommands } from "@/application/commands";
+import type { IeltsCommands } from "@/application/ieltsCommands";
 import {
   AgentSpeakingTurnError,
   type AgentSpeakingTurnHandler,
@@ -7,6 +7,7 @@ import {
 import type { SpeakingEvaluation, SpeakingSubmission } from "@/domain/types";
 import { speakingEvaluationInputSchema } from "@/domain/speakingEvaluation";
 import {
+  applicationFailure,
   getToolExecutionSignal,
   throwIfCancelled,
   toolFailure,
@@ -36,7 +37,8 @@ const getSpeakingSubmissionInputSchema = {
     attemptId: {
       type: "string",
       format: "uuid",
-      description: "Optional Speaking attempt ID. Omit it to read the latest submission.",
+      description:
+        "Optional Speaking attempt ID. Omit it to read the latest submission.",
     },
   },
   additionalProperties: false,
@@ -47,7 +49,7 @@ type SpeakingToolDependencies = {
     submission: SpeakingSubmission;
     evaluation: SpeakingEvaluation | null;
   } | null>;
-  attachSpeakingEvaluation: ExamApplicationCommands["attachSpeakingEvaluation"];
+  attachSpeakingEvaluation: IeltsCommands["attachSpeakingEvaluation"];
   getCurrentSpeakingAttemptId: () => string | undefined;
 };
 
@@ -61,7 +63,9 @@ export function createSpeakingInterviewToolDefinition(
     title: "Conduct one IELTS Speaking turn",
     description:
       "Conduct exactly one turn of the visible Agent interview. For a question, provide examinerText, IELTS part 1-3, a response limit, and finishInterview=false; Kokoro speaks it and the call waits until the learner approves a transcript. Use that transcript to choose the next question. Finish with one short closing examinerText and finishInterview=true to save the complete attempt. Call turns serially.",
-    inputSchema: z.toJSONSchema(agentSpeakingTurnSchema, { target: "draft-07" }),
+    inputSchema: z.toJSONSchema(agentSpeakingTurnSchema, {
+      target: "draft-07",
+    }),
     annotations: { readOnlyHint: false, untrustedContentHint: true },
     execute: async (input, options) => {
       const signal = getToolExecutionSignal(options);
@@ -120,7 +124,10 @@ export function createSpeakingToolDefinitions(
     execute: async (input, options) => {
       const signal = getToolExecutionSignal(options);
       throwIfCancelled(signal);
-      const parsed = z.object({ attemptId: z.uuid().optional() }).strict().safeParse(input);
+      const parsed = z
+        .object({ attemptId: z.uuid().optional() })
+        .strict()
+        .safeParse(input);
       if (!parsed.success) {
         return toolFailure(
           "INVALID_INPUT",
@@ -153,9 +160,12 @@ export function createSpeakingToolDefinitions(
             ],
             excluded: ["pronunciation: audio is not exposed to the agent"],
           },
-          evaluationStatus: stored.evaluation ? "evaluated" : "awaiting_evaluation",
+          evaluationStatus: stored.evaluation
+            ? "evaluated"
+            : "awaiting_evaluation",
           canAttachEvaluation:
-            !stored.evaluation && stored.submission.attemptId === getCurrentSpeakingAttemptId(),
+            !stored.evaluation &&
+            stored.submission.attemptId === getCurrentSpeakingAttemptId(),
         },
       };
     },
@@ -165,7 +175,9 @@ export function createSpeakingToolDefinitions(
     title: "Attach IELTS Speaking evaluation",
     description:
       "Attach one structured transcript-based IELTS Speaking evaluation to the current immutable attempt. Use whole or half bands from 0 to 9 for overall, fluency/coherence, lexical resource, and grammatical range/accuracy. Pronunciation stays unscored because the agent receives transcripts, not audio. On success the application opens the Speaking review.",
-    inputSchema: z.toJSONSchema(speakingEvaluationInputSchema, { target: "draft-07" }),
+    inputSchema: z.toJSONSchema(speakingEvaluationInputSchema, {
+      target: "draft-07",
+    }),
     annotations: { readOnlyHint: false, untrustedContentHint: false },
     execute: async (input, options) => {
       const signal = getToolExecutionSignal(options);
@@ -179,44 +191,25 @@ export function createSpeakingToolDefinitions(
           zodIssues(parsed.error),
         );
       }
-      const stored = await readSpeakingAttempt(parsed.data.attemptId);
-      throwIfCancelled(signal);
-      if (!stored) {
-        return toolFailure(
-          "SPEAKING_SUBMISSION_NOT_FOUND",
-          `Speaking attempt ${parsed.data.attemptId} was not found.`,
-          false,
-        );
+      try {
+        const evaluation = await attachSpeakingEvaluation(parsed.data);
+        throwIfCancelled(signal);
+        return {
+          ok: true,
+          data: {
+            status: "attached",
+            attemptId: evaluation.attemptId,
+            overallBand: evaluation.overallBand,
+            evaluatedAt: evaluation.evaluatedAt,
+          },
+          sideEffect: {
+            type: "speaking_evaluation_attached",
+            visibleView: "speaking_review",
+          },
+        };
+      } catch (error) {
+        return applicationFailure(error);
       }
-      if (stored.evaluation) {
-        return toolFailure(
-          "EVALUATION_EXISTS",
-          `Speaking attempt ${parsed.data.attemptId} already has an evaluation.`,
-          false,
-        );
-      }
-      if (getCurrentSpeakingAttemptId() !== parsed.data.attemptId) {
-        return toolFailure(
-          "ATTEMPT_NOT_CURRENT",
-          `Speaking attempt ${parsed.data.attemptId} is not the current submitted attempt.`,
-          false,
-        );
-      }
-      const evaluation = await attachSpeakingEvaluation(parsed.data);
-      throwIfCancelled(signal);
-      return {
-        ok: true,
-        data: {
-          status: "attached",
-          attemptId: evaluation.attemptId,
-          overallBand: evaluation.overallBand,
-          evaluatedAt: evaluation.evaluatedAt,
-        },
-        sideEffect: {
-          type: "speaking_evaluation_attached",
-          visibleView: "speaking_review",
-        },
-      };
     },
   };
   if (surface === "results") return [submissionTool];

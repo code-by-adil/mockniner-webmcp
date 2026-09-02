@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AssessmentApplicationCommands } from "@/application/useAssessmentApplication";
+import type { AssessmentApplicationCommands } from "@/application/assessmentCommands";
 import { getAssessmentAuthoringKit } from "@/content/assessmentExamples";
 import {
   assessmentEvaluationInputSchema,
@@ -15,6 +15,7 @@ import {
   getAssessmentPackageJsonSchema,
 } from "./assessmentSchemas";
 import {
+  applicationFailure,
   getToolExecutionSignal,
   throwIfCancelled,
   toolFailure,
@@ -118,10 +119,7 @@ export function createAssessmentAuthoringToolDefinitions({
               zodIssues(error),
             );
           }
-          if (error instanceof Error && /revision|already exists|reserved|in progress/.test(error.message)) {
-            return toolFailure("ASSESSMENT_INSTALL_CONFLICT", error.message, true);
-          }
-          throw error;
+          return applicationFailure(error);
         }
       },
     },
@@ -200,17 +198,6 @@ export function createAssessmentToolDefinitions({
       if (!parsed.success) {
         return toolFailure("INVALID_EVALUATION", "The evaluation is invalid.", true, zodIssues(parsed.error));
       }
-      const stored = await readAssessmentAttempt(parsed.data.attemptId);
-      throwIfCancelled(signal);
-      if (!stored) {
-        return toolFailure("ASSESSMENT_SUBMISSION_NOT_FOUND", `Assessment attempt ${parsed.data.attemptId} was not found.`, false);
-      }
-      if (stored.evaluation) {
-        return toolFailure("EVALUATION_EXISTS", `Assessment attempt ${parsed.data.attemptId} already has an evaluation.`, false);
-      }
-      if (getCurrentAttemptId() !== parsed.data.attemptId) {
-        return toolFailure("ATTEMPT_NOT_CURRENT", `Assessment attempt ${parsed.data.attemptId} is not the current visible submission.`, false);
-      }
       try {
         const evaluation = await attachEvaluation(parsed.data);
         throwIfCancelled(signal);
@@ -226,10 +213,7 @@ export function createAssessmentToolDefinitions({
           sideEffect: { type: "assessment_evaluation_attached", visibleView: "assessment_results" },
         };
       } catch (error) {
-        if (error instanceof Error) {
-          return toolFailure("EVALUATION_CONTRACT_MISMATCH", error.message, true);
-        }
-        throw error;
+        return applicationFailure(error);
       }
     },
   };

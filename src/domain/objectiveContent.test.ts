@@ -3,14 +3,29 @@ import listeningJson from "@/content/listening.json";
 import readingJson from "@/content/reading.json";
 import { listeningDocument, readingDocument } from "@/content/objective";
 import {
-  getObjectiveAnswerKey,
   getObjectiveBlockQuestionIds,
   objectiveContentDocumentSchema,
   parseObjectiveContentDocument,
   type ObjectiveContentBlock,
+  type ObjectiveContentDocument,
 } from "./objectiveContent";
-import { gradeObjectiveDocument } from "./exam";
+import { gradeObjectiveDocument } from "./objectiveScoring";
 import { countWords } from "@/shared/text";
+
+function getExampleAnswers(document: ObjectiveContentDocument): Record<number, string> {
+  const answers: Record<number, string> = {};
+  for (const part of document.parts) {
+    for (const block of part.blocks) {
+      if (block.type === "multiple_selection_question") {
+        block.questionIds.forEach((id, index) => { answers[id] = block.answers[index]!; });
+      } else {
+        const questions = block.type === "completion_questions" ? block.items : "questions" in block ? block.questions : [];
+        questions.forEach((question) => { answers[question.questionId] = Array.isArray(question.answer) ? question.answer[0]! : question.answer; });
+      }
+    }
+  }
+  return answers;
+}
 
 function questionIds(block: ObjectiveContentBlock): number[] {
   return getObjectiveBlockQuestionIds(block);
@@ -32,7 +47,7 @@ describe("canonical IELTS objective JSON", () => {
       expect([...ids].sort((a, b) => a - b)).toEqual(
         Array.from({ length: 40 }, (_, index) => index + 1),
       );
-      expect(Object.keys(getObjectiveAnswerKey(document))).toHaveLength(40);
+      expect(Object.keys(getExampleAnswers(document))).toHaveLength(40);
     },
   );
 
@@ -42,7 +57,7 @@ describe("canonical IELTS objective JSON", () => {
     );
     expect(answerBearingBlocks).not.toHaveLength(0);
     expect(JSON.stringify(readingDocument)).not.toContain('"answerKey"');
-    expect(getObjectiveAnswerKey(readingDocument)[40]).toBe("behaviour");
+    expect(getExampleAnswers(readingDocument)[40]).toBe("behaviour");
   });
 
   it("rejects malformed complete tests before they can enter application state", () => {
@@ -219,9 +234,20 @@ describe("canonical IELTS objective JSON", () => {
 });
 
 describe("deterministic grading from canonical JSON", () => {
+  it.each([
+    [{ 19: "A", 20: "C" }, 2],
+    [{ 19: "C", 20: "A" }, 2],
+    [{ 19: "A", 20: "B" }, 1],
+    [{ 19: "C" }, 1],
+    [{ 19: "A", 20: "A" }, 1],
+    [{ 19: "B", 20: "D" }, 0],
+  ])("grades multiple selection as distinct choices, not ordered slots: %j", (answers, raw) => {
+    expect(gradeObjectiveDocument(readingDocument, answers).raw).toBe(raw);
+  });
+
   it("awards 40/40 and band 9 without a separate answer-key document", () => {
     const answers = Object.fromEntries(
-      Object.entries(getObjectiveAnswerKey(readingDocument)).map(([id, answer]) => [
+      Object.entries(getExampleAnswers(readingDocument)).map(([id, answer]) => [
         id,
         Array.isArray(answer) ? answer[0] : answer,
       ]),

@@ -8,21 +8,9 @@ import type {
   WritingSubmission,
 } from './types'
 import { SECTION_META, SECTION_ORDER } from './sections'
-import { z } from 'zod'
-import {
-  answerMapSchema,
-  objectiveSubmissionSchema,
-  speakingSubmissionSchema,
-  speakingEvaluationSchema,
-  writingEvaluationSchema,
-  writingSubmissionSchema,
-} from './attemptValidation'
-import {
-  objectiveContentDocumentSchema,
-  type ObjectiveContentDocument,
-} from './objectiveContent'
+import type { ObjectiveContentDocument } from './objectiveContent'
 
-export type ExamMode = 'full' | 'section'
+export type IeltsMode = 'full' | 'section'
 type SessionView = 'home' | 'exam' | 'transition' | 'result' | 'review'
 
 export type ListeningPlaybackState = {
@@ -32,7 +20,7 @@ export type ListeningPlaybackState = {
 
 type ReviewReturnView = 'home' | 'result'
 
-export type ExamReview =
+export type IeltsReview =
   | {
       kind: 'objective'
       section: 'listening' | 'reading'
@@ -58,9 +46,10 @@ export type ExamReview =
       returnTo: ReviewReturnView
     }
 
-export type ExamSession = {
+export type IeltsSession = {
+  attemptId: string | null
   view: SessionView
-  mode: ExamMode | null
+  mode: IeltsMode | null
   currentSection: SectionKey | null
   partBySection: Record<SectionKey, number>
   secondsRemaining: Record<SectionKey, number>
@@ -74,15 +63,16 @@ export type ExamSession = {
   writingEvaluation?: WritingEvaluation
   speakingSubmission?: SpeakingSubmission
   speakingEvaluation?: SpeakingEvaluation
-  review?: ExamReview
+  review?: IeltsReview
   completedSections: SectionKey[]
   startedAt?: string
   startedAtBySection: Partial<Record<SectionKey, string>>
 }
 
 export type SessionAction =
-  | { type: 'START'; mode: ExamMode; section: SectionKey; startedAt: string }
-  | { type: 'RESUME'; startedAt: string }
+  | { type: 'RESTORE'; session: IeltsSession }
+  | { type: 'START'; mode: IeltsMode; section: SectionKey; startedAt: string; attemptId: string }
+  | { type: 'RESUME'; startedAt: string; attemptId: string }
   | { type: 'SET_PART'; section: SectionKey; part: number }
   | { type: 'SET_ANSWER'; section: 'listening' | 'reading'; questionId: number; value: string }
   | { type: 'SET_WRITING'; task: 1 | 2; value: string }
@@ -93,15 +83,14 @@ export type SessionAction =
   | { type: 'ATTACH_WRITING_EVALUATION'; evaluation: WritingEvaluation }
   | { type: 'COMPLETE_SPEAKING'; submission: SpeakingSubmission }
   | { type: 'ATTACH_SPEAKING_EVALUATION'; evaluation: SpeakingEvaluation }
-  | { type: 'CONTINUE'; startedAt: string }
-  | { type: 'OPEN_REVIEW'; review: ExamReview }
+  | { type: 'CONTINUE'; startedAt: string; attemptId: string }
+  | { type: 'OPEN_REVIEW'; review: IeltsReview }
   | { type: 'CLOSE_REVIEW' }
   | { type: 'GO_HOME' }
   | { type: 'RESET' }
 
-const SESSION_STORAGE_KEY = 'ielts-practice-session-v4'
-
-export const initialSession: ExamSession = {
+export const initialSession: IeltsSession = {
+  attemptId: null,
   view: 'home',
   mode: null,
   currentSection: null,
@@ -120,112 +109,7 @@ export const initialSession: ExamSession = {
   startedAtBySection: {},
 }
 
-const sectionSchema = z.enum(['listening', 'reading', 'writing', 'speaking'])
-const timestampSchema = z.iso.datetime({ offset: true })
-const reviewReturnViewSchema = z.enum(['home', 'result'])
-const examReviewSchema: z.ZodType<ExamReview> = z.discriminatedUnion('kind', [
-  z
-    .strictObject({
-      kind: z.literal('objective'),
-      section: z.enum(['listening', 'reading']),
-      submission: objectiveSubmissionSchema,
-      document: objectiveContentDocumentSchema,
-      part: z.number().int().positive(),
-      returnTo: reviewReturnViewSchema,
-    })
-    .refine(
-      (review) =>
-        review.submission.section === review.section &&
-        review.document.section === review.section &&
-        review.document.contentKey === review.submission.contentKey,
-      { message: 'The objective review content does not match its submission.' },
-    ),
-  z
-    .strictObject({
-      kind: z.literal('writing'),
-      section: z.literal('writing'),
-      submission: writingSubmissionSchema,
-      evaluation: writingEvaluationSchema,
-      part: z.number().int().positive(),
-      returnTo: reviewReturnViewSchema,
-    })
-    .refine(
-      (review) => review.evaluation.attemptId === review.submission.attemptId,
-      { message: 'The Writing review evaluation does not match its submission.' },
-    ),
-  z
-    .strictObject({
-      kind: z.literal('speaking'),
-      section: z.literal('speaking'),
-      submission: speakingSubmissionSchema,
-      evaluation: speakingEvaluationSchema,
-      part: z.number().int().positive(),
-      returnTo: reviewReturnViewSchema,
-    })
-    .refine(
-      (review) => review.evaluation.attemptId === review.submission.attemptId,
-      { message: 'The Speaking review evaluation does not match its submission.' },
-    ),
-])
-
-const examSessionSchema: z.ZodType<ExamSession> = z
-  .strictObject({
-    view: z.enum(['home', 'exam', 'transition', 'result', 'review']),
-    mode: z.enum(['full', 'section']).nullable(),
-    currentSection: sectionSchema.nullable(),
-    partBySection: z.strictObject({
-      listening: z.number().int().positive(),
-      reading: z.number().int().positive(),
-      writing: z.number().int().positive(),
-      speaking: z.number().int().positive(),
-    }),
-    secondsRemaining: z.strictObject({
-      listening: z.number().int().nonnegative(),
-      reading: z.number().int().nonnegative(),
-      writing: z.number().int().nonnegative(),
-      speaking: z.number().int().nonnegative(),
-    }),
-    answers: z.strictObject({
-      listening: answerMapSchema,
-      reading: answerMapSchema,
-    }),
-    writingDrafts: z.strictObject({ 1: z.string(), 2: z.string() }),
-    listeningPlayback: z.strictObject({
-      currentTimeSec: z.number().nonnegative(),
-      volume: z.number().min(0).max(1),
-    }),
-    objectiveSubmissions: z.strictObject({
-      listening: objectiveSubmissionSchema.optional(),
-      reading: objectiveSubmissionSchema.optional(),
-    }),
-    writingSubmission: writingSubmissionSchema.optional(),
-    writingEvaluation: writingEvaluationSchema.optional(),
-    speakingSubmission: speakingSubmissionSchema.optional(),
-    speakingEvaluation: speakingEvaluationSchema.optional(),
-    review: examReviewSchema.optional(),
-    completedSections: z.array(sectionSchema),
-    startedAt: timestampSchema.optional(),
-    startedAtBySection: z.strictObject({
-      listening: timestampSchema.optional(),
-      reading: timestampSchema.optional(),
-      writing: timestampSchema.optional(),
-      speaking: timestampSchema.optional(),
-    }),
-  })
-  .refine(
-    (session) =>
-      !session.writingEvaluation ||
-      session.writingEvaluation.attemptId === session.writingSubmission?.attemptId,
-    { message: 'The Writing evaluation does not match the stored submission.' },
-  )
-  .refine(
-    (session) =>
-      !session.speakingEvaluation ||
-      session.speakingEvaluation.attemptId === session.speakingSubmission?.attemptId,
-    { message: 'The Speaking evaluation does not match the stored submission.' },
-  )
-
-function markComplete(state: ExamSession, section: SectionKey): ExamSession {
+function markComplete(state: IeltsSession, section: SectionKey): IeltsSession {
   const completedSections = state.completedSections.includes(section)
     ? state.completedSections
     : [...state.completedSections, section]
@@ -233,11 +117,11 @@ function markComplete(state: ExamSession, section: SectionKey): ExamSession {
     ...state,
     currentSection: section,
     completedSections,
-    view: 'transition',
+    view: state.view === 'exam' ? 'transition' : state.view,
   }
 }
 
-export function getResumableSection(state: ExamSession): SectionKey | null {
+export function getResumableSection(state: IeltsSession): SectionKey | null {
   if (state.mode === 'full') {
     return SECTION_ORDER.find(
       (section) => !state.completedSections.includes(section),
@@ -253,11 +137,14 @@ export function getResumableSection(state: ExamSession): SectionKey | null {
   return null
 }
 
-export function sessionReducer(state: ExamSession, action: SessionAction): ExamSession {
+export function sessionReducer(state: IeltsSession, action: SessionAction): IeltsSession {
   switch (action.type) {
+    case 'RESTORE':
+      return state.mode === null ? action.session : state
     case 'START':
       return {
         ...initialSession,
+        attemptId: action.attemptId,
         view: 'exam',
         mode: action.mode,
         currentSection: action.section,
@@ -271,6 +158,8 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
       return {
         ...state,
         currentSection: resumedSection,
+        attemptId: resumedSection === state.currentSection && state.attemptId
+          ? state.attemptId : action.attemptId,
         startedAtBySection: {
           ...state.startedAtBySection,
           [resumedSection]:
@@ -324,6 +213,7 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
       }
     }
     case 'COMPLETE_OBJECTIVE':
+      if (state.attemptId !== action.submission.attemptId || state.currentSection !== action.submission.section || state.completedSections.includes(action.submission.section)) return state
       return markComplete(
         {
           ...state,
@@ -335,9 +225,11 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
         action.submission.section,
       )
     case 'COMPLETE_WRITING':
+      if (state.attemptId !== action.submission.attemptId || state.currentSection !== 'writing' || state.completedSections.includes('writing')) return state
       return markComplete({ ...state, writingSubmission: action.submission }, 'writing')
     case 'ATTACH_WRITING_EVALUATION':
       if (state.writingSubmission?.attemptId !== action.evaluation.attemptId) return state
+      if (state.view !== 'transition' && state.view !== 'result') return { ...state, writingEvaluation: action.evaluation }
       return {
         ...state,
         currentSection: 'writing',
@@ -353,9 +245,11 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
         view: 'review',
       }
     case 'COMPLETE_SPEAKING':
+      if (state.attemptId !== action.submission.attemptId || state.currentSection !== 'speaking' || state.completedSections.includes('speaking')) return state
       return markComplete({ ...state, speakingSubmission: action.submission }, 'speaking')
     case 'ATTACH_SPEAKING_EVALUATION':
       if (state.speakingSubmission?.attemptId !== action.evaluation.attemptId) return state
+      if (state.view !== 'transition' && state.view !== 'result') return { ...state, speakingEvaluation: action.evaluation }
       return {
         ...state,
         currentSection: 'speaking',
@@ -379,6 +273,7 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
         ? {
             ...state,
             currentSection: next,
+            attemptId: action.attemptId,
             startedAtBySection: {
               ...state.startedAtBySection,
               [next]: action.startedAt,
@@ -403,27 +298,4 @@ export function sessionReducer(state: ExamSession, action: SessionAction): ExamS
     case 'RESET':
       return initialSession
   }
-}
-
-function parseStoredSession(value: string | null): ExamSession | null {
-  if (!value) return null
-  try {
-    const result = examSessionSchema.safeParse(JSON.parse(value))
-    if (!result.success) return null
-    return result.data.view === 'review' && !result.data.review
-      ? { ...result.data, view: 'result' }
-      : result.data
-  } catch {
-    return null
-  }
-}
-
-export function loadSession(): ExamSession {
-  if (typeof localStorage === 'undefined') return initialSession
-  return parseStoredSession(localStorage.getItem(SESSION_STORAGE_KEY)) ?? initialSession
-}
-
-export function saveSession(session: ExamSession): void {
-  if (typeof localStorage === 'undefined') return
-  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
 }

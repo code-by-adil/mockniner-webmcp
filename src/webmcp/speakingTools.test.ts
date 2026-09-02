@@ -1,3 +1,4 @@
+import { ApplicationError } from "@/domain/errors";
 import { describe, expect, it, vi } from "vitest";
 import type { SpeakingEvaluation, SpeakingSubmission } from "@/domain/types";
 import {
@@ -155,7 +156,7 @@ describe("Speaking WebMCP tools", () => {
       improvements: [...evaluationInput.improvements],
       evaluatedAt: "2026-08-31T10:06:00.000Z",
     };
-    const attach = vi.fn();
+    const attach = vi.fn(async () => { throw new ApplicationError("EVALUATION_EXISTS", "This attempt already has an evaluation."); });
     const tool = createTools(existing, attach).find(
       (item) => item.name === "attach_ielts_speaking_evaluation",
     )!;
@@ -164,6 +165,6 @@ describe("Speaking WebMCP tools", () => {
       ok: false,
       error: { code: "EVALUATION_EXISTS", retryable: false },
     });
-    expect(attach).not.toHaveBeenCalled();
+    expect(attach).toHaveBeenCalledOnce();
   });
 });

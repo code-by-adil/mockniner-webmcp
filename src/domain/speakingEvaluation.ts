@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import type { SpeakingEvaluation } from './types'
 
 const bandScoreSchema = z
   .number()
@@ -25,10 +24,3 @@ export const speakingEvaluationInputSchema = z.strictObject({
 export type SpeakingEvaluationInput = z.infer<
   typeof speakingEvaluationInputSchema
 >
-
-export function finalizeSpeakingEvaluation(
-  input: SpeakingEvaluationInput,
-  evaluatedAt: string,
-): SpeakingEvaluation {
-  return { ...input, evaluatedAt }
-}

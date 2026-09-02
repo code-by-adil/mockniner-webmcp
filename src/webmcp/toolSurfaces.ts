@@ -1,5 +1,5 @@
 import type { AssessmentSession } from "@/domain/assessmentSession";
-import type { ExamSession } from "@/domain/session";
+import type { IeltsSession } from "@/domain/session";
 import type { AssessmentToolSurface } from "./assessmentTools";
 import type { SpeakingToolSurface } from "./speakingTools";
 import type { WritingToolSurface } from "./writingTools";
@@ -23,7 +23,7 @@ export type NativeToolSurfaces = {
 };
 
 export function getNativeToolSurfaces(
-  session: ExamSession,
+  session: IeltsSession,
   assessmentSession: AssessmentSession,
 ): NativeToolSurfaces {
   if (assessmentSession.view !== "home") {

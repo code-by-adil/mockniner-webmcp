@@ -1,8 +1,7 @@
 import React from "react";
-import { useIsCompactExamLayout } from "@/hooks/use-mobile";
+import { useIsCompactExamLayout } from "@/hooks/useExamLayout";
 import { cn } from "@/lib/utils";
-import { canAssignDragOption } from "./dragSelection";
-import { DragOptionRegistry } from "./DragOptionRegistry";
+import { canAssignDragOption, type DragOption } from "./dragOptions";
 import { useExamProximityDropLayer } from "./examProximityDrop";
 import { DraggableItem } from "./DraggableItem";
 import { DropZone } from "./DropZone";
@@ -21,7 +20,10 @@ function MatchingChoiceWidth({
   className?: string;
 }) {
   return (
-    <div className={cn("w-full shrink-0", className)} style={MATCHING_CHOICE_WIDTH_STYLE}>
+    <div
+      className={cn("w-full shrink-0", className)}
+      style={MATCHING_CHOICE_WIDTH_STYLE}
+    >
       {children}
     </div>
   );
@@ -55,6 +57,7 @@ export function MatchingDraggableOption({
 }
 
 type MatchingAnswerSlotProps = {
+  options: readonly DragOption[];
   id: number | string;
   groupId: string;
   value?: string | undefined;
@@ -70,6 +73,7 @@ type MatchingAnswerSlotProps = {
 };
 
 export function MatchingAnswerSlot({
+  options,
   id,
   groupId,
   value,
@@ -84,10 +88,12 @@ export function MatchingAnswerSlot({
   mapInteraction,
 }: MatchingAnswerSlotProps) {
   const isCompactLayout = useIsCompactExamLayout();
-  const resolvedInteraction = mapInteraction ?? (isCompactLayout ? "tap" : "drag");
+  const resolvedInteraction =
+    mapInteraction ?? (isCompactLayout ? "tap" : "drag");
 
   return (
     <DropZone
+      options={options}
       id={id}
       groupId={groupId}
       value={value}
@@ -119,7 +125,11 @@ export type MatchingQuestionSetProps = {
   optionLabel: (index: number) => string;
 };
 
-function formatOptionDisplay(optionLabel: (index: number) => string, option: string, index: number) {
+function formatOptionDisplay(
+  optionLabel: (index: number) => string,
+  option: string,
+  index: number,
+) {
   return `${optionLabel(index)}. ${option}`;
 }
 
@@ -142,7 +152,7 @@ export function MatchingQuestionSet({
   const slotHostRefs = React.useRef(new Map<number, HTMLDivElement>());
   const dragEnabled = mapInteraction === "drag" && isReviewMode !== true;
 
-  const registryOptions = React.useMemo(
+  const dragOptions = React.useMemo(
     () =>
       options.map((option, index) => ({
         value: option,
@@ -164,23 +174,28 @@ export function MatchingQuestionSet({
   const canAssignToSlot = React.useCallback(
     (questionId: number, value: string) => {
       const currentValue = answers[questionId] ?? "";
-      return canAssignDragOption(groupId, value, currentValue);
+      return canAssignDragOption(dragOptions, value, currentValue);
     },
-    [answers, groupId],
+    [answers, dragOptions],
   );
 
-  const { proximitySlotId, caughtSlotId, registerSlotHost, dropFrameHandlers, flashCaughtSlot } =
-    useExamProximityDropLayer({
-      groupId,
-      dragEnabled,
-      dropFrameRef: slotsFrameRef,
-      slotHostRefs,
-      canAssignToSlot,
-      onAssign: onAnswerChange,
-      dropSnapPx: MATCHING_DROP_SNAP_PX,
-      dropReleaseSnapPx: MATCHING_DROP_RELEASE_SNAP_PX,
-      dropMaxEdgePx: MATCHING_DROP_MAX_EDGE_PX,
-    });
+  const {
+    proximitySlotId,
+    caughtSlotId,
+    registerSlotHost,
+    dropFrameHandlers,
+    flashCaughtSlot,
+  } = useExamProximityDropLayer({
+    groupId,
+    dragEnabled,
+    dropFrameRef: slotsFrameRef,
+    slotHostRefs,
+    canAssignToSlot,
+    onAssign: onAnswerChange,
+    dropSnapPx: MATCHING_DROP_SNAP_PX,
+    dropReleaseSnapPx: MATCHING_DROP_RELEASE_SNAP_PX,
+    dropMaxEdgePx: MATCHING_DROP_MAX_EDGE_PX,
+  });
 
   const handleSlotAssign = React.useCallback(
     (questionId: number, value: string) => {
@@ -223,7 +238,10 @@ export function MatchingQuestionSet({
                 : undefined;
 
               return (
-                <li key={question.questionId} className="flex items-stretch gap-2.5 sm:gap-3">
+                <li
+                  key={question.questionId}
+                  className="flex items-stretch gap-2.5 sm:gap-3"
+                >
                   <span className="w-[4.25rem] shrink-0 self-center text-sm font-semibold leading-snug text-[color:var(--exam-text)] sm:w-[4.5rem]">
                     {question.label}
                   </span>
@@ -233,34 +251,55 @@ export function MatchingQuestionSet({
                       className="relative min-w-0 flex-1"
                     >
                       <MatchingAnswerSlot
+                        options={dragOptions}
                         id={question.questionId}
                         groupId={groupId}
                         value={answerValue}
-                        {...(displayValue !== undefined ? { displayValue } : {})}
-                        onDrop={(value) => handleSlotAssign(question.questionId, value)}
+                        {...(displayValue !== undefined
+                          ? { displayValue }
+                          : {})}
+                        onDrop={(value) =>
+                          handleSlotAssign(question.questionId, value)
+                        }
                         onClear={() => onAnswerChange(question.questionId, "")}
                         placeholder={placeholder ?? String(question.questionId)}
                         isReviewMode={isReviewMode}
                         correctAnswer={getCorrectAnswer(question.questionId)}
-                        proximityActive={proximitySlotId === question.questionId}
+                        proximityActive={
+                          proximitySlotId === question.questionId
+                        }
                         catchFlash={caughtSlotId === question.questionId}
                         mapInteraction={mapInteraction}
                       />
                     </div>
                   ) : (
                     <MatchingChoiceWidth>
-                      <div ref={registerSlotHost(question.questionId)} className="relative w-full">
+                      <div
+                        ref={registerSlotHost(question.questionId)}
+                        className="relative w-full"
+                      >
                         <MatchingAnswerSlot
+                          options={dragOptions}
                           id={question.questionId}
                           groupId={groupId}
                           value={answerValue}
-                          {...(displayValue !== undefined ? { displayValue } : {})}
-                          onDrop={(value) => handleSlotAssign(question.questionId, value)}
-                          onClear={() => onAnswerChange(question.questionId, "")}
-                          placeholder={placeholder ?? String(question.questionId)}
+                          {...(displayValue !== undefined
+                            ? { displayValue }
+                            : {})}
+                          onDrop={(value) =>
+                            handleSlotAssign(question.questionId, value)
+                          }
+                          onClear={() =>
+                            onAnswerChange(question.questionId, "")
+                          }
+                          placeholder={
+                            placeholder ?? String(question.questionId)
+                          }
                           isReviewMode={isReviewMode}
                           correctAnswer={getCorrectAnswer(question.questionId)}
-                          proximityActive={proximitySlotId === question.questionId}
+                          proximityActive={
+                            proximitySlotId === question.questionId
+                          }
                           catchFlash={caughtSlotId === question.questionId}
                           mapInteraction={mapInteraction}
                         />
@@ -273,9 +312,7 @@ export function MatchingQuestionSet({
           </ul>
         </section>
 
-        {isCompactLayout && !isReviewMode ? (
-          <DragOptionRegistry groupId={groupId} options={registryOptions} />
-        ) : (
+        {isCompactLayout && !isReviewMode ? null : (
           <section className="min-w-0 shrink-0">
             <p className="mb-2 min-h-[1.125rem] text-[0.6875rem] font-bold uppercase leading-snug tracking-wider text-[color:var(--exam-text-muted)]">
               Options
@@ -285,7 +322,11 @@ export function MatchingQuestionSet({
                 <li key={option}>
                   <MatchingChoiceWidth>
                     <MatchingDraggableOption
-                      text={formatOptionDisplay(optionLabel, option, optionIndex)}
+                      text={formatOptionDisplay(
+                        optionLabel,
+                        option,
+                        optionIndex,
+                      )}
                       value={option}
                       groupId={groupId}
                       isUsed={usedAnswers.has(option)}

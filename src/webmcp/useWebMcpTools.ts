@@ -1,17 +1,23 @@
-import { useEffect, useRef } from "react";
-import type { ExamApplicationCommands } from "@/application/commands";
-import type { AssessmentApplicationCommands } from "@/application/useAssessmentApplication";
-import { reportWebHandledProductFailure } from "@/shared/observability/report-error";
-import { createHomeAuthoringToolDefinitions } from "./homeAuthoringTools";
-import { createWritingToolDefinitions } from "./writingTools";
-import type { WritingToolSurface } from "./writingTools";
-import { createSpeakingToolDefinitions } from "./speakingTools";
-import type { SpeakingToolSurface } from "./speakingTools";
-import { createAssessmentToolDefinitions } from "./assessmentTools";
-import type { AssessmentToolSurface } from "./assessmentTools";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import type { IeltsCommands } from "@/application/ieltsCommands";
+import type { AssessmentApplicationCommands } from "@/application/assessmentCommands";
+import { reportHandledError } from "@/shared/reportHandledError";
+import { createHomeToolDefinitions } from "./homeTools";
+import {
+  createWritingToolDefinitions,
+  type WritingToolSurface,
+} from "./writingTools";
+import {
+  createSpeakingToolDefinitions,
+  type SpeakingToolSurface,
+} from "./speakingTools";
+import {
+  createAssessmentToolDefinitions,
+  type AssessmentToolSurface,
+} from "./assessmentTools";
 
 type WebMcpToolOptions = {
-  commands: ExamApplicationCommands;
+  commands: IeltsCommands;
   assessmentCommands: AssessmentApplicationCommands;
   currentWritingAttemptId?: string;
   currentSpeakingAttemptId?: string;
@@ -23,166 +29,104 @@ type WebMcpToolOptions = {
   enabled: boolean;
 };
 
-async function registerTools(
-  modelContext: WebMCP.ModelContext,
-  tools: WebMCP.ModelContextTool[],
-  signal: AbortSignal,
-): Promise<void> {
-  await Promise.all(tools.map((tool) => modelContext.registerTool(tool, { signal })));
-}
+const getIeltsRepository = async () =>
+  (
+    await import("@/infrastructure/database/ieltsRepository")
+  ).getIeltsRepository();
+const getAssessmentRepository = async () =>
+  (
+    await import("@/infrastructure/database/assessmentRepository")
+  ).getAssessmentRepository();
 
-function reportRegistrationFailure(error: unknown, signal: AbortSignal): void {
-  if (!signal.aborted) {
-    reportWebHandledProductFailure(error, { feature: "webmcp-tools" });
-  }
-}
-
-export function useWebMcpTools({
-  commands,
-  assessmentCommands,
-  currentWritingAttemptId,
-  currentSpeakingAttemptId,
-  currentAssessmentAttemptId,
-  assessmentToolSurface,
-  nativeAuthoringEnabled,
-  writingToolSurface,
-  speakingToolSurface,
-  enabled,
-}: WebMcpToolOptions): void {
-  const installContentRef = useRef(commands.installContent);
-  const attachWritingEvaluationRef = useRef(commands.attachWritingEvaluation);
-  const currentWritingAttemptIdRef = useRef(currentWritingAttemptId);
-  const attachSpeakingEvaluationRef = useRef(commands.attachSpeakingEvaluation);
-  const currentSpeakingAttemptIdRef = useRef(currentSpeakingAttemptId);
-  const installAssessmentRef = useRef(assessmentCommands.installAssessment);
-  const attachAssessmentEvaluationRef = useRef(assessmentCommands.attachEvaluation);
-  const currentAssessmentAttemptIdRef = useRef(currentAssessmentAttemptId);
-
-  useEffect(() => {
-    installContentRef.current = commands.installContent;
-    attachWritingEvaluationRef.current = commands.attachWritingEvaluation;
-    currentWritingAttemptIdRef.current = currentWritingAttemptId;
-    attachSpeakingEvaluationRef.current = commands.attachSpeakingEvaluation;
-    currentSpeakingAttemptIdRef.current = currentSpeakingAttemptId;
-    installAssessmentRef.current = assessmentCommands.installAssessment;
-    attachAssessmentEvaluationRef.current = assessmentCommands.attachEvaluation;
-    currentAssessmentAttemptIdRef.current = currentAssessmentAttemptId;
-  }, [
-    commands.installContent,
-    commands.attachWritingEvaluation,
-    commands.attachSpeakingEvaluation,
-    currentWritingAttemptId,
-    currentSpeakingAttemptId,
-    assessmentCommands.installAssessment,
-    assessmentCommands.attachEvaluation,
-    currentAssessmentAttemptId,
-  ]);
-
-  useEffect(() => {
-    if (
-      !enabled ||
-      (!nativeAuthoringEnabled && writingToolSurface === "none" && speakingToolSurface === "none")
-    )
-      return;
-    const modelContext = document.modelContext;
-    if (!modelContext) return;
-
-    const controller = new AbortController();
-    const register = async () => {
-      const readWritingAttempt = async (attemptId?: string) => {
-        const [{ getLocalDatabase }, repository] = await Promise.all([
-          import("@/infrastructure/database/client"),
-          import("@/infrastructure/database/attemptRepository"),
-        ]);
-        return repository.readWritingAttempt(await getLocalDatabase(), attemptId);
-      };
-      const nativeTools: WebMCP.ModelContextTool[] = [];
-      if (nativeAuthoringEnabled && assessmentToolSurface === "authoring") {
-        nativeTools.push(
-          ...createHomeAuthoringToolDefinitions({
-            installContent: (input) => installContentRef.current(input),
-            installAssessment: (input) => installAssessmentRef.current(input),
-            readLearningSummary: async (recentLimit) => {
-              const [{ getLocalDatabase }, repository] = await Promise.all([
-                import("@/infrastructure/database/client"),
-                import("@/infrastructure/database/attemptRepository"),
-              ]);
-              return repository.readLearningSummary(await getLocalDatabase(), recentLimit);
-            },
-          }),
-        );
-      }
-      nativeTools.push(
-        ...createWritingToolDefinitions(
-          {
-            readWritingAttempt,
-            attachWritingEvaluation: (input) => attachWritingEvaluationRef.current(input),
-            getCurrentWritingAttemptId: () => currentWritingAttemptIdRef.current,
-          },
-          writingToolSurface,
-        ),
-      );
-      nativeTools.push(
-        ...createSpeakingToolDefinitions(
-          {
-            readSpeakingAttempt: async (attemptId) => {
-              const [{ getLocalDatabase }, repository] = await Promise.all([
-                import("@/infrastructure/database/client"),
-                import("@/infrastructure/database/speakingRepository"),
-              ]);
-              return repository.readSpeakingAttempt(await getLocalDatabase(), attemptId);
-            },
-            attachSpeakingEvaluation: (input) => attachSpeakingEvaluationRef.current(input),
-            getCurrentSpeakingAttemptId: () => currentSpeakingAttemptIdRef.current,
-          },
-          speakingToolSurface,
-        ),
-      );
-      await registerTools(modelContext, nativeTools, controller.signal);
-    };
-
-    void register().catch((error) => reportRegistrationFailure(error, controller.signal));
-
-    return () => controller.abort();
-  }, [
-    assessmentToolSurface,
+export function useWebMcpTools(options: WebMcpToolOptions): void {
+  const latest = useRef(options);
+  useLayoutEffect(() => {
+    latest.current = options;
+  }, [options]);
+  const {
     enabled,
     nativeAuthoringEnabled,
-    speakingToolSurface,
+    assessmentToolSurface,
     writingToolSurface,
-  ]);
-
+    speakingToolSurface,
+  } = options;
   useEffect(() => {
-    if (
-      !enabled ||
-      assessmentToolSurface === "none" ||
-      assessmentToolSurface === "authoring"
-    )
-      return;
+    if (!enabled || !document.modelContext) return;
     const modelContext = document.modelContext;
-    if (!modelContext) return;
-
     const controller = new AbortController();
-    const register = async () => {
-      const assessmentTools = createAssessmentToolDefinitions(
-        {
-          installAssessment: (input) => installAssessmentRef.current(input),
-          readAssessmentAttempt: async (attemptId) => {
-            const [{ getLocalDatabase }, repository] = await Promise.all([
-              import("@/infrastructure/database/client"),
-              import("@/infrastructure/database/assessmentRepository"),
-            ]);
-            return repository.readAssessmentAttempt(await getLocalDatabase(), attemptId);
-          },
-          attachEvaluation: (input) => attachAssessmentEvaluationRef.current(input),
-          getCurrentAttemptId: () => currentAssessmentAttemptIdRef.current,
-        },
-        assessmentToolSurface,
+    const tools: WebMCP.ModelContextTool[] = [];
+    if (nativeAuthoringEnabled && assessmentToolSurface === "authoring") {
+      tools.push(
+        ...createHomeToolDefinitions({
+          installContent: (input) =>
+            latest.current.commands.installContent(input),
+          installAssessment: (input) =>
+            latest.current.assessmentCommands.installAssessment(input),
+          readLearningSummary: async (limit) =>
+            (await getIeltsRepository()).readLearningSummary(limit),
+        }),
       );
-      await registerTools(modelContext, assessmentTools, controller.signal);
-    };
-
-    void register().catch((error) => reportRegistrationFailure(error, controller.signal));
+    }
+    tools.push(
+      ...createWritingToolDefinitions(
+        {
+          readWritingAttempt: async (id) =>
+            (await getIeltsRepository()).readWritingAttempt(id),
+          attachWritingEvaluation: (input) =>
+            latest.current.commands.attachWritingEvaluation(input),
+          getCurrentWritingAttemptId: () =>
+            latest.current.currentWritingAttemptId,
+        },
+        writingToolSurface,
+      ),
+    );
+    tools.push(
+      ...createSpeakingToolDefinitions(
+        {
+          readSpeakingAttempt: async (id) =>
+            (await getIeltsRepository()).readSpeakingAttempt(id),
+          attachSpeakingEvaluation: (input) =>
+            latest.current.commands.attachSpeakingEvaluation(input),
+          getCurrentSpeakingAttemptId: () =>
+            latest.current.currentSpeakingAttemptId,
+        },
+        speakingToolSurface,
+      ),
+    );
+    if (
+      assessmentToolSurface === "results" ||
+      assessmentToolSurface === "evaluation"
+    ) {
+      tools.push(
+        ...createAssessmentToolDefinitions(
+          {
+            installAssessment: (input) =>
+              latest.current.assessmentCommands.installAssessment(input),
+            readAssessmentAttempt: async (id) =>
+              (await getAssessmentRepository()).readAttempt(id),
+            attachEvaluation: (input) =>
+              latest.current.assessmentCommands.attachEvaluation(input),
+            getCurrentAttemptId: () =>
+              latest.current.currentAssessmentAttemptId,
+          },
+          assessmentToolSurface,
+        ),
+      );
+    }
+    void Promise.all(
+      tools.map((tool) =>
+        modelContext.registerTool(tool, { signal: controller.signal }),
+      ),
+    ).catch((error) => {
+      if (!controller.signal.aborted)
+        reportHandledError(error, { feature: "webmcp-tools" });
+    });
     return () => controller.abort();
-  }, [assessmentToolSurface, enabled]);
+  }, [
+    enabled,
+    nativeAuthoringEnabled,
+    assessmentToolSurface,
+    writingToolSurface,
+    speakingToolSurface,
+  ]);
 }

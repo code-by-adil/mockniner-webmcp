@@ -35,7 +35,7 @@ export function AssessmentResults({
         <div className="mb-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800"><Check size={14} /> Attempt saved locally</div>
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight">{assessment.title}</h1>
-          <p className="mt-2 text-sm text-neutral-500">Practice results are based on this immutable assessment revision and response snapshot.</p>
+          <p className="mt-2 text-sm text-neutral-500">These results use your saved answers.</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">

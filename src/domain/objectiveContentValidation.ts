@@ -1,5 +1,4 @@
 import type { z } from "zod";
-import type { AnswerKey } from "./types";
 import {
   objectiveContentDocumentShapeSchema,
   type ObjectiveContentBlock,
@@ -276,48 +275,4 @@ export function getObjectiveBlockQuestionIds(
     case "spacer":
       return [];
   }
-}
-
-export function getObjectiveAnswerKey(
-  document: ObjectiveContentDocument,
-): AnswerKey {
-  const answerKey: AnswerKey = {};
-  document.parts.forEach((part) => {
-    part.blocks.forEach((block) => {
-      switch (block.type) {
-        case "completion_questions":
-          block.items.forEach((item) => {
-            answerKey[item.questionId] = item.answer;
-          });
-          break;
-        case "mcq_questions":
-        case "true_false_not_given_questions":
-        case "yes_no_not_given_questions":
-        case "feature_matching_questions":
-        case "heading_matching_questions":
-        case "map_labeling_questions":
-          block.questions.forEach((question) => {
-            answerKey[question.questionId] = question.answer;
-          });
-          break;
-        case "multiple_selection_question":
-          block.questionIds.forEach((id, index) => {
-            const answer = block.answers[index];
-            if (answer === undefined) {
-              throw new Error(
-                `Missing embedded answer for multiple-selection question ${id}.`,
-              );
-            }
-            answerKey[id] = answer;
-          });
-          break;
-        case "group_header":
-        case "text":
-        case "passage":
-        case "spacer":
-          break;
-      }
-    });
-  });
-  return answerKey;
 }

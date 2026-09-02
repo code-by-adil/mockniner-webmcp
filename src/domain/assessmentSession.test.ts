@@ -33,8 +33,8 @@ describe("assessment session", () => {
     const active = start();
     expect(getDraftAssessmentPackageId(active)).toBe(satPracticeAssessment.packageId);
     expect(getDraftAssessmentPackageId(initialAssessmentSession)).toBeNull();
-    expect(getDraftAssessmentPackageId({
-      ...active,
+    expect(getDraftAssessmentPackageId(assessmentSessionReducer(active, {
+      type: "COMPLETE",
       submission: {
         attemptId,
         packageId: satPracticeAssessment.packageId,
@@ -44,7 +44,7 @@ describe("assessment session", () => {
         startedAt: new Date(nowMs).toISOString(),
         submittedAt: new Date(nowMs + 1_000).toISOString(),
       },
-    })).toBeNull();
+    }))).toBeNull();
   });
 
   it("discards every piece of draft state without touching package storage", () => {
@@ -217,6 +217,31 @@ describe("assessment session", () => {
     };
     expect(assessmentSessionReducer(initialAssessmentSession, {
       type: "OPEN_SUBMISSION", submission, evaluation: null,
-    })).toMatchObject({ view: "result", packageId: submission.packageId, submission });
+    })).toMatchObject({ view: "result", packageId: null, submission });
+  });
+
+  it("preserves the draft while viewing history, including storage and resume", () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("window", { localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    } });
+    const draft = assessmentSessionReducer(start(), { type: "SET_RESPONSE", itemId: "rw-1", response: "b" });
+    const submission: AssessmentSubmission = {
+      attemptId: "44444444-4444-4444-8444-444444444444", packageId: satPracticeAssessment.packageId,
+      package: satPracticeAssessment, responses: {}, result: gradeAssessment(satPracticeAssessment, {}),
+      startedAt: new Date(nowMs).toISOString(), submittedAt: new Date(nowMs).toISOString(),
+    };
+    const review = assessmentSessionReducer(draft, { type: "OPEN_SUBMISSION", submission, evaluation: null });
+    expect(review.responses).toEqual(draft.responses);
+    expect(getDraftAssessmentPackageId(review)).toBe(draft.packageId);
+    saveAssessmentSession(review);
+    const resumed = assessmentSessionReducer(loadAssessmentSession(), {
+      type: "RESUME", assessment: satPracticeAssessment, nowMs,
+    });
+    expect(resumed).toMatchObject({ view: "assessment", attemptId, responses: { "rw-1": "b" } });
+    expect(resumed.submission).toBeUndefined();
+    expect(assessmentSessionReducer(resumed, { type: "COMPLETE", submission })).toBe(resumed);
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import type { AgentSpeakingTurnHandler } from '@/application/speakingInterview'
-import { reportWebHandledProductFailure } from '@/shared/observability/report-error'
+import { reportHandledError } from '@/shared/reportHandledError'
 import { createSpeakingInterviewToolDefinition } from './speakingTools'
 
 export function useSpeakingInterviewTool(
@@ -16,7 +16,7 @@ export function useSpeakingInterviewTool(
       { signal: controller.signal },
     ).catch((error) => {
       if (!controller.signal.aborted) {
-        reportWebHandledProductFailure(error, { feature: 'speaking-interview-tool' })
+        reportHandledError(error, { feature: 'speaking-interview-tool' })
       }
     })
 

@@ -4,7 +4,6 @@ export type SectionKey = 'listening' | 'reading' | 'writing' | 'speaking'
 
 type AnswerValue = string
 export type AnswerMap = Record<number, AnswerValue>
-export type AnswerKey = Record<number, string | string[]>
 
 export type SpeakingPrompt = {
   id: number

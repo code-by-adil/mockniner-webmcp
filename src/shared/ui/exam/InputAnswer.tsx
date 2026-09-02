@@ -1,5 +1,5 @@
 import React from 'react';
-import { normalizeAnswer } from '@/modules/exam-engine/review-mode/normalizeAnswer';
+import { objectiveAnswerMatches } from '@/domain/objectiveScoring';
 
 interface InputAnswerProps {
   questionNumber: number;
@@ -34,20 +34,8 @@ export const InputAnswer: React.FC<InputAnswerProps> = ({
   const fieldId = `question-input-${questionNumber}`;
   const fieldName = `question_${questionNumber}`;
   const hasValue = value.trim().length > 0;
-  let isCorrect = false;
-  let displayCorrect: string | null = null;
-
-  if (isReviewMode) {
-    if (correctAnswer) {
-      if (Array.isArray(correctAnswer)) {
-        isCorrect = correctAnswer.some(c => normalizeAnswer(c) === normalizeAnswer(value));
-        displayCorrect = correctAnswer[0] ?? null;
-      } else {
-        isCorrect = normalizeAnswer(correctAnswer) === normalizeAnswer(value);
-        displayCorrect = correctAnswer;
-      }
-    }
-  }
+  const isCorrect = isReviewMode && correctAnswer !== undefined && objectiveAnswerMatches(value, correctAnswer);
+  const displayCorrect = isReviewMode ? (Array.isArray(correctAnswer) ? correctAnswer[0] : correctAnswer) : null;
 
   return (
     <span

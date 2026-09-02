@@ -75,7 +75,7 @@ export const initialAssessmentSession: AssessmentSession = {
 export const ASSESSMENT_SESSION_STORAGE_KEY = "assessment-runtime-session-v3";
 
 export function getDraftAssessmentPackageId(session: AssessmentSession): string | null {
-  return session.attemptId && session.packageId && !session.submission
+  return session.attemptId && session.packageId
     ? session.packageId
     : null;
 }
@@ -112,7 +112,7 @@ function resumeAssessment(
   assessment: AssessmentPackage,
   nowMs: number,
 ): AssessmentSession {
-  if (state.packageId !== assessment.packageId || state.submission) return state;
+  if (!state.attemptId || state.packageId !== assessment.packageId) return state;
   const part = findAssessmentPart(assessment, state.partId) ?? assessment.parts[0]!;
   const item = findAssessmentItem(part, state.itemId) ?? part.items[0]!;
   const duration = part.durationSeconds ?? null;
@@ -120,6 +120,8 @@ function resumeAssessment(
   return {
     ...state,
     view: "assessment",
+    submission: undefined,
+    evaluation: undefined,
     partId: part.id,
     itemId: item.id,
     secondsRemaining: remainingSeconds(state.deadlineAt, fallback, nowMs),
@@ -234,20 +236,23 @@ export function assessmentSessionReducer(
         : state;
     }
     case "COMPLETE":
-      return { ...state, view: "result", submission: action.submission, deadlineAt: null };
-    case "OPEN_SUBMISSION":
+      if (state.attemptId !== action.submission.attemptId) return state;
       return {
         ...initialAssessmentSession,
-        workspace: { ...initialWorkspace },
+        view: state.view === "assessment" ? "result" : state.view,
+        submission: state.view === "assessment" ? action.submission : state.submission,
+        evaluation: state.view === "assessment" ? undefined : state.evaluation,
+      };
+    case "OPEN_SUBMISSION":
+      return {
+        ...state,
         view: "result",
-        attemptId: action.submission.attemptId,
-        packageId: action.submission.packageId,
         submission: action.submission,
-        ...(action.evaluation ? { evaluation: action.evaluation } : {}),
+        evaluation: action.evaluation ?? undefined,
       };
     case "ATTACH_EVALUATION":
       return state.submission?.attemptId === action.evaluation.attemptId
-        ? { ...state, view: "result", evaluation: action.evaluation }
+        ? { ...state, evaluation: action.evaluation }
         : state;
     case "RESET":
       return initialAssessmentSession;
@@ -284,7 +289,7 @@ export function loadAssessmentSession(): AssessmentSession {
 
 export function saveAssessmentSession(session: AssessmentSession): void {
   if (typeof window === "undefined") return;
-  if (!session.attemptId || !session.packageId || !session.partId || !session.itemId || !session.startedAt || session.submission) {
+  if (!session.attemptId || !session.packageId || !session.partId || !session.itemId || !session.startedAt) {
     window.localStorage.removeItem(ASSESSMENT_SESSION_STORAGE_KEY);
     return;
   }

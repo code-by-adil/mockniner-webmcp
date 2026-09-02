@@ -1,4 +1,5 @@
 import type { SQLocal } from "sqlocal";
+import { ApplicationError } from '@/domain/errors';
 import type { ContentStore } from "@/application/contentStore";
 import {
   parsePracticeContentDocument,
@@ -84,8 +85,9 @@ export async function saveAndActivateContent(
       WHERE content_key = ${document.contentKey}
     `;
     if (existing && existing.documentJson !== documentJson) {
-      throw new Error(
+      throw new ApplicationError('CONTENT_KEY_CONFLICT',
         `Content key ${document.contentKey} is already installed with different data.`,
+        true,
       );
     }
 

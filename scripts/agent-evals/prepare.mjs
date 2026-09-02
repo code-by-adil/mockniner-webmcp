@@ -49,8 +49,8 @@ const invalidRepairPackage = {
 
 function evaluationToolSchemas(modules) {
   const never = async () => null;
-  return modules.homeAuthoringTools
-    .createHomeAuthoringToolDefinitions({
+  return modules.homeTools
+    .createHomeToolDefinitions({
       installContent: never,
       installAssessment: never,
       readLearningSummary: never,

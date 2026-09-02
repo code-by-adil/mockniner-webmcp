@@ -1,53 +1,65 @@
-import type { SQLocal } from 'sqlocal'
-import type { SpeakingEvaluation, SpeakingSubmission } from '@/domain/types'
-import { parseStoredSpeakingEvaluation } from '@/domain/attemptValidation'
-import type { SaveSpeakingAttemptInput, SpeakingRecordingInput } from '@/application/attemptWriter'
+import type { SQLocal } from "sqlocal";
+import { ApplicationError } from "@/domain/errors";
+import type { SpeakingEvaluation, SpeakingSubmission } from "@/domain/types";
+import { parseStoredSpeakingEvaluation } from "@/domain/attemptValidation";
+import type {
+  SaveSpeakingAttemptInput,
+  SpeakingRecordingInput,
+} from "@/application/attemptWriter";
 
 type StoredSpeakingAttemptRow = {
-  id: string
-  contentKey: string
-  startedAt: string
-  submittedAt: string
-}
+  id: string;
+  contentKey: string;
+  startedAt: string;
+  submittedAt: string;
+};
 
 type StoredSpeakingResponseRow = {
-  id: string
-  promptId: number
-  partLabel: string
-  sequence: number
-  promptText: string
-  timeLimitSeconds: number
-  durationMs: number
-  transcript: string
-}
+  id: string;
+  promptId: number;
+  partLabel: string;
+  sequence: number;
+  promptText: string;
+  timeLimitSeconds: number;
+  durationMs: number;
+  transcript: string;
+};
 
 type StoredSpeakingEvaluationRow = {
-  evaluationJson: string
-}
+  evaluationJson: string;
+};
 
 function validateRecordings(recordings: SpeakingRecordingInput[]): void {
   if (recordings.length === 0) {
-    throw new Error('A Speaking attempt must contain at least one recording.')
+    throw new Error("A Speaking attempt must contain at least one recording.");
   }
 
-  const promptIds = new Set<number>()
-  const sequences = new Set<number>()
+  const promptIds = new Set<number>();
+  const sequences = new Set<number>();
 
   for (const recording of recordings) {
     if (recording.audio.size === 0) {
-      throw new Error(`The recording for prompt ${recording.promptId} is empty.`)
+      throw new Error(
+        `The recording for prompt ${recording.promptId} is empty.`,
+      );
     }
     if (!recording.transcript.trim()) {
-      throw new Error(`The transcript for prompt ${recording.promptId} is empty.`)
+      throw new Error(
+        `The transcript for prompt ${recording.promptId} is empty.`,
+      );
     }
     if (promptIds.has(recording.promptId)) {
-      throw new Error(`Prompt ${recording.promptId} has more than one recording.`)
+      throw new Error(
+        `Prompt ${recording.promptId} has more than one recording.`,
+      );
     }
     if (sequences.has(recording.sequence)) {
-      throw new Error(`Speaking response sequence ${recording.sequence} is duplicated.`)
+      throw new Error(
+        `Speaking response sequence ${recording.sequence} is duplicated.`,
+      );
     }
-    promptIds.add(recording.promptId)
-    sequences.add(recording.sequence)
+    promptIds.add(recording.promptId);
+    sequences.add(recording.sequence);
   }
 }
 
@@ -55,28 +67,31 @@ export async function saveSpeakingAttempt(
   database: SQLocal,
   input: SaveSpeakingAttemptInput,
 ): Promise<SpeakingSubmission> {
-  validateRecordings(input.recordings)
+  validateRecordings(input.recordings);
 
-  const attemptId = crypto.randomUUID()
-  const { submittedAt } = input
+  const attemptId = input.attemptId;
+  const { submittedAt } = input;
   const preparedRecordings = await Promise.all(
     input.recordings.map(async (recording) => ({
       ...recording,
       id: crypto.randomUUID(),
-      mimeType: recording.audio.type || 'audio/webm',
+      mimeType: recording.audio.type || "audio/webm",
       byteLength: recording.audio.size,
       audioBytes: new Uint8Array(await recording.audio.arrayBuffer()),
     })),
-  )
+  );
 
-  await database.batch((sql) => [
-    sql`INSERT INTO attempts (
+  return database.transaction(async (transaction) => {
+    const stored = await readSpeakingAttempt(transaction, input.attemptId);
+    if (stored) return stored.submission;
+    await transaction.batch((sql) => [
+      sql`INSERT INTO attempts (
       id, section, content_key, status, started_at, submitted_at
     ) VALUES (
       ${attemptId}, 'speaking', ${input.contentKey}, 'submitted', ${input.startedAt}, ${submittedAt}
     )`,
-    ...preparedRecordings.map(
-      (recording) => sql`INSERT INTO speaking_responses (
+      ...preparedRecordings.map(
+        (recording) => sql`INSERT INTO speaking_responses (
         id,
         attempt_id,
         prompt_id,
@@ -103,33 +118,34 @@ export async function saveSpeakingAttempt(
         ${recording.audioBytes},
         ${recording.transcript.trim()}
       )`,
-    ),
-  ])
+      ),
+    ]);
 
-  return {
-    attemptId,
-    contentKey: input.contentKey,
-    responses: preparedRecordings.map((recording) => ({
-      recordingId: recording.id,
-      promptId: recording.promptId,
-      partLabel: recording.partLabel,
-      sequence: recording.sequence,
-      promptText: recording.promptText,
-      timeLimitSeconds: recording.timeLimitSeconds,
-      durationMs: Math.max(0, Math.round(recording.durationMs)),
-      transcript: recording.transcript.trim(),
-    })),
-    startedAt: input.startedAt,
-    submittedAt,
-  }
+    return {
+      attemptId,
+      contentKey: input.contentKey,
+      responses: preparedRecordings.map((recording) => ({
+        recordingId: recording.id,
+        promptId: recording.promptId,
+        partLabel: recording.partLabel,
+        sequence: recording.sequence,
+        promptText: recording.promptText,
+        timeLimitSeconds: recording.timeLimitSeconds,
+        durationMs: Math.max(0, Math.round(recording.durationMs)),
+        transcript: recording.transcript.trim(),
+      })),
+      startedAt: input.startedAt,
+      submittedAt,
+    };
+  });
 }
 
 export async function readSpeakingAttempt(
-  database: SQLocal,
+  database: Pick<SQLocal, "sql">,
   attemptId?: string,
 ): Promise<{
-  submission: SpeakingSubmission
-  evaluation: SpeakingEvaluation | null
+  submission: SpeakingSubmission;
+  evaluation: SpeakingEvaluation | null;
 } | null> {
   const attempts = attemptId
     ? await database.sql<StoredSpeakingAttemptRow>`
@@ -151,9 +167,9 @@ export async function readSpeakingAttempt(
       WHERE section = 'speaking'
       ORDER BY submitted_at DESC
       LIMIT 1
-    `
-  const [attempt] = attempts
-  if (!attempt) return null
+    `;
+  const [attempt] = attempts;
+  if (!attempt) return null;
 
   const responses = await database.sql<StoredSpeakingResponseRow>`
     SELECT
@@ -168,13 +184,13 @@ export async function readSpeakingAttempt(
     FROM speaking_responses
     WHERE attempt_id = ${attempt.id}
     ORDER BY sequence
-  `
+  `;
 
   const [evaluationRow] = await database.sql<StoredSpeakingEvaluationRow>`
     SELECT evaluation_json AS evaluationJson
     FROM speaking_evaluations
     WHERE attempt_id = ${attempt.id}
-  `
+  `;
 
   const submission: SpeakingSubmission = {
     attemptId: attempt.id,
@@ -191,28 +207,43 @@ export async function readSpeakingAttempt(
     })),
     startedAt: attempt.startedAt,
     submittedAt: attempt.submittedAt,
-  }
+  };
 
   return {
     submission,
     evaluation: evaluationRow
       ? parseStoredSpeakingEvaluation(evaluationRow.evaluationJson)
       : null,
-  }
+  };
 }
 
 export async function saveSpeakingEvaluation(
   database: SQLocal,
   evaluation: SpeakingEvaluation,
 ): Promise<void> {
-  await database.batch((sql) => [
-    sql`INSERT INTO speaking_evaluations (
+  await database.transaction(async (transaction) => {
+    const [attempt] = await transaction.sql<{
+      id: string;
+    }>`SELECT id FROM attempts WHERE id = ${evaluation.attemptId} AND section = 'speaking'`;
+    if (!attempt)
+      throw new ApplicationError(
+        "SPEAKING_SUBMISSION_NOT_FOUND",
+        `Speaking attempt ${evaluation.attemptId} was not found.`,
+      );
+    const inserted = await transaction.sql<{
+      attemptId: string;
+    }>`INSERT INTO speaking_evaluations (
       attempt_id, evaluation_json, evaluated_at
     ) VALUES (
       ${evaluation.attemptId}, ${JSON.stringify(evaluation)}, ${evaluation.evaluatedAt}
-    )`,
-    sql`UPDATE attempts
+    ) ON CONFLICT(attempt_id) DO NOTHING RETURNING attempt_id AS attemptId`;
+    if (!inserted.length)
+      throw new ApplicationError(
+        "EVALUATION_EXISTS",
+        `Speaking attempt ${evaluation.attemptId} already has an evaluation.`,
+      );
+    await transaction.sql`UPDATE attempts
       SET status = 'evaluated'
-      WHERE id = ${evaluation.attemptId} AND section = 'speaking'`,
-  ])
+      WHERE id = ${evaluation.attemptId} AND section = 'speaking'`;
+  });
 }

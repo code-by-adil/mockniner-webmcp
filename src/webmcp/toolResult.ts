@@ -1,4 +1,10 @@
 import type { z } from 'zod'
+import { ApplicationError } from '@/domain/errors'
+
+export function applicationFailure(error: unknown): ToolFailure {
+  if (error instanceof ApplicationError) return toolFailure(error.code, error.message, error.retryable, error.issues)
+  throw error
+}
 
 export type ToolIssue = {
   path: string

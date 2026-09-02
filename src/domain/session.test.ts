@@ -1,9 +1,8 @@
+import { loadSession, saveSession } from '@/infrastructure/ieltsSessionStorage'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   getResumableSection,
   initialSession,
-  loadSession,
-  saveSession,
   sessionReducer,
 } from './session'
 import { writingDocument } from '@/content/writing'
@@ -64,6 +63,11 @@ const writingEvaluation: WritingEvaluation = {
   evaluatedAt: '2026-08-31T11:05:00.000Z',
 }
 
+const reader = {
+  readLearningSummary: vi.fn(), readObjectiveAttempt: vi.fn(),
+  readWritingAttempt: vi.fn(), readSpeakingAttempt: vi.fn(),
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -71,7 +75,7 @@ afterEach(() => {
 describe('full exam state transitions', () => {
   it('locks a submitted section behind a transition and advances in official order', () => {
     const started = sessionReducer(initialSession, {
-      type: 'START',
+      type: 'START', attemptId: listeningSubmission.attemptId,
       mode: 'full',
       section: 'listening',
       startedAt: '2026-08-31T10:00:00.000Z',
@@ -81,7 +85,7 @@ describe('full exam state transitions', () => {
     expect(submitted.view).toBe('transition')
     expect(submitted.completedSections).toEqual(['listening'])
     const continued = sessionReducer(submitted, {
-      type: 'CONTINUE',
+      type: 'CONTINUE', attemptId: readingSubmission.attemptId,
       startedAt: '2026-08-31T10:31:00.000Z',
     })
     expect(continued.view).toBe('exam')
@@ -90,7 +94,7 @@ describe('full exam state transitions', () => {
 
   it('runs all four sections in order before showing the full-exam result', () => {
     const listening = sessionReducer(initialSession, {
-      type: 'START',
+      type: 'START', attemptId: listeningSubmission.attemptId,
       mode: 'full',
       section: 'listening',
       startedAt: '2026-08-31T10:00:00.000Z',
@@ -100,21 +104,21 @@ describe('full exam state transitions', () => {
         type: 'COMPLETE_OBJECTIVE',
         submission: listeningSubmission,
       }),
-      { type: 'CONTINUE', startedAt: '2026-08-31T10:31:00.000Z' },
+      { type: 'CONTINUE', attemptId: readingSubmission.attemptId, startedAt: '2026-08-31T10:31:00.000Z' },
     )
     const writing = sessionReducer(
       sessionReducer(reading, {
         type: 'COMPLETE_OBJECTIVE',
         submission: readingSubmission,
       }),
-      { type: 'CONTINUE', startedAt: '2026-08-31T11:32:00.000Z' },
+      { type: 'CONTINUE', attemptId: writingSubmission.attemptId, startedAt: '2026-08-31T11:32:00.000Z' },
     )
     const speaking = sessionReducer(
       sessionReducer(writing, {
         type: 'COMPLETE_WRITING',
         submission: writingSubmission,
       }),
-      { type: 'CONTINUE', startedAt: '2026-08-31T12:33:00.000Z' },
+      { type: 'CONTINUE', attemptId: '55555555-5555-4555-8555-555555555555', startedAt: '2026-08-31T12:33:00.000Z' },
     )
     const complete = sessionReducer(
       sessionReducer(speaking, {
@@ -127,7 +131,7 @@ describe('full exam state transitions', () => {
           submittedAt: '2026-08-31T12:47:00.000Z',
         },
       }),
-      { type: 'CONTINUE', startedAt: '2026-08-31T12:48:00.000Z' },
+      { type: 'CONTINUE', attemptId: readingSubmission.attemptId, startedAt: '2026-08-31T12:48:00.000Z' },
     )
 
     expect([
@@ -149,7 +153,7 @@ describe('full exam state transitions', () => {
   it('resumes the next incomplete full-exam section after leaving a transition', () => {
     const transition = sessionReducer(
       sessionReducer(initialSession, {
-        type: 'START',
+        type: 'START', attemptId: listeningSubmission.attemptId,
         mode: 'full',
         section: 'listening',
         startedAt: '2026-08-31T10:00:00.000Z',
@@ -158,7 +162,7 @@ describe('full exam state transitions', () => {
     )
     const home = sessionReducer(transition, { type: 'GO_HOME' })
     const resumed = sessionReducer(home, {
-      type: 'RESUME',
+      type: 'RESUME', attemptId: readingSubmission.attemptId,
       startedAt: '2026-08-31T10:35:00.000Z',
     })
 
@@ -173,7 +177,7 @@ describe('full exam state transitions', () => {
 
   it('keeps objective answers in the same shared state used by the UI', () => {
     const started = sessionReducer(initialSession, {
-      type: 'START',
+      type: 'START', attemptId: listeningSubmission.attemptId,
       mode: 'section',
       section: 'reading',
       startedAt: '2026-08-31T10:00:00.000Z',
@@ -184,7 +188,7 @@ describe('full exam state transitions', () => {
 
   it('resumes an unfinished attempt without resetting answers or playback', () => {
     const started = sessionReducer(initialSession, {
-      type: 'START',
+      type: 'START', attemptId: listeningSubmission.attemptId,
       mode: 'section',
       section: 'listening',
       startedAt: '2026-08-31T10:00:00.000Z',
@@ -197,7 +201,7 @@ describe('full exam state transitions', () => {
     )
     const home = sessionReducer(progressed, { type: 'GO_HOME' })
     const resumed = sessionReducer(home, {
-      type: 'RESUME',
+      type: 'RESUME', attemptId: readingSubmission.attemptId,
       startedAt: '2026-08-31T10:05:00.000Z',
     })
 
@@ -208,7 +212,7 @@ describe('full exam state transitions', () => {
 
   it('opens a submitted objective section in read-only review state', () => {
     const started = sessionReducer(initialSession, {
-      type: 'START',
+      type: 'START', attemptId: listeningSubmission.attemptId,
       mode: 'section',
       section: 'listening',
       startedAt: '2026-08-31T10:00:00.000Z',
@@ -218,7 +222,7 @@ describe('full exam state transitions', () => {
       submission: listeningSubmission,
     })
     const results = sessionReducer(completed, {
-      type: 'CONTINUE',
+      type: 'CONTINUE', attemptId: readingSubmission.attemptId,
       startedAt: '2026-08-31T10:31:00.000Z',
     })
     const review = sessionReducer(results, {
@@ -250,7 +254,7 @@ describe('full exam state transitions', () => {
     const unfinished = sessionReducer(
       sessionReducer(
         sessionReducer(initialSession, {
-          type: 'START',
+          type: 'START', attemptId: listeningSubmission.attemptId,
           mode: 'section',
           section: 'reading',
           startedAt: '2026-08-31T10:00:00.000Z',
@@ -289,7 +293,7 @@ describe('full exam state transitions', () => {
 
   it('opens Writing review with the matching evaluation snapshot', () => {
     const submitted = sessionReducer(
-      { ...initialSession, view: 'result' },
+      { ...initialSession, attemptId: writingSubmission.attemptId, currentSection: 'writing', view: 'exam' },
       { type: 'COMPLETE_WRITING', submission: writingSubmission },
     )
     const evaluated = sessionReducer(submitted, {
@@ -312,7 +316,7 @@ describe('full exam state transitions', () => {
 
   it('ticks only the active section timer', () => {
     const started = sessionReducer(initialSession, {
-      type: 'START',
+      type: 'START', attemptId: listeningSubmission.attemptId,
       mode: 'section',
       section: 'reading',
       startedAt: '2026-08-31T10:00:00.000Z',
@@ -323,7 +327,7 @@ describe('full exam state transitions', () => {
     expect(ticked.secondsRemaining.reading).toBe(3599)
   })
 
-  it('persists and reloads the canonical session as one record', () => {
+  it('persists and reloads the draft without result snapshots', async () => {
     const values = new Map<string, string>()
     vi.stubGlobal('localStorage', {
       getItem: (key: string) => values.get(key) ?? null,
@@ -332,7 +336,7 @@ describe('full exam state transitions', () => {
     })
     const answered = sessionReducer(
       sessionReducer(initialSession, {
-        type: 'START',
+        type: 'START', attemptId: listeningSubmission.attemptId,
         mode: 'section',
         section: 'reading',
         startedAt: '2026-08-31T10:00:00.000Z',
@@ -342,17 +346,17 @@ describe('full exam state transitions', () => {
 
     saveSession(answered)
 
-    expect(loadSession()).toEqual(answered)
+    expect(await loadSession(reader)).toEqual(answered)
     expect(values.size).toBe(1)
   })
 
-  it('rejects malformed current-session data instead of trusting browser storage', () => {
+  it('rejects malformed current-session data instead of trusting browser storage', async () => {
     vi.stubGlobal('localStorage', {
       getItem: () => JSON.stringify({ ...initialSession, view: 'unexpected' }),
       setItem: vi.fn(),
     })
 
-    expect(loadSession()).toEqual(initialSession)
+    await expect(loadSession(reader)).rejects.toThrow('session metadata is invalid')
   })
 
 })

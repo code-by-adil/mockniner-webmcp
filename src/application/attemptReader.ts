@@ -3,6 +3,8 @@ import type {
   ObjectiveSubmission,
   WritingEvaluation,
   WritingSubmission,
+  SpeakingSubmission,
+  SpeakingEvaluation,
 } from '@/domain/types'
 
 type StoredWritingAttempt = {
@@ -13,5 +15,6 @@ type StoredWritingAttempt = {
 export type AttemptReader = {
   readLearningSummary: (recentLimit: number) => Promise<LearningSummary>
   readObjectiveAttempt: (attemptId: string) => Promise<ObjectiveSubmission | null>
-  readWritingAttempt: (attemptId: string) => Promise<StoredWritingAttempt | null>
+  readWritingAttempt: (attemptId?: string) => Promise<StoredWritingAttempt | null>
+  readSpeakingAttempt: (attemptId?: string) => Promise<{ submission: SpeakingSubmission; evaluation: SpeakingEvaluation | null } | null>
 }

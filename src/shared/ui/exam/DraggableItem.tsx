@@ -4,7 +4,6 @@ import {
   clearDragSelection,
   getActiveDragGroupId,
   getSelectedDragValue,
-  registerDragOption,
   selectDragOption,
   subscribeDragSelection,
   toggleDragOption,
@@ -60,14 +59,6 @@ export const DraggableItem: React.FC<Props> = ({
   const dragValue = value ?? text;
   const [isDraggingSelf, setIsDraggingSelf] = React.useState(false);
 
-  React.useEffect(() => registerDragOption({ groupId, value: dragValue, label: text, isUsed, isReviewMode }), [
-    dragValue,
-    groupId,
-    isReviewMode,
-    isUsed,
-    text,
-  ]);
-
   React.useEffect(
     () =>
       subscribeExamDragSession((active) => {
@@ -111,6 +102,10 @@ export const DraggableItem: React.FC<Props> = ({
       }
     }
   };
+
+  React.useEffect(() => () => {
+    if (getActiveDragGroupId() === groupId && getSelectedDragValue() === dragValue) clearDragSelection();
+  }, [groupId, dragValue]);
 
   const handleDragEnd = () => {
     setIsDraggingSelf(false);

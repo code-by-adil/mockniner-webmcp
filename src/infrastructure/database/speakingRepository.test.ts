@@ -40,6 +40,7 @@ afterEach(async () => {
 describe('Speaking SQLite repository', () => {
   it('stores an immutable attempt and its ordered audio BLOBs atomically', async () => {
     const submission = await saveSpeakingAttempt(database, {
+      attemptId: crypto.randomUUID(),
       contentKey: 'speaking-test-v1',
       startedAt: '2026-08-31T10:00:00.000Z',
       submittedAt: '2026-08-31T10:10:00.000Z',
@@ -99,6 +100,7 @@ describe('Speaking SQLite repository', () => {
 
     await expect(
       saveSpeakingAttempt(database, {
+      attemptId: crypto.randomUUID(),
         contentKey: 'speaking-test-v1',
         startedAt: '2026-08-31T10:00:00.000Z',
         submittedAt: '2026-08-31T10:10:00.000Z',
@@ -123,6 +125,7 @@ describe('Speaking SQLite repository', () => {
 
   it('stores one transcript-based evaluation and marks the attempt evaluated', async () => {
     const submission = await saveSpeakingAttempt(database, {
+      attemptId: crypto.randomUUID(),
       contentKey: 'agent-speaking-interview-v1',
       startedAt: '2026-08-31T10:00:00.000Z',
       submittedAt: '2026-08-31T10:05:00.000Z',

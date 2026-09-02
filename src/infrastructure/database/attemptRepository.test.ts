@@ -43,6 +43,7 @@ afterEach(async () => {
 describe('local attempt repository', () => {
   it('stores and reloads an immutable objective answer snapshot and result', async () => {
     const submission = await saveObjectiveAttempt(database, {
+      attemptId: crypto.randomUUID(),
       section: 'reading',
       contentKey: 'local-reading-v1',
       answers: { 1: 'TRUE', 2: 'paragraph C' },
@@ -62,10 +63,16 @@ describe('local attempt repository', () => {
     expect(stored).toEqual(submission)
     expect(stored?.answers).toEqual({ 1: 'TRUE', 2: 'paragraph C' })
     expect(stored?.result.correctQuestionIds).toEqual([1])
+    const retries = await Promise.all([
+      saveObjectiveAttempt(database, { ...submission, answers: { 1: 'changed' } }),
+      saveObjectiveAttempt(database, { ...submission, answers: { 1: 'different' } }),
+    ])
+    expect(retries).toEqual([submission, submission])
   })
 
   it('stores the exact Writing tasks and responses, then attaches an evaluation', async () => {
     const submission = await saveWritingAttempt(database, {
+      attemptId: crypto.randomUUID(),
       contentKey: 'local-writing-v1',
       tasks: [
         { task: writingDocument.tasks[0], response: 'Task one answer.', wordCount: 3 },
@@ -92,7 +99,12 @@ describe('local attempt repository', () => {
       evaluatedAt: '2026-08-31T11:05:00.000Z',
     }
 
-    await saveWritingEvaluation(database, evaluation)
+    const outcomes = await Promise.allSettled([
+      saveWritingEvaluation(database, evaluation),
+      saveWritingEvaluation(database, { ...evaluation, summary: 'A competing evaluation.' }),
+    ])
+    expect(outcomes.map((outcome) => outcome.status)).toEqual(['fulfilled', 'rejected'])
+    expect(outcomes[1]).toMatchObject({ reason: { code: 'EVALUATION_EXISTS' } })
     const stored = await readWritingAttempt(database, submission.attemptId)
 
     expect(stored?.submission).toEqual(submission)
@@ -111,6 +123,7 @@ describe('local attempt repository', () => {
 
   it('reads a submitted Writing attempt before it has an evaluation', async () => {
     const submission = await saveWritingAttempt(database, {
+      attemptId: crypto.randomUUID(),
       contentKey: 'local-writing-v1',
       tasks: [
         { task: writingDocument.tasks[0], response: 'Task one answer.', wordCount: 3 },
@@ -124,10 +137,16 @@ describe('local attempt repository', () => {
       submission,
       evaluation: null,
     })
+    const summary = await readLearningSummary(database, 5)
+    expect(summary.sections.writing).toMatchObject({
+      attemptCount: 1, evaluatedCount: 0,
+      recent: [{ attemptId: submission.attemptId, status: 'submitted' }],
+    })
   })
 
   it('rejects corrupted JSON instead of casting it into the domain', async () => {
     const submission = await saveObjectiveAttempt(database, {
+      attemptId: crypto.randomUUID(),
       section: 'reading',
       contentKey: 'local-reading-v1',
       answers: { 1: 'TRUE' },
@@ -155,6 +174,7 @@ describe('local attempt repository', () => {
 
   it('builds a bounded learning summary without exposing responses or answer keys', async () => {
     await saveObjectiveAttempt(database, {
+      attemptId: crypto.randomUUID(),
       section: 'reading',
       contentKey: 'reading-one',
       answers: { 1: 'TRUE' },
@@ -166,6 +186,7 @@ describe('local attempt repository', () => {
       submittedAt: '2026-08-31T11:00:00.000Z',
     })
     await saveObjectiveAttempt(database, {
+      attemptId: crypto.randomUUID(),
       section: 'reading',
       contentKey: 'reading-two',
       answers: { 1: 'FALSE' },
@@ -177,6 +198,7 @@ describe('local attempt repository', () => {
       submittedAt: '2026-09-01T11:00:00.000Z',
     })
     const writing = await saveWritingAttempt(database, {
+      attemptId: crypto.randomUUID(),
       contentKey: 'writing-one',
       tasks: [
         { task: writingDocument.tasks[0], response: 'Private response one.', wordCount: 3 },

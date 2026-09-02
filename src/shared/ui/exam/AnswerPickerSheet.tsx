@@ -32,7 +32,7 @@ type Props = {
   groupId: string;
   mapDragEnabled: boolean;
   canAcceptSelection: boolean;
-  variant?: "inline" | "box" | "mapSlot" | "matching";
+  variant?: "mapSlot" | "matching";
   onChoose: (nextValue: string) => void;
   onClear: () => void;
   onClose: () => void;

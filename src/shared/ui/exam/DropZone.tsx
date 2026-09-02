@@ -1,7 +1,8 @@
+import { canAssignDragOption, type DragOption } from "./dragOptions";
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronRight, X } from "lucide-react";
-import { normalizeAnswer } from "@/modules/exam-engine/review-mode/normalizeAnswer";
+import { objectiveAnswerMatches } from "@/domain/objectiveScoring";
 import {
   isExamDragSessionActive,
   resolveExamDragPayload,
@@ -9,13 +10,9 @@ import {
   useDropZoneDragDepth,
 } from "./examDragDrop";
 import {
-  canAssignDragOption,
   clearDragSelection,
   getActiveDragGroupId,
-  getDragOptions,
-  getDragOptionsVersion,
   getSelectedDragValue,
-  subscribeDragOptions,
   subscribeDragSelection,
 } from "./dragSelection";
 import {
@@ -90,13 +87,7 @@ function MapSlotAnswerChip({
 }
 
 function ClearAnswerIcon() {
-  return (
-    <X
-      aria-hidden="true"
-      className="h-3.5 w-3.5"
-      strokeWidth={2.5}
-    />
-  );
+  return <X aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.5} />;
 }
 
 function AnswerClearButton({
@@ -168,6 +159,7 @@ function getMapSlotSurfaceStyles({
 }
 
 interface Props {
+  options: readonly DragOption[];
   id: number | string;
   groupId?: string | undefined;
   value?: string | undefined;
@@ -176,9 +168,7 @@ interface Props {
   placeholder?: string | undefined;
   displayValue?: string | undefined;
   className?: string | undefined;
-  variant?: "inline" | "box" | "mapSlot" | "matching" | undefined;
-  width?: string | undefined;
-  height?: string | undefined;
+  variant: "mapSlot" | "matching";
   isReviewMode?: boolean | undefined;
   correctAnswer?: string | string[] | undefined;
   proximityActive?: boolean | undefined;
@@ -190,7 +180,6 @@ function renderPickerPortal(node: React.ReactNode) {
   if (typeof document === "undefined") return node;
   return createPortal(node, document.body);
 }
-
 
 function DropHitLayer({
   enabled,
@@ -218,6 +207,7 @@ function DropHitLayer({
 
 export const DropZone: React.FC<Props> = ({
   id,
+  options,
   groupId = "default",
   value,
   onDrop,
@@ -225,9 +215,7 @@ export const DropZone: React.FC<Props> = ({
   placeholder,
   displayValue,
   className = "",
-  variant = "box",
-  width,
-  height,
+  variant,
   isReviewMode = false,
   correctAnswer,
   proximityActive = false,
@@ -238,16 +226,12 @@ export const DropZone: React.FC<Props> = ({
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const useNativePicker = supportsNativeDialog();
   const showPicker = (useNativePicker || isPickerOpen) && !isReviewMode;
-  const { isOver, onDragEnter, onDragLeave, onDragOver, reset } = useDropZoneDragDepth();
+  const { isOver, onDragEnter, onDragLeave, onDragOver, reset } =
+    useDropZoneDragDepth();
   const isExamDragging = React.useSyncExternalStore(
     (onChange) => subscribeExamDragSession(onChange),
     isExamDragSessionActive,
     () => false,
-  );
-  const optionVersion = React.useSyncExternalStore(
-    subscribeDragOptions,
-    getDragOptionsVersion,
-    () => 0,
   );
   const selectedValue = React.useSyncExternalStore(
     subscribeDragSelection,
@@ -260,49 +244,39 @@ export const DropZone: React.FC<Props> = ({
     () => null,
   );
 
-  let isCorrect = false;
-  let displayCorrect: string | null = null;
+  const isCorrect =
+    isReviewMode &&
+    correctAnswer !== undefined &&
+    objectiveAnswerMatches(value ?? "", correctAnswer);
+  const displayCorrect = isReviewMode
+    ? Array.isArray(correctAnswer)
+      ? correctAnswer[0]
+      : correctAnswer
+    : null;
 
-  if (isReviewMode) {
-    if (correctAnswer) {
-      if (Array.isArray(correctAnswer)) {
-        isCorrect = correctAnswer.some(
-          (candidate) => normalizeAnswer(candidate) === normalizeAnswer(value || ""),
-        );
-        displayCorrect = correctAnswer[0] ?? null;
-      } else {
-        isCorrect = normalizeAnswer(correctAnswer) === normalizeAnswer(value || "");
-        displayCorrect = correctAnswer;
-      }
-    }
-  }
-
-  const availableOptions = React.useMemo(() => {
-    void optionVersion;
-    const options = getDragOptions(groupId)
-      .filter((option) => !option.isReviewMode)
-      .filter((option) => !option.isUsed || option.value === value);
-    return Array.from(new Map(options.map((option) => [option.value, option])).values());
-  }, [groupId, optionVersion, value]);
+  const availableOptions = options.filter(
+    (option) =>
+      !option.isReviewMode && (!option.isUsed || option.value === value),
+  );
 
   const canAcceptSelection =
     !isReviewMode &&
     Boolean(selectedValue) &&
     selectedGroupId === groupId &&
-    canAssignDragOption(groupId, selectedValue!, value);
+    canAssignDragOption(options, selectedValue!, value);
 
-  const registeredLabel = value
+  const optionLabel = value
     ? availableOptions.find((option) => option.value === value)?.label
     : undefined;
 
-  const resolvedDisplayValue = registeredLabel ?? displayValue ?? value;
+  const resolvedDisplayValue = optionLabel ?? displayValue ?? value;
 
   const pendingLabel = canAcceptSelection
     ? availableOptions.find((option) => option.value === selectedValue)?.label
     : null;
 
   const assignValue = (nextValue: string) => {
-    if (!canAssignDragOption(groupId, nextValue, value)) return;
+    if (!canAssignDragOption(options, nextValue, value)) return;
     onDrop(nextValue);
     clearDragSelection();
     reset();
@@ -349,29 +323,14 @@ export const DropZone: React.FC<Props> = ({
     handleActivate();
   };
 
-  const suppressPerSlotIsOver = variant === "matching" && isExamDragging;
-  const isHighlighted =
-    (suppressPerSlotIsOver ? false : isOver) || canAcceptSelection || proximityActive;
-
   const activeDragValue =
     isExamDragging && selectedGroupId === groupId ? selectedValue : undefined;
-  const hasMapDragPayload =
-    !isReviewMode && Boolean(activeDragValue);
+  const hasMapDragPayload = !isReviewMode && Boolean(activeDragValue);
   const canReceiveDrag =
-    hasMapDragPayload && canAssignDragOption(groupId, activeDragValue!, value);
+    hasMapDragPayload && canAssignDragOption(options, activeDragValue!, value);
   const dragPreviewLabel = canReceiveDrag
     ? availableOptions.find((option) => option.value === activeDragValue)?.label
     : undefined;
-
-  const baseStyles = isReviewMode
-    ? isCorrect
-      ? "border-2 border-green-600 bg-green-50 text-green-900 font-bold"
-      : "border-2 border-red-500 bg-red-50 text-red-900 line-through decoration-red-500/50"
-    : value
-      ? "border border-black bg-white shadow-sm"
-      : `border border-dashed border-gray-400 bg-white ${
-          isHighlighted ? "border-black bg-gray-50 shadow-sm ring-2 ring-black/15" : ""
-        }`;
 
   const tooltip =
     isReviewMode && !isCorrect && displayCorrect ? (
@@ -404,28 +363,27 @@ export const DropZone: React.FC<Props> = ({
 
   const pickerSheetLayout = !mapDragEnabled ? "tap" : "drag";
 
-  const picker =
-    showPicker ? (
-      <AnswerPickerSheet
-        open={isPickerOpen}
-        questionLabel={placeholder || id}
-        pickerSheetLayout={pickerSheetLayout}
-        availableOptions={availableOptions}
-        value={value}
-        selectedValue={selectedValue}
-        selectedGroupId={selectedGroupId}
-        groupId={groupId}
-        mapDragEnabled={mapDragEnabled}
-        canAcceptSelection={canAcceptSelection}
-        variant={variant}
-        onChoose={chooseOption}
-        onClear={() => {
-          onClear();
-          clearDragSelection();
-        }}
-        onClose={() => setIsPickerOpen(false)}
-      />
-    ) : null;
+  const picker = showPicker ? (
+    <AnswerPickerSheet
+      open={isPickerOpen}
+      questionLabel={placeholder || id}
+      pickerSheetLayout={pickerSheetLayout}
+      availableOptions={availableOptions}
+      value={value}
+      selectedValue={selectedValue}
+      selectedGroupId={selectedGroupId}
+      groupId={groupId}
+      mapDragEnabled={mapDragEnabled}
+      canAcceptSelection={canAcceptSelection}
+      variant={variant}
+      onChoose={chooseOption}
+      onClear={() => {
+        onClear();
+        clearDragSelection();
+      }}
+      onClose={() => setIsPickerOpen(false)}
+    />
+  ) : null;
 
   const matchingProximityDrop = variant === "matching" && isExamDragging;
   const dragHandlers =
@@ -443,15 +401,16 @@ export const DropZone: React.FC<Props> = ({
     onClear();
     clearDragSelection();
   };
-  const slotInteractionProps: React.HTMLAttributes<HTMLDivElement> = isReviewMode
-    ? {}
-    : {
-        role: "button",
-        tabIndex: 0,
-        "aria-label": `Select answer for question ${questionLabel}`,
-        onClick: handleActivate,
-        onKeyDown: handleKeyDown,
-      };
+  const slotInteractionProps: React.HTMLAttributes<HTMLDivElement> =
+    isReviewMode
+      ? {}
+      : {
+          role: "button",
+          tabIndex: 0,
+          "aria-label": `Select answer for question ${questionLabel}`,
+          onClick: handleActivate,
+          onKeyDown: handleKeyDown,
+        };
 
   if (variant === "mapSlot") {
     const mapSlotCompact = !mapDragEnabled;
@@ -503,95 +462,53 @@ export const DropZone: React.FC<Props> = ({
               ${className}
             `}
           >
-          {activeSlotPreview ? (
-            <MapSlotAnswerChip display={activeSlotPreview} muted compact={mapSlotCompact} />
-          ) : filledLabel ? (
-            mapSlotCompact && !isReviewMode ? (
-              <MapSlotAnswerChip display={filledLabel} compact />
-            ) : (
-              <div className="relative flex min-h-0 w-full min-w-0 items-center">
-                <div className="min-w-0 flex-1">
-                  <MapSlotAnswerChip display={filledLabel} compact={false} />
+            {activeSlotPreview ? (
+              <MapSlotAnswerChip
+                display={activeSlotPreview}
+                muted
+                compact={mapSlotCompact}
+              />
+            ) : filledLabel ? (
+              mapSlotCompact && !isReviewMode ? (
+                <MapSlotAnswerChip display={filledLabel} compact />
+              ) : (
+                <div className="relative flex min-h-0 w-full min-w-0 items-center">
+                  <div className="min-w-0 flex-1">
+                    <MapSlotAnswerChip display={filledLabel} compact={false} />
+                  </div>
+                  {!isReviewMode ? (
+                    <AnswerClearButton
+                      questionLabel={questionLabel}
+                      onClear={handleClear}
+                      className="absolute right-1 top-1/2 z-10 -translate-y-1/2 transition-opacity duration-150 max-md:pointer-events-auto max-md:opacity-100 md:pointer-events-none md:opacity-0 md:group-hover:pointer-events-auto md:group-hover:opacity-100 md:group-focus-within:pointer-events-auto md:group-focus-within:opacity-100"
+                    />
+                  ) : null}
                 </div>
-                {!isReviewMode ? (
-                  <AnswerClearButton
-                    questionLabel={questionLabel}
-                    onClear={handleClear}
-                    className="absolute right-1 top-1/2 z-10 -translate-y-1/2 transition-opacity duration-150 max-md:pointer-events-auto max-md:opacity-100 md:pointer-events-none md:opacity-0 md:group-hover:pointer-events-auto md:group-hover:opacity-100 md:group-focus-within:pointer-events-auto md:group-focus-within:opacity-100"
-                  />
-                ) : null}
-              </div>
-            )
-          ) : (
-            <span
-              className={`flex items-center justify-center rounded-full border font-bold ${
-                mapSlotCompact ? "h-7 w-7 text-[11px] shadow-[0_1px_3px_rgba(15,23,42,0.2)]" : "h-8 w-8 text-xs shadow-sm"
-              } ${
-                mapSlotCatchState === "caught"
-                  ? "border-sky-600 bg-sky-100 text-sky-800"
-                  : mapSlotCatchState === "targeted"
-                    ? "border-sky-500 bg-sky-50 text-sky-700"
-                    : mapSlotCatchState === "droppable"
-                      ? "border-sky-300 bg-sky-50/80 text-sky-700"
-                      : mapSlotCompact
-                        ? "border border-slate-500/80 bg-white/95 text-slate-700"
-                        : "border-dashed border-slate-500/90 bg-white/90 text-slate-700"
-              }`}
-            >
-              {placeholder || id}
-            </span>
-          )}
-          {tooltip}
-          {successCheck}
-          </div>
-        </div>
-        {picker ? renderPickerPortal(picker) : null}
-      </>
-    );
-  }
-
-  if (variant === "inline") {
-    return (
-      <>
-        <div
-          id={`question-${id}`}
-          {...slotInteractionProps}
-          className={`
-            group relative mx-1 inline-flex touch-manipulation items-center rounded-sm align-middle transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30
-            ${width || "min-w-[100px]"}
-            ${height || "h-[30px]"}
-            ${baseStyles}
-            ${className}
-          `}
-          {...dragHandlers}
-        >
-          {value ? (
-            <div className="flex w-full items-center justify-between gap-1 overflow-hidden">
-              <span className="w-full truncate text-sm font-bold" title={resolvedDisplayValue}>
-                {resolvedDisplayValue}
+              )
+            ) : (
+              <span
+                className={`flex items-center justify-center rounded-full border font-bold ${
+                  mapSlotCompact
+                    ? "h-7 w-7 text-[11px] shadow-[0_1px_3px_rgba(15,23,42,0.2)]"
+                    : "h-8 w-8 text-xs shadow-sm"
+                } ${
+                  mapSlotCatchState === "caught"
+                    ? "border-sky-600 bg-sky-100 text-sky-800"
+                    : mapSlotCatchState === "targeted"
+                      ? "border-sky-500 bg-sky-50 text-sky-700"
+                      : mapSlotCatchState === "droppable"
+                        ? "border-sky-300 bg-sky-50/80 text-sky-700"
+                        : mapSlotCompact
+                          ? "border border-slate-500/80 bg-white/95 text-slate-700"
+                          : "border-dashed border-slate-500/90 bg-white/90 text-slate-700"
+                }`}
+              >
+                {placeholder || id}
               </span>
-              {!isReviewMode ? (
-                <AnswerClearButton
-                  questionLabel={questionLabel}
-                  onClear={handleClear}
-                  className="h-7 w-7"
-                />
-              ) : null}
-            </div>
-        ) : pendingLabel ? (
-          <span
-            className="w-full truncate px-1 text-center text-xs font-semibold text-gray-700"
-            title={pendingLabel}
-          >
-            {pendingLabel}
-          </span>
-        ) : (
-          <span className="w-full select-none text-center text-xs font-bold text-gray-500">
-            {placeholder || id}
-          </span>
-        )}
-          {tooltip}
-          {successCheck}
+            )}
+            {tooltip}
+            {successCheck}
+          </div>
         </div>
         {picker ? renderPickerPortal(picker) : null}
       </>
@@ -681,7 +598,12 @@ export const DropZone: React.FC<Props> = ({
                 </>
               )
             ) : previewLabel ? (
-              <MatchingChoiceLabel text={previewLabel} letterTone="filled" muted clampName={matchingTapMode} />
+              <MatchingChoiceLabel
+                text={previewLabel}
+                letterTone="filled"
+                muted
+                clampName={matchingTapMode}
+              />
             ) : (
               <>
                 <span className="text-sm font-semibold text-[color:var(--exam-text-subtle)]">
@@ -704,40 +626,5 @@ export const DropZone: React.FC<Props> = ({
     );
   }
 
-  return (
-    <>
-      <div
-        id={`question-${id}`}
-        {...slotInteractionProps}
-        className={`
-          group relative flex touch-manipulation items-center justify-center rounded-[2px] transition-[background-color,border-color,box-shadow,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30
-          ${width || "w-full"}
-          ${height || "h-[42px]"}
-          ${baseStyles}
-          ${className}
-        `}
-        {...dragHandlers}
-      >
-        {value ? (
-          <div className="flex h-full w-full items-center justify-between overflow-hidden px-3">
-            <span className="truncate text-sm font-bold select-none" title={resolvedDisplayValue}>
-              {resolvedDisplayValue}
-            </span>
-            {!isReviewMode ? (
-              <AnswerClearButton questionLabel={questionLabel} onClear={handleClear} />
-            ) : null}
-          </div>
-        ) : pendingLabel ? (
-          <span className="truncate px-2 text-xs font-semibold text-gray-700" title={pendingLabel}>
-            {pendingLabel}
-          </span>
-        ) : (
-          <span className="select-none text-sm font-bold text-gray-500">{placeholder || id}</span>
-        )}
-        {tooltip}
-        {successCheck}
-      </div>
-      {picker ? renderPickerPortal(picker) : null}
-    </>
-  );
+  return null;
 };
