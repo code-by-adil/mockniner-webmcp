@@ -23,26 +23,13 @@ import { useExamApplication } from "@/application/useExamApplication";
 import { useListeningAudio } from "@/application/useListeningAudio";
 import { useWebMcpTools } from "@/webmcp/useWebMcpTools";
 import { useAssessmentApplication } from "@/application/useAssessmentApplication";
-import type { AssessmentSession } from "@/domain/assessmentSession";
 import { AssessmentRunner } from "@/modules/assessment-engine/ui/AssessmentRunner";
 import { AssessmentResults } from "@/modules/assessment-engine/ui/AssessmentResults";
 import { WorkspaceBrandMark } from "@/shared/ui/global/WorkspaceBrandMark";
-import type { AssessmentToolSurface } from "@/webmcp/assessmentTools";
+import { getAssessmentToolSurface, getNativeToolSurfaces } from "@/webmcp/toolSurfaces";
 
 type Section = SectionKey;
 type Mode = ExamMode;
-
-function getAssessmentToolSurface(
-  nativeHome: boolean,
-  session: AssessmentSession,
-): AssessmentToolSurface {
-  if (session.view === "result") {
-    return session.submission?.result.awaitingEvaluationCount && !session.evaluation
-      ? "evaluation"
-      : "results";
-  }
-  return nativeHome && session.view === "home" ? "authoring" : "none";
-}
 
 const SECTION_META = {
   listening: {
@@ -105,55 +92,60 @@ function Complete({
   const isFinal = mode === "section" || section === "speaking";
   return (
     <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
-        <AppHeader />
-        <main className="mx-auto flex max-w-3xl flex-col items-center px-6 py-24 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--exam-success-bg)] text-[var(--exam-success-fg)]">
-            <Check size={28} />
+      <AppHeader />
+      <main className="mx-auto flex max-w-3xl flex-col items-center px-6 py-24 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--exam-success-bg)] text-[var(--exam-success-fg)]">
+          <Check size={28} />
+        </div>
+        <div className="mt-6 text-xs font-semibold uppercase tracking-widest text-[var(--exam-text-muted)]">
+          Section submitted
+        </div>
+        <h1 className="mt-3 text-3xl font-extrabold tracking-tight">
+          {SECTION_META[section].title} is complete
+        </h1>
+        <p className="mt-3 max-w-xl leading-7 text-[var(--exam-text-muted)]">
+          Your answers are locked and retained locally for this practice attempt.
+        </p>
+        {section === "writing" ? (
+          <div className="mt-6 w-full max-w-xl rounded-lg border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-5 py-4 text-left shadow-sm">
+            <p className="text-sm font-bold text-[var(--exam-text)]">Ready for agent evaluation</p>
+            <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">
+              Ask your agent: “Grade my latest Writing attempt.” It can read this immutable
+              submission and return structured feedback here.
+            </p>
           </div>
-          <div className="mt-6 text-xs font-semibold uppercase tracking-widest text-[var(--exam-text-muted)]">
-            Section submitted
+        ) : section === "speaking" ? (
+          <div className="mt-6 w-full max-w-xl rounded-lg border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-5 py-4 text-left shadow-sm">
+            <p className="text-sm font-bold text-[var(--exam-text)]">
+              Ready for transcript evaluation
+            </p>
+            <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">
+              Ask your agent: “Evaluate my latest Speaking attempt.” It can score fluency,
+              vocabulary, and grammar, then return the review here.
+            </p>
           </div>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight">
-            {SECTION_META[section].title} is complete
-          </h1>
-          <p className="mt-3 max-w-xl leading-7 text-[var(--exam-text-muted)]">
-            Your answers are locked and retained locally for this practice
-            attempt.
-          </p>
-          {section === "writing" ? (
-            <div className="mt-6 w-full max-w-xl rounded-lg border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-5 py-4 text-left shadow-sm">
-              <p className="text-sm font-bold text-[var(--exam-text)]">
-                Ready for agent evaluation
-              </p>
-              <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">
-                Ask your agent: “Grade my latest Writing attempt.” It can read this immutable submission and return structured feedback here.
-              </p>
-            </div>
-          ) : section === "speaking" ? (
-            <div className="mt-6 w-full max-w-xl rounded-lg border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-5 py-4 text-left shadow-sm">
-              <p className="text-sm font-bold text-[var(--exam-text)]">Ready for transcript evaluation</p>
-              <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">Ask your agent: “Evaluate my latest Speaking attempt.” It can score fluency, vocabulary, and grammar, then return the review here.</p>
-            </div>
-          ) : null}
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <button
-              type="button"
-              onClick={onHome}
-              className="inline-flex items-center gap-2 rounded border border-[var(--exam-border)] bg-[var(--exam-surface)] px-5 py-3 text-sm font-semibold hover:bg-[var(--exam-control-hover-bg)]"
-            >
-              <ArrowLeft size={16} />
-              Back to practice
-            </button>
-            <button
-              type="button"
-              onClick={onContinue}
-              className="inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-5 py-3 text-sm font-semibold text-white hover:bg-[var(--exam-accent-hover)]"
-            >
-              {isFinal ? "View results" : `Continue to ${SECTION_META[SECTION_ORDER[SECTION_ORDER.indexOf(section) + 1]!].title}`}
-              <ArrowRight size={16} />
-            </button>
-          </div>
-        </main>
+        ) : null}
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <button
+            type="button"
+            onClick={onHome}
+            className="inline-flex items-center gap-2 rounded border border-[var(--exam-border)] bg-[var(--exam-surface)] px-5 py-3 text-sm font-semibold hover:bg-[var(--exam-control-hover-bg)]"
+          >
+            <ArrowLeft size={16} />
+            Back to practice
+          </button>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-5 py-3 text-sm font-semibold text-white hover:bg-[var(--exam-accent-hover)]"
+          >
+            {isFinal
+              ? "View results"
+              : `Continue to ${SECTION_META[SECTION_ORDER[SECTION_ORDER.indexOf(section) + 1]!].title}`}
+            <ArrowRight size={16} />
+          </button>
+        </div>
+      </main>
     </div>
   );
 }
@@ -169,79 +161,77 @@ function Results({
 }) {
   return (
     <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
-        <AppHeader />
-        <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-          <div className="mb-9">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--exam-success-border)] bg-[var(--exam-success-bg)] px-3 py-1 text-xs font-semibold text-[var(--exam-success-fg)]">
-              <Check size={14} /> Attempt complete
-            </div>
-            <h1 className="text-3xl font-extrabold tracking-tight">
-              Practice results
-            </h1>
-            <p className="mt-2 text-[var(--exam-text-muted)]">
-              Objective answers are graded locally. Writing and Speaking remain
-              available for agent evaluation.
-            </p>
+      <AppHeader />
+      <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
+        <div className="mb-9">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--exam-success-border)] bg-[var(--exam-success-bg)] px-3 py-1 text-xs font-semibold text-[var(--exam-success-fg)]">
+            <Check size={14} /> Attempt complete
           </div>
-          <div className="grid gap-5 md:grid-cols-2">
-            {session.completedSections.map((section) => {
-              const meta = SECTION_META[section];
-              const Icon = meta.icon;
-              const result =
-                section === "listening" || section === "reading"
-                  ? session.objectiveSubmissions[section]?.result
-                  : null;
-              const canReview =
-                section === "listening" ||
-                section === "reading" ||
-                (section === "writing" && Boolean(session.writingEvaluation)) ||
-                (section === "speaking" && Boolean(session.speakingEvaluation));
-              return (
-                <article
-                  key={section}
-                  className="rounded-lg border border-[var(--exam-border-muted)] bg-[var(--exam-surface)] px-6 py-6 shadow-sm"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded bg-[var(--exam-accent)] text-white">
-                      <Icon size={20} />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-semibold">{meta.title}</h2>
-                      <p className="mt-1 text-sm text-[var(--exam-text-muted)]">
-                        {result
-                          ? `${result.raw} of 40 correct · Band ${result.band}`
-                          : section === "writing" && session.writingEvaluation
-                            ? `Estimated overall band ${session.writingEvaluation.overallBand} · Evaluation ready`
+          <h1 className="text-3xl font-extrabold tracking-tight">Practice results</h1>
+          <p className="mt-2 text-[var(--exam-text-muted)]">
+            Objective answers are graded locally. Writing and Speaking remain available for agent
+            evaluation.
+          </p>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          {session.completedSections.map((section) => {
+            const meta = SECTION_META[section];
+            const Icon = meta.icon;
+            const result =
+              section === "listening" || section === "reading"
+                ? session.objectiveSubmissions[section]?.result
+                : null;
+            const canReview =
+              section === "listening" ||
+              section === "reading" ||
+              (section === "writing" && Boolean(session.writingEvaluation)) ||
+              (section === "speaking" && Boolean(session.speakingEvaluation));
+            return (
+              <article
+                key={section}
+                className="rounded-lg border border-[var(--exam-border-muted)] bg-[var(--exam-surface)] px-6 py-6 shadow-sm"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex h-11 w-11 items-center justify-center rounded bg-[var(--exam-accent)] text-white">
+                    <Icon size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold">{meta.title}</h2>
+                    <p className="mt-1 text-sm text-[var(--exam-text-muted)]">
+                      {result
+                        ? `${result.raw} of 40 correct · Band ${result.band}`
+                        : section === "writing" && session.writingEvaluation
+                          ? `Estimated overall band ${session.writingEvaluation.overallBand} · Evaluation ready`
                           : section === "speaking" && session.speakingSubmission
                             ? session.speakingEvaluation
                               ? `Estimated overall band ${session.speakingEvaluation.overallBand} · Evaluation ready`
                               : `${session.speakingSubmission.responses.length} recordings saved locally · Awaiting evaluation`
-                          : "Submission ready for evaluation"}
-                      </p>
-                      {canReview ? (
-                        <button
-                          type="button"
-                          onClick={() => onReview(section)}
-                          className="mt-4 inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-3.5 py-2 text-xs font-bold text-[var(--exam-accent)] transition-colors hover:bg-[var(--exam-control-hover-bg)]"
-                        >
-                          <ClipboardCheck size={15} />
-                          Review answers
-                        </button>
-                      ) : null}
-                    </div>
+                            : "Submission ready for evaluation"}
+                    </p>
+                    {canReview ? (
+                      <button
+                        type="button"
+                        onClick={() => onReview(section)}
+                        className="mt-4 inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-3.5 py-2 text-xs font-bold text-[var(--exam-accent)] transition-colors hover:bg-[var(--exam-control-hover-bg)]"
+                      >
+                        <ClipboardCheck size={15} />
+                        Review answers
+                      </button>
+                    ) : null}
                   </div>
-                </article>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={onHome}
-            className="mt-8 inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-5 py-3 text-sm font-semibold text-white hover:bg-[var(--exam-accent-hover)]"
-          >
-            Back to practice
-          </button>
-        </main>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={onHome}
+          className="mt-8 inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-5 py-3 text-sm font-semibold text-white hover:bg-[var(--exam-accent-hover)]"
+        >
+          Back to practice
+        </button>
+      </main>
     </div>
   );
 }
@@ -254,15 +244,20 @@ export default function App() {
     state.view === "home",
     assessmentApplication.state,
   );
+  const nativeToolSurfaces = getNativeToolSurfaces(state, assessmentApplication.state);
   useWebMcpTools({
     commands,
     assessmentCommands: assessmentApplication.commands,
     currentWritingAttemptId: state.writingSubmission?.attemptId,
     currentSpeakingAttemptId: state.speakingSubmission?.attemptId,
-    currentAssessmentAttemptId: assessmentApplication.state.view === "result"
-      ? assessmentApplication.state.submission?.attemptId
-      : undefined,
+    currentAssessmentAttemptId:
+      assessmentApplication.state.view === "result"
+        ? assessmentApplication.state.submission?.attemptId
+        : undefined,
     assessmentToolSurface,
+    nativeAuthoringEnabled: nativeToolSurfaces.authoringEnabled,
+    writingToolSurface: nativeToolSurfaces.writing,
+    speakingToolSurface: nativeToolSurfaces.speaking,
     enabled: contentReady && assessmentApplication.assessmentReady,
   });
   const section = state.currentSection;
@@ -276,10 +271,7 @@ export default function App() {
     );
   }
 
-  if (
-    assessmentApplication.state.view === "assessment" &&
-    assessmentApplication.currentPlan
-  ) {
+  if (assessmentApplication.state.view === "assessment" && assessmentApplication.currentPlan) {
     return (
       <ExamUiBoundary className="h-screen w-full overflow-hidden">
         <AssessmentRunner
@@ -302,10 +294,7 @@ export default function App() {
     );
   }
 
-  if (
-    assessmentApplication.state.view === "result" &&
-    assessmentApplication.state.submission
-  ) {
+  if (assessmentApplication.state.view === "result" && assessmentApplication.state.submission) {
     return (
       <AssessmentResults
         submission={assessmentApplication.state.submission}
@@ -350,13 +339,7 @@ export default function App() {
   }
 
   if (state.view === "result") {
-    return (
-      <Results
-        session={state}
-        onHome={commands.goHome}
-        onReview={commands.openReview}
-      />
-    );
+    return <Results session={state} onHome={commands.goHome} onReview={commands.openReview} />;
   }
 
   if (section === "listening" || section === "reading") {
@@ -377,9 +360,7 @@ export default function App() {
         commands.setObjectiveAnswer(section, id, value),
       onPartChange: (part: number) => commands.setPart(section, part),
       onTick: () => commands.tick(section),
-      onSubmit: isReviewMode
-        ? undefined
-        : () => commands.submitObjective(section),
+      onSubmit: isReviewMode ? undefined : () => commands.submitObjective(section),
     };
     return (
       <ExamUiBoundary>
@@ -400,11 +381,7 @@ export default function App() {
   }
 
   if (section === "writing") {
-    if (
-      state.view === "review" &&
-      state.writingSubmission &&
-      state.writingEvaluation
-    ) {
+    if (state.view === "review" && state.writingSubmission && state.writingEvaluation) {
       return (
         <LocalWritingReview
           submission={state.writingSubmission}
@@ -430,11 +407,7 @@ export default function App() {
     );
   }
 
-  if (
-    state.view === "review" &&
-    state.speakingSubmission &&
-    state.speakingEvaluation
-  ) {
+  if (state.view === "review" && state.speakingSubmission && state.speakingEvaluation) {
     return (
       <LocalSpeakingReview
         submission={state.speakingSubmission}
@@ -444,10 +417,5 @@ export default function App() {
     );
   }
 
-  return (
-    <LocalSpeakingExam
-      onExit={commands.goHome}
-      onSubmit={commands.submitSpeaking}
-    />
-  );
+  return <LocalSpeakingExam onExit={commands.goHome} onSubmit={commands.submitSpeaking} />;
 }
