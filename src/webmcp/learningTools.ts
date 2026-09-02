@@ -1,6 +1,11 @@
 import { z } from 'zod'
 import type { LearningSummary } from '@/domain/learningSummary'
-import { toolFailure, throwIfCancelled, zodIssues } from './toolResult'
+import {
+  getToolExecutionSignal,
+  toolFailure,
+  throwIfCancelled,
+  zodIssues,
+} from './toolResult'
 
 const learningSummaryInputSchema = z.strictObject({
   recentLimit: z.number().int().min(1).max(10).default(5),
@@ -36,8 +41,9 @@ export function createLearningToolDefinitions({
       description:
         'Read a compact local summary of recent IELTS performance for adapting future practice. Returns scores and criterion averages without essays, recordings, answer keys, or draft answers.',
       inputSchema: learningSummaryJsonSchema,
-      annotations: { readOnlyHint: true, untrustedContentHint: false },
-      execute: async (input, { signal }) => {
+      annotations: { readOnlyHint: true, untrustedContentHint: true },
+      execute: async (input, options) => {
+        const signal = getToolExecutionSignal(options)
         throwIfCancelled(signal)
         const parsed = learningSummaryInputSchema.safeParse(input)
         if (!parsed.success) {

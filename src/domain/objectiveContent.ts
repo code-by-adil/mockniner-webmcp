@@ -18,15 +18,20 @@ export const KOKORO_VOICES = [
 ] as const;
 
 export const KOKORO_LISTENING_AUTHORING_GUIDANCE = [
-  "For Listening, write a complete four-part spoken script whose answers occur in question order.",
-  "Part 1 is an everyday transactional conversation between exactly two speakers.",
-  "Part 2 is an everyday informational monologue by one speaker.",
-  "Part 3 is an educational or training discussion between two to four speakers, normally students and optionally a tutor.",
-  "Part 4 is an academic monologue by one speaker.",
-  "Every spoken sentence must be direct, natural speech inside a speech segment with exactly one speakerId; start a new segment whenever the speaker changes and do not include transcript labels such as 'Speaker 1:' in the text.",
-  "Keep each speaker's voice stable. Within a multi-speaker part, give every speaker a distinct voice and use male/female contrast when it fits the scenario.",
-  "Available voices are af_heart (American female), am_fenrir (American male), bf_emma (British female), and bm_george (British male).",
+  "For Listening, write four parts whose answers occur in question order.",
+  "Part 1 is an everyday transaction with exactly two speakers.",
+  "Part 2 is an everyday informational monologue with one speaker.",
+  "Part 3 is an education or training discussion with two to four speakers, usually students and optionally a tutor.",
+  "Part 4 is an academic monologue with one speaker.",
+  "Each speech segment contains one speaker's direct, unlabeled words.",
+  "Keep every speaker's voice stable and distinct within a multi-speaker part, using male/female contrast when suitable.",
+  "Available voices are af_heart, am_fenrir, bf_emma, and bm_george.",
 ].join(" ");
+
+const KOKORO_AUDIO_DESCRIPTION =
+  "A complete four-part Listening script. Keep each speaker's voice stable and distinct within a multi-speaker part.";
+const KOKORO_PARTS_DESCRIPTION =
+  "Four parts in answer order: a two-speaker transaction, a one-speaker everyday talk, a two-to-four-speaker education discussion, and a one-speaker academic talk.";
 
 const kokoroVoiceSchema = z.enum(KOKORO_VOICES);
 
@@ -44,7 +49,7 @@ const listeningAudioSchema = z.discriminatedUnion("type", [
         "Stable Kokoro voice for this speaker: af_heart American female, am_fenrir American male, bf_emma British female, or bm_george British male.",
       ),
     })).min(1).max(12).describe(
-      "Speaker-to-voice registry. Reuse each identity consistently; speakers sharing a part must use distinct voices.",
+      "Speaker-to-voice registry. Reuse each identity consistently. Speakers sharing a part need distinct voices; use male/female contrast when suitable.",
     ),
     parts: z.array(z.strictObject({
       partId: z.number().int().min(1).max(4),
@@ -55,7 +60,7 @@ const listeningAudioSchema = z.discriminatedUnion("type", [
             "The one declared speaker delivering every sentence in this segment.",
           ),
           text: z.string().trim().min(1).max(4_000).describe(
-            "Direct, natural spoken language for this speaker turn. Do not include speaker labels and do not place another speaker's words in this text.",
+            "Direct speech for one speaker turn, without labels or another speaker's words.",
           ),
         }),
         z.strictObject({
@@ -70,8 +75,8 @@ const listeningAudioSchema = z.discriminatedUnion("type", [
       ])).min(1).max(100).describe(
         "Ordered speaker turns and explicit silences. Start a new speech segment whenever the speaker changes.",
       ),
-    })).length(4).describe(KOKORO_LISTENING_AUTHORING_GUIDANCE),
-  }).describe(KOKORO_LISTENING_AUTHORING_GUIDANCE),
+    })).length(4).describe(KOKORO_PARTS_DESCRIPTION),
+  }).describe(KOKORO_AUDIO_DESCRIPTION),
 ]);
 
 const radioOptionSchema = z.strictObject({

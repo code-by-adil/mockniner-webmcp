@@ -26,6 +26,17 @@ export type ToolFailure = {
   error: ToolError
 }
 
+const fallbackExecutionSignal = new AbortController().signal
+
+// Some current native browser invocation paths omit the documented callback
+// options. Keep those clients working while preserving cancellation whenever
+// the caller supplies a signal.
+export function getToolExecutionSignal(
+  options: WebMCP.ToolExecuteCallbackOptions | undefined,
+): AbortSignal {
+  return options?.signal ?? fallbackExecutionSignal
+}
+
 export function toolFailure(
   code: string,
   message: string,

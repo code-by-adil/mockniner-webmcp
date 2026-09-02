@@ -12,7 +12,12 @@ import {
   type AssessmentEvaluation,
   type AssessmentSubmission,
 } from "@/domain/assessment";
-import { throwIfCancelled, toolFailure, zodIssues } from "./toolResult";
+import {
+  getToolExecutionSignal,
+  throwIfCancelled,
+  toolFailure,
+  zodIssues,
+} from "./toolResult";
 
 const getSubmissionInputSchema = {
   type: "object",
@@ -33,7 +38,7 @@ const getAuthoringKitInputSchema = {
       type: "string",
       enum: ASSESSMENT_AUTHORING_TEMPLATE_IDS,
       description:
-        "The closest authoring pattern. Choose minimal-objective for ordinary quizzes, writing-with-rubric for extended responses, or a named exam-style template when it matches the request.",
+        "Choose minimal-objective for quizzes, writing-with-rubric for extended responses, or the named exam-style template matching the request.",
     },
   },
   required: ["template"],
@@ -66,7 +71,8 @@ export function createAssessmentToolDefinitions({
         "Return the engine capabilities, supported and unsupported behavior, authoring rules, and one complete JSON package for a chosen non-IELTS assessment pattern. Use the closest template before creating a universal assessment. Native IELTS Listening, Reading, and Writing use install_practice_set instead.",
       inputSchema: getAuthoringKitInputSchema,
       annotations: { readOnlyHint: true, untrustedContentHint: false },
-      execute: async (input, { signal }) => {
+      execute: async (input, options) => {
+        const signal = getToolExecutionSignal(options);
         throwIfCancelled(signal);
         const parsed = z.object({ template: z.enum(ASSESSMENT_AUTHORING_TEMPLATE_IDS) }).strict().safeParse(input);
         if (!parsed.success) {
@@ -86,8 +92,9 @@ export function createAssessmentToolDefinitions({
       description:
         "Validate and install one complete universal assessment package. Use this for GRE-style, SAT-style, school, professional, and custom practice built from the declared engine capabilities. Native IELTS Listening, Reading, and Writing use install_practice_set. Installation is atomic, and a successful package appears in the assessment library immediately.",
       inputSchema: getAssessmentPackageJsonSchema(),
-      annotations: { readOnlyHint: false, untrustedContentHint: false },
-      execute: async (input, { signal }) => {
+      annotations: { readOnlyHint: false, untrustedContentHint: true },
+      execute: async (input, options) => {
+        const signal = getToolExecutionSignal(options);
         throwIfCancelled(signal);
         try {
           const assessment = await installAssessment(input);
@@ -127,7 +134,8 @@ export function createAssessmentToolDefinitions({
       "Read an immutable submitted universal assessment attempt, its candidate-visible package without answer keys, responses, objective result, rubrics, and evaluation status. Omit attemptId to read the latest submission.",
     inputSchema: getSubmissionInputSchema,
     annotations: { readOnlyHint: true, untrustedContentHint: true },
-    execute: async (input, { signal }) => {
+    execute: async (input, options) => {
+      const signal = getToolExecutionSignal(options);
       throwIfCancelled(signal);
       const parsed = z.object({ attemptId: z.uuid().optional() }).strict().safeParse(input);
       if (!parsed.success) {
@@ -175,7 +183,8 @@ export function createAssessmentToolDefinitions({
       "Validate and attach a structured rubric evaluation to the current immutable universal assessment submission. Read the submission first and use exactly its rubric ID, criteria, scale, and response text. On success the visible result updates immediately.",
     inputSchema: getAssessmentEvaluationJsonSchema(),
     annotations: { readOnlyHint: false, untrustedContentHint: false },
-    execute: async (input, { signal }) => {
+    execute: async (input, options) => {
+      const signal = getToolExecutionSignal(options);
       throwIfCancelled(signal);
       const parsed = assessmentEvaluationInputSchema.safeParse(input);
       if (!parsed.success) {

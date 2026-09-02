@@ -5,7 +5,12 @@ import {
 } from '@/application/commands'
 import { getPracticeContentJsonSchema } from '@/domain/contentDocument'
 import { KOKORO_LISTENING_AUTHORING_GUIDANCE } from '@/domain/objectiveContent'
-import { toolFailure, throwIfCancelled, zodIssues } from './toolResult'
+import {
+  getToolExecutionSignal,
+  toolFailure,
+  throwIfCancelled,
+  zodIssues,
+} from './toolResult'
 
 type PracticeToolDependencies = {
   installContent: ExamApplicationCommands['installContent']
@@ -28,10 +33,11 @@ export function createPracticeToolDefinitions({
       name: 'install_practice_set',
       title: 'Install IELTS practice set',
       description:
-        `Validate, save, and activate one native IELTS Listening, Reading, or Writing practice set in the high-fidelity IELTS interface. Use install_assessment for GRE-style, SAT-style, school, professional, and other universal practice. The IELTS set becomes visible on the practice home screen. Call this when no learner attempt is active. ${KOKORO_LISTENING_AUTHORING_GUIDANCE}`,
+        `Install and activate one native IELTS Listening, Reading, or Writing set. Use this on the home screen when no attempt is active. Use install_assessment for GRE-style, SAT-style, and other formats. ${KOKORO_LISTENING_AUTHORING_GUIDANCE}`,
       inputSchema: getPracticeContentJsonSchema(),
-      annotations: { readOnlyHint: false, untrustedContentHint: false },
-      execute: async (input, { signal }) => {
+      annotations: { readOnlyHint: false, untrustedContentHint: true },
+      execute: async (input, options) => {
+        const signal = getToolExecutionSignal(options)
         throwIfCancelled(signal)
         try {
           const document = await installContent(markAsAgentCreated(input))

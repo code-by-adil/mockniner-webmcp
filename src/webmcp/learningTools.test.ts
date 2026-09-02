@@ -41,7 +41,10 @@ describe('learning-summary WebMCP tool', () => {
         totalAttempts: 0,
       },
     })
-    expect(tool!.annotations).toMatchObject({ readOnlyHint: true })
+    expect(tool!.annotations).toMatchObject({
+      readOnlyHint: true,
+      untrustedContentHint: true,
+    })
   })
 
   it('returns a repairable error for an excessive history request', async () => {

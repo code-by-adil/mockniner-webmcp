@@ -52,6 +52,34 @@ describe("universal assessment WebMCP tools", () => {
       .toContainEqual(expect.objectContaining({ interaction: expect.objectContaining({ type: "grouped_choice" }) }));
   });
 
+  it("supports native clients that omit callback options", async () => {
+    const tool = createAssessmentToolDefinitions({
+      installAssessment: vi.fn(),
+      readAssessmentAttempt: vi.fn(),
+      attachEvaluation: vi.fn(),
+      getCurrentAttemptId: () => undefined,
+    }).find((candidate) => candidate.name === "get_assessment_authoring_kit")!;
+
+    await expect(
+      tool.execute({ template: "minimal-objective" }, undefined as never),
+    ).resolves.toMatchObject({ ok: true, data: { template: { id: "minimal-objective" } } });
+  });
+
+  it("still honors cancellation when the client supplies a signal", async () => {
+    const tool = createAssessmentToolDefinitions({
+      installAssessment: vi.fn(),
+      readAssessmentAttempt: vi.fn(),
+      attachEvaluation: vi.fn(),
+      getCurrentAttemptId: () => undefined,
+    }).find((candidate) => candidate.name === "get_assessment_authoring_kit")!;
+    const controller = new AbortController();
+    controller.abort(new DOMException("Cancelled by client.", "AbortError"));
+
+    await expect(
+      tool.execute({ template: "minimal-objective" }, { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+  });
+
   it("installs a complete assessment and reports its visible side effect", async () => {
     const installAssessment = vi.fn(async () => ({ ...satPracticeAssessment, source: "agent" as const }));
     const tool = createAssessmentToolDefinitions({
@@ -66,6 +94,10 @@ describe("universal assessment WebMCP tools", () => {
       ok: true,
       data: { itemCount: 12 },
       sideEffect: { visibleView: "assessment_library" },
+    });
+    expect(tool.annotations).toMatchObject({
+      readOnlyHint: false,
+      untrustedContentHint: true,
     });
   });
 

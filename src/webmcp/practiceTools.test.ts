@@ -38,12 +38,27 @@ describe('practice-set WebMCP tool', () => {
         visibleView: 'home',
       },
     })
-    expect(tool!.annotations).toMatchObject({ readOnlyHint: false })
+    expect(tool!.annotations).toMatchObject({
+      readOnlyHint: false,
+      untrustedContentHint: true,
+    })
     expect(tool!.description).toContain('Use install_assessment for GRE-style')
-    expect(tool!.description).toContain('Part 1 is an everyday transactional conversation between exactly two speakers')
-    expect(tool!.description).toContain('Part 3 is an educational or training discussion between two to four speakers')
-    expect(JSON.stringify(tool!.inputSchema)).toContain('Direct, natural spoken language')
+    expect(tool!.description).toContain('exactly two speakers')
+    expect(tool!.description).toContain('optionally a tutor')
+    expect(tool!.description).toContain('distinct within a multi-speaker part')
+    expect(JSON.stringify(tool!.inputSchema)).toContain('Direct speech for one speaker turn')
+    expect(JSON.stringify(tool!.inputSchema)).toContain('male/female contrast')
     expect(JSON.stringify(tool!.inputSchema)).toContain('British female')
+  })
+
+  it('supports native clients that omit callback options', async () => {
+    const [tool] = createPracticeToolDefinitions({
+      installContent: async (input) => parsePracticeContentDocument(input),
+    })
+
+    await expect(
+      tool!.execute(writingDocument, undefined as never),
+    ).resolves.toMatchObject({ ok: true, data: { section: 'writing' } })
   })
 
   it('returns paths for a malformed practice set', async () => {

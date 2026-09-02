@@ -75,6 +75,21 @@ In addition to Vitest, it prepares the evaluation artifacts under the ignored
 
 This preflight uses no model and no API key.
 
+## Native browser smoke test
+
+Start the application, then run the deterministic browser journey:
+
+```bash
+npm run eval:agent:smoke -- --chrome-channel chrome-canary --verbose
+```
+
+Set `AGENT_EVAL_URL` to test another local or deployed URL. The smoke runner
+uses Chrome's native WebMCP implementation and calls every tool registered on
+the library screen. It checks real discovery, callback execution, local
+persistence, and structured failure handling without a model or API key. Keep
+this separate from the model evaluations. It proves that the browser can call
+the tools, not that a model will choose them correctly.
+
 ## Static model evaluation
 
 Set credentials for a backend supported by `webmcp-evals`, then run, for

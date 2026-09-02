@@ -4,6 +4,7 @@ import {
   evalsArtifactPath,
   loadProjectModules,
   readCaseManifest,
+  smokeEvalsArtifactPath,
   toolsArtifactPath,
 } from "./shared.mjs";
 
@@ -213,24 +214,70 @@ function buildEval(definition, getAssessmentAuthoringKit) {
   throw new Error(`Unknown agent eval case kind: ${definition.kind}`);
 }
 
+function browserSmokeEvals(modules) {
+  const assessmentPackage = structuredClone(
+    modules.examples.getAssessmentAuthoringKit("minimal-objective").examplePackage,
+  );
+  assessmentPackage.packageId = "browser-smoke-assessment";
+  assessmentPackage.title = "Browser smoke assessment";
+  const writingDocument = {
+    ...structuredClone(modules.writing.writingDocument),
+    contentKey: "browser-smoke-writing",
+    name: "Browser smoke Writing practice",
+  };
+
+  return [
+    {
+      name: "Native browser executes every home tool",
+      messages: [
+        {
+          role: "user",
+          type: "message",
+          content: "Exercise each WebMCP tool registered on the assessment library.",
+        },
+      ],
+      expectedCall: [
+        {
+          functionName: "get_learning_summary",
+          arguments: { recentLimit: 1 },
+        },
+        {
+          functionName: "get_assessment_authoring_kit",
+          arguments: { template: "minimal-objective" },
+        },
+        {
+          functionName: "install_assessment",
+          arguments: assessmentPackage,
+        },
+        {
+          functionName: "install_practice_set",
+          arguments: writingDocument,
+        },
+      ],
+    },
+  ];
+}
+
 export async function prepareAgentEvalArtifacts() {
   const [manifest, modules] = await Promise.all([readCaseManifest(), loadProjectModules()]);
   const tools = toolDefinitions(modules);
   const evals = manifest.cases.map((definition) =>
     buildEval(definition, modules.examples.getAssessmentAuthoringKit),
   );
+  const smokeEvals = browserSmokeEvals(modules);
 
   await mkdir(artifactDirectory, { recursive: true });
   await Promise.all([
     writeFile(toolsArtifactPath, `${JSON.stringify({ tools }, null, 2)}\n`),
     writeFile(evalsArtifactPath, `${JSON.stringify(evals, null, 2)}\n`),
+    writeFile(smokeEvalsArtifactPath, `${JSON.stringify(smokeEvals, null, 2)}\n`),
   ]);
-  return { manifest, tools, evals, modules };
+  return { manifest, tools, evals, smokeEvals, modules };
 }
 
 if (process.argv[1] === new URL(import.meta.url).pathname) {
-  const { tools, evals } = await prepareAgentEvalArtifacts();
+  const { tools, evals, smokeEvals } = await prepareAgentEvalArtifacts();
   console.log(
-    `Prepared ${tools.length} production tool definitions and ${evals.length} agent eval cases.`,
+    `Prepared ${tools.length} production tool definitions, ${evals.length} agent eval cases, and ${smokeEvals.length} browser smoke journey.`,
   );
 }

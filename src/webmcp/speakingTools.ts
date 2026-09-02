@@ -6,7 +6,12 @@ import {
   AgentSpeakingTurnError,
   conductAgentSpeakingTurn,
 } from "@/modules/section-packs/speaking/agentSpeakingCoordinator";
-import { throwIfCancelled, toolFailure, zodIssues } from "./toolResult";
+import {
+  getToolExecutionSignal,
+  throwIfCancelled,
+  toolFailure,
+  zodIssues,
+} from "./toolResult";
 
 const questionTurnSchema = z.strictObject({
   examinerText: z.string().trim().min(1).max(800),
@@ -60,10 +65,11 @@ export function createSpeakingToolDefinitions(
     name: "conduct_speaking_turn",
     title: "Conduct one IELTS Speaking turn",
     description:
-      "Conduct exactly one turn of the visible Agent interview. For a question, provide examinerText, IELTS part 1-3, a response limit, and finishInterview=false; Kokoro speaks it and the call waits until the learner records and approves a transcript. Use the returned transcript to choose the next question. At the end call once with a short closing examinerText and finishInterview=true; this saves the complete attempt. Do not call turns concurrently.",
+      "Conduct exactly one turn of the visible Agent interview. For a question, provide examinerText, IELTS part 1-3, a response limit, and finishInterview=false; Kokoro speaks it and the call waits until the learner approves a transcript. Use that transcript to choose the next question. Finish with one short closing examinerText and finishInterview=true to save the complete attempt. Call turns serially.",
     inputSchema: z.toJSONSchema(agentSpeakingTurnSchema, { target: "draft-07" }),
     annotations: { readOnlyHint: false, untrustedContentHint: true },
-    execute: async (input, { signal }) => {
+    execute: async (input, options) => {
+      const signal = getToolExecutionSignal(options);
       throwIfCancelled(signal);
       const parsed = agentSpeakingTurnSchema.safeParse(input);
       if (!parsed.success) {
@@ -106,7 +112,8 @@ export function createSpeakingToolDefinitions(
       "Read an immutable submitted Speaking attempt with every examiner prompt, candidate transcript, duration, part, and attempt identity. Audio stays private in the local browser. Omit attemptId to read the latest attempt.",
     inputSchema: getSpeakingSubmissionInputSchema,
     annotations: { readOnlyHint: true, untrustedContentHint: true },
-    execute: async (input, { signal }) => {
+    execute: async (input, options) => {
+      const signal = getToolExecutionSignal(options);
       throwIfCancelled(signal);
       const parsed = z.object({ attemptId: z.uuid().optional() }).strict().safeParse(input);
       if (!parsed.success) {
@@ -152,10 +159,11 @@ export function createSpeakingToolDefinitions(
     name: "attach_speaking_evaluation",
     title: "Attach IELTS Speaking evaluation",
     description:
-      "Attach one structured transcript-based IELTS Speaking evaluation to the current immutable attempt. Use whole or half bands from 0 to 9 for overall, fluency/coherence, lexical resource, and grammatical range/accuracy. Do not score pronunciation because the agent receives transcripts, not audio. On success the application opens the Speaking review.",
+      "Attach one structured transcript-based IELTS Speaking evaluation to the current immutable attempt. Use whole or half bands from 0 to 9 for overall, fluency/coherence, lexical resource, and grammatical range/accuracy. Pronunciation stays unscored because the agent receives transcripts, not audio. On success the application opens the Speaking review.",
     inputSchema: z.toJSONSchema(speakingEvaluationInputSchema, { target: "draft-07" }),
     annotations: { readOnlyHint: false, untrustedContentHint: false },
-    execute: async (input, { signal }) => {
+    execute: async (input, options) => {
+      const signal = getToolExecutionSignal(options);
       throwIfCancelled(signal);
       const parsed = speakingEvaluationInputSchema.safeParse(input);
       if (!parsed.success) {

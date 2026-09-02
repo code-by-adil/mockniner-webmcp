@@ -8,6 +8,7 @@ export const artifactDirectory = path.join(projectRoot, ".evals", "agent-authori
 export const reportDirectory = path.join(projectRoot, ".evals", "agent-authoring", "reports");
 export const toolsArtifactPath = path.join(artifactDirectory, "tools.json");
 export const evalsArtifactPath = path.join(artifactDirectory, "evals.json");
+export const smokeEvalsArtifactPath = path.join(artifactDirectory, "smoke-evals.json");
 
 export async function readCaseManifest() {
   return JSON.parse(await readFile(casesPath, "utf8"));
@@ -23,7 +24,15 @@ export async function loadProjectModules() {
   });
 
   try {
-    const [assessmentTools, practiceTools, learningTools, examples, assessment, contentDocument] =
+    const [
+      assessmentTools,
+      practiceTools,
+      learningTools,
+      examples,
+      assessment,
+      contentDocument,
+      writing,
+    ] =
       await Promise.all([
         server.ssrLoadModule("/src/webmcp/assessmentTools.ts"),
         server.ssrLoadModule("/src/webmcp/practiceTools.ts"),
@@ -31,6 +40,7 @@ export async function loadProjectModules() {
         server.ssrLoadModule("/src/content/assessmentExamples.ts"),
         server.ssrLoadModule("/src/domain/assessment.ts"),
         server.ssrLoadModule("/src/domain/contentDocument.ts"),
+        server.ssrLoadModule("/src/content/writing.ts"),
       ]);
     return {
       assessmentTools,
@@ -39,6 +49,7 @@ export async function loadProjectModules() {
       examples,
       assessment,
       contentDocument,
+      writing,
     };
   } finally {
     await server.close();

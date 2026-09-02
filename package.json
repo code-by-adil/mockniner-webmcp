@@ -10,6 +10,7 @@
     "lint": "oxlint",
     "test": "vitest run && npm run eval:agent:check",
     "eval:agent:check": "node scripts/agent-evals/check.mjs",
+    "eval:agent:smoke": "node scripts/agent-evals/smoke.mjs",
     "eval:agent:local": "node scripts/agent-evals/run.mjs local",
     "eval:agent:browser": "node scripts/agent-evals/run.mjs browser",
     "eval:agent:release": "node scripts/agent-evals/run.mjs browser --release",

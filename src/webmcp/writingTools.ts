@@ -5,7 +5,12 @@ import {
   type WritingEvaluationInput,
   writingEvaluationInputSchema,
 } from "@/domain/writingEvaluation";
-import { toolFailure, throwIfCancelled, zodIssues } from "./toolResult";
+import {
+  getToolExecutionSignal,
+  toolFailure,
+  throwIfCancelled,
+  zodIssues,
+} from "./toolResult";
 import type { ToolIssue } from "./toolResult";
 
 const getWritingSubmissionInputSchema = {
@@ -98,7 +103,8 @@ export function createWritingToolDefinitions(
       "Read an immutable submitted IELTS Writing attempt, including both original task definitions, candidate responses, word counts, and attempt identity. Use this before evaluating Writing. Omit attemptId to read the latest submission.",
     inputSchema: getWritingSubmissionInputSchema,
     annotations: { readOnlyHint: true, untrustedContentHint: true },
-    execute: async (input, { signal }) => {
+    execute: async (input, options) => {
+      const signal = getToolExecutionSignal(options);
       throwIfCancelled(signal);
       const parsed = z.object({ attemptId: z.uuid().optional() }).strict().safeParse(input);
       if (!parsed.success) {
@@ -138,7 +144,8 @@ export function createWritingToolDefinitions(
       "Validate and attach a structured IELTS Writing evaluation to the current immutable submission. Supply whole or half-band scores from 0 to 9 for both tasks and all four criteria. On success the application opens the read-only Writing review.",
     inputSchema: attachWritingEvaluationInputSchema,
     annotations: { readOnlyHint: false, untrustedContentHint: false },
-    execute: async (input, { signal }) => {
+    execute: async (input, options) => {
+      const signal = getToolExecutionSignal(options);
       throwIfCancelled(signal);
       const parsed = writingEvaluationInputSchema.safeParse(input);
       if (!parsed.success) {
