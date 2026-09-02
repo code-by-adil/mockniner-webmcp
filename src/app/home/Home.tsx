@@ -72,53 +72,6 @@ const SECTION_CONFIG = {
   },
 } as const;
 
-const WEBMCP_TOOLS = [
-  {
-    name: "get_assessment_capabilities",
-    desc: "Inspect trusted universal assessment components and authoring rules.",
-  },
-  {
-    name: "install_assessment",
-    desc: "Install a universal or SAT-style assessment package in the library.",
-  },
-  {
-    name: "get_assessment_submission",
-    desc: "Read an immutable universal assessment submission without answer keys.",
-  },
-  {
-    name: "attach_assessment_evaluation",
-    desc: "Attach rubric-based feedback to a subjective assessment response.",
-  },
-  {
-    name: "install_practice_set",
-    desc: "Generate and install native IELTS Listening, Reading, or Writing materials.",
-  },
-  {
-    name: "get_writing_submission",
-    desc: "Retrieve submitted Task 1 and Task 2 essays for grading.",
-  },
-  {
-    name: "attach_writing_evaluation",
-    desc: "Attach official Band descriptors, criteria scores, and targeted feedback.",
-  },
-  {
-    name: "conduct_speaking_turn",
-    desc: "Coordinate an agent-guided IELTS Speaking examiner turn.",
-  },
-  {
-    name: "get_speaking_submission",
-    desc: "Retrieve recorded interview audio transcripts across all 3 parts.",
-  },
-  {
-    name: "attach_speaking_evaluation",
-    desc: "Attach Fluency, Lexical Resource, Grammar, and Pronunciation scores.",
-  },
-  {
-    name: "get_learning_summary",
-    desc: "Inspect recent attempt history, overall bands, and weak skill areas.",
-  },
-];
-
 const PROMPT_SUGGESTIONS = [
   "Create and install an original SAT-style diagnostic focused on algebra and inference.",
   "Build a six-question universal assessment with multiple choice, numeric entry, and one rubric-evaluated response.",
@@ -567,34 +520,16 @@ export function Home({
                 </p>
               </div>
 
-              {/* Status Pill Box */}
               <div className="flex items-start gap-2.5 rounded-xl bg-neutral-100/70 border border-neutral-200/60 p-3.5 text-xs">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 mt-0.5 shrink-0" />
                 <div className="space-y-0.5">
                   <div className="font-semibold text-neutral-900">
-                    {WEBMCP_TOOLS.length} browser tools active
+                    Capabilities follow the current workspace
                   </div>
                   <div className="text-neutral-500 text-[11px]">
-                    Available directly to connected AI agents while this workspace is open in your browser.
+                    Authoring tools appear in the library. Submission and evaluation tools appear only on the relevant result screen.
                   </div>
                 </div>
-              </div>
-
-              {/* 2-Column Tools Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {WEBMCP_TOOLS.map((tool) => (
-                  <div
-                    key={tool.name}
-                    className="rounded-xl border border-neutral-200/80 bg-neutral-50/70 p-3.5 space-y-1.5 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
-                  >
-                    <div className="font-mono text-xs font-semibold text-neutral-900">
-                      {tool.name}
-                    </div>
-                    <div className="text-[11px] text-neutral-500 leading-relaxed">
-                      {tool.desc}
-                    </div>
-                  </div>
-                ))}
               </div>
 
               {/* Try Asking Section */}

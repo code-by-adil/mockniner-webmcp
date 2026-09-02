@@ -6,30 +6,58 @@ import type {
   AssessmentSubmission,
 } from "@/domain/assessment";
 
-function displayResponse(response: AssessmentResponse | undefined): string {
+function optionLabel(item: AssessmentItem, optionId: string): string {
+  const interaction = item.interaction;
+  if (interaction.type === "single_choice" || interaction.type === "multiple_choice") {
+    return interaction.options.find((option) => option.id === optionId)?.label ?? optionId;
+  }
+  if (interaction.type === "matching") {
+    return interaction.options.find((option) => option.id === optionId)?.label ?? optionId;
+  }
+  if (interaction.type === "grouped_choice") {
+    return interaction.groups
+      .flatMap((group) => group.options)
+      .find((option) => option.id === optionId)?.label ?? optionId;
+  }
+  return optionId;
+}
+
+function mappingLabel(item: AssessmentItem, entryId: string): string {
+  if (item.interaction.type === "matching") {
+    return item.interaction.prompts.find((prompt) => prompt.id === entryId)?.label ?? entryId;
+  }
+  if (item.interaction.type === "grouped_choice") {
+    return item.interaction.groups.find((group) => group.id === entryId)?.label ?? entryId;
+  }
+  return entryId;
+}
+
+function displayResponse(item: AssessmentItem, response: AssessmentResponse | undefined): string {
   if (response === undefined) return "No answer";
-  if (typeof response === "string") return response || "No answer";
-  if (Array.isArray(response)) return response.length ? response.join(", ") : "No answer";
+  if (typeof response === "string") return response ? optionLabel(item, response) : "No answer";
+  if (Array.isArray(response)) {
+    return response.length ? response.map((optionId) => optionLabel(item, optionId)).join(", ") : "No answer";
+  }
 
   const entries = Object.entries(response);
   return entries.length
-    ? entries.map(([key, value]) => `${key}: ${value}`).join(" · ")
+    ? entries.map(([key, value]) => `${mappingLabel(item, key)}: ${optionLabel(item, value)}`).join(" · ")
     : "No answer";
 }
 
 function displayCorrectAnswer(item: AssessmentItem): string {
   switch (item.scoring.type) {
     case "exact":
-      return item.scoring.answer;
+      return optionLabel(item, item.scoring.answer);
     case "aliases":
       return item.scoring.answers.join(" / ");
     case "set":
-      return item.scoring.answers.join(", ");
+      return item.scoring.answers.map((answer) => optionLabel(item, answer)).join(", ");
     case "numeric":
       return String(item.scoring.answer);
     case "mapping":
       return Object.entries(item.scoring.answers)
-        .map(([key, value]) => `${key}: ${value}`)
+        .map(([key, value]) => `${mappingLabel(item, key)}: ${optionLabel(item, value)}`)
         .join(" · ");
     case "agent":
       return "Agent evaluation required";
@@ -51,22 +79,27 @@ export function AssessmentAnswerReview({
 }: {
   submission: AssessmentSubmission;
 }): ReactElement {
+  const showAnswers = submission.package.review.mode === "answers";
   const itemById = new Map(
-    submission.package.sections
-      .flatMap((section) => section.modules.flatMap((module) => module.items))
+    submission.package.parts
+      .flatMap((part) => part.items)
       .map((item) => [item.id, item] as const),
   );
 
   return (
     <section className="mt-8 space-y-3">
-      <h2 className="text-lg font-bold">Answer review</h2>
+      <h2 className="text-lg font-bold">
+        {showAnswers ? "Answer review" : "Response review"}
+      </h2>
       {submission.result.itemResults.map((itemResult, index) => {
         const item = itemById.get(itemResult.itemId);
         if (!item) return null;
 
-        const expectedAnswer = itemResult.correct === null && !itemResult.answered
-          ? "No response to evaluate"
-          : displayCorrectAnswer(item);
+        const expectedAnswer = showAnswers
+          ? itemResult.correct === null && !itemResult.answered
+            ? "No response to evaluate"
+            : displayCorrectAnswer(item)
+          : null;
 
         return (
           <article
@@ -80,17 +113,19 @@ export function AssessmentAnswerReview({
                 </div>
                 <div className="mt-2 text-sm text-neutral-700">
                   Your response:{" "}
-                  <strong>{displayResponse(submission.responses[item.id])}</strong>
+                  <strong>{displayResponse(item, submission.responses[item.id])}</strong>
                 </div>
-                <div className="mt-1 text-sm text-neutral-500">
-                  Expected: {expectedAnswer}
+                {showAnswers ? (
+                  <div className="mt-1 text-sm text-neutral-500">Expected: {expectedAnswer}</div>
+                ) : null}
+              </div>
+              {showAnswers ? (
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${resultIconClass(itemResult.correct)}`}
+                >
+                  <ResultIcon correct={itemResult.correct} />
                 </div>
-              </div>
-              <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${resultIconClass(itemResult.correct)}`}
-              >
-                <ResultIcon correct={itemResult.correct} />
-              </div>
+              ) : null}
             </div>
           </article>
         );

@@ -4,6 +4,7 @@ import type { AssessmentEvaluation, AssessmentSubmission } from "@/domain/assess
 import { WorkspaceBrandMark } from "@/shared/ui/global/WorkspaceBrandMark";
 import { AssessmentAnswerReview } from "./AssessmentAnswerReview";
 import { AssessmentEvaluationPanel } from "./AssessmentEvaluationPanel";
+import { getAssessmentThemeStyle } from "./assessmentTheme";
 
 export function AssessmentResults({
   submission,
@@ -21,8 +22,9 @@ export function AssessmentResults({
   const evaluationRubric = evaluation
     ? assessment.rubrics.find((rubric) => rubric.id === evaluation.rubricId)
     : undefined;
+  const style = getAssessmentThemeStyle(assessment.presentation.accent);
   return (
-    <div className="min-h-screen bg-neutral-100 text-neutral-950">
+    <div style={style} className="min-h-screen bg-neutral-100 text-neutral-950">
       <header className="border-b border-neutral-200 bg-white">
         <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-4 sm:px-8">
           <WorkspaceBrandMark />
@@ -45,7 +47,7 @@ export function AssessmentResults({
           <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
             <div className="text-xs font-bold uppercase tracking-wider text-neutral-400">Answered</div>
             <div className="mt-2 text-3xl font-extrabold">{result.answeredCount}<span className="text-lg font-semibold text-neutral-400">/{result.totalItems}</span></div>
-            <div className="mt-1 text-xs text-neutral-500">Across all sections and modules</div>
+            <div className="mt-1 text-xs text-neutral-500">Across all assessment parts</div>
           </div>
           <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
             <div className="text-xs font-bold uppercase tracking-wider text-neutral-400">Evaluation</div>
@@ -54,9 +56,9 @@ export function AssessmentResults({
           </div>
         </div>
 
-        {assessment.profileId === "sat-practice" ? (
+        {assessment.metadata.disclaimer ? (
           <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-950">
-            This is original SAT-style practice. It reports raw accuracy and domain performance, not an official or predicted SAT score.
+            {assessment.metadata.disclaimer}
           </div>
         ) : null}
 
@@ -86,7 +88,7 @@ export function AssessmentResults({
           </section>
         ) : null}
 
-        <AssessmentAnswerReview submission={submission} />
+        {assessment.review.mode === "none" ? null : <AssessmentAnswerReview submission={submission} />}
       </main>
     </div>
   );

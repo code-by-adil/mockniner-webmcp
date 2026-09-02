@@ -1,120 +1,144 @@
 import { describe, expect, it } from "vitest";
 import { satPracticeAssessment } from "@/content/sat";
-import { gradeAssessment, type AssessmentSubmission } from "./assessment";
+import { greStyleAssessment } from "@/content/gre";
+import { compileAssessment, gradeAssessment, parseAssessmentPackage, type AssessmentSubmission } from "./assessment";
 import {
   assessmentSessionReducer,
   initialAssessmentSession,
-  isFinalAssessmentItem,
-  isFinalAssessmentModule,
+  isFinalPart,
+  isLastItemInPart,
 } from "./assessmentSession";
 
+const plan = compileAssessment(satPracticeAssessment);
+const nowMs = Date.parse("2026-09-02T10:00:00.000Z");
+const attemptId = "33333333-3333-4333-8333-333333333333";
+
+function start() {
+  return assessmentSessionReducer(initialAssessmentSession, {
+    type: "START",
+    plan,
+    attemptId,
+    startedAt: new Date(nowMs).toISOString(),
+    nowMs,
+  });
+}
+
 describe("assessment session", () => {
-  it("starts, records responses, and moves forward without crossing backward between modules", () => {
+  it("uses stable IDs and makes part completion an explicit locking boundary", () => {
+    let state = start();
+    state = assessmentSessionReducer(state, { type: "SET_RESPONSE", itemId: "rw-1", response: "b" });
+    state = { ...state, itemId: "rw-3" };
+    expect(assessmentSessionReducer(state, { type: "ADVANCE_ITEM", plan })).toEqual(state);
+    state = assessmentSessionReducer(state, {
+      type: "COMPLETE_PART",
+      plan,
+      partId: "rw-module-1",
+      nowMs: nowMs + 5_000,
+    });
+    expect(state).toMatchObject({ partId: "rw-module-2", itemId: "rw-4", secondsRemaining: 480 });
+    expect(state.responses["rw-1"]).toBe("b");
+  });
+
+  it("ignores duplicate or stale part-completion events", () => {
+    const completion = {
+      type: "COMPLETE_PART" as const,
+      plan,
+      partId: "rw-module-1",
+      nowMs: nowMs + 5_000,
+    };
+    const advanced = assessmentSessionReducer(start(), completion);
+
+    expect(advanced.partId).toBe("rw-module-2");
+    expect(assessmentSessionReducer(advanced, completion)).toEqual(advanced);
+  });
+
+  it("recognizes the end of a part separately from the end of the assessment", () => {
+    expect(isLastItemInPart(plan, { ...start(), itemId: "rw-3" })).toBe(true);
+    expect(isFinalPart(plan, { ...start(), partId: "rw-module-1" })).toBe(false);
+    expect(isFinalPart(plan, { ...start(), partId: "math-module-2", itemId: "math-6" })).toBe(true);
+  });
+
+  it("persists authorized marking and elimination and clears an eliminated response", () => {
+    let state = start();
+    state = assessmentSessionReducer(state, { type: "SET_RESPONSE", itemId: "rw-1", response: "b" });
+    state = assessmentSessionReducer(state, { type: "TOGGLE_MARK", plan, itemId: "rw-1" });
+    state = assessmentSessionReducer(state, {
+      type: "TOGGLE_ELIMINATION", plan, itemId: "rw-1", optionId: "b",
+    });
+    expect(state.responses["rw-1"]).toBeUndefined();
+    expect(state.workspace.markedItemIds).toEqual(["rw-1"]);
+    expect(state.workspace.eliminatedOptionIds["rw-1"]).toEqual(["b"]);
+  });
+
+  it("clears a grouped-choice response when its selected option is eliminated", () => {
+    const grePlan = compileAssessment(greStyleAssessment);
     let state = assessmentSessionReducer(initialAssessmentSession, {
       type: "START",
-      assessment: satPracticeAssessment,
-      startedAt: "2026-09-02T10:00:00.000Z",
+      plan: grePlan,
+      attemptId,
+      startedAt: new Date(nowMs).toISOString(),
+      nowMs,
     });
+    state = { ...state, itemId: "verbal-text-completion" };
     state = assessmentSessionReducer(state, {
       type: "SET_RESPONSE",
-      itemId: "rw-1",
-      response: "b",
+      itemId: "verbal-text-completion",
+      response: { "blank-1": "blank-1-b", "blank-2": "blank-2-a" },
     });
-    state = { ...state, itemIndex: 2 };
     state = assessmentSessionReducer(state, {
-      type: "ADVANCE",
-      assessment: satPracticeAssessment,
+      type: "TOGGLE_ELIMINATION",
+      plan: grePlan,
+      itemId: "verbal-text-completion",
+      optionId: "blank-1-b",
     });
 
-    expect(state.responses["rw-1"]).toBe("b");
-    expect(state.moduleIndex).toBe(1);
-    expect(state.itemIndex).toBe(0);
-    expect(state.secondsRemaining).toBe(8 * 60);
+    expect(state.responses["verbal-text-completion"]).toEqual({ "blank-2": "blank-2-a" });
   });
 
-  it("recognizes only the final item in the final module", () => {
-    const finalState = {
-      ...initialAssessmentSession,
-      view: "assessment" as const,
-      packageId: satPracticeAssessment.packageId,
-      sectionIndex: 1,
-      moduleIndex: 1,
-      itemIndex: 2,
-    };
-    expect(isFinalAssessmentItem(satPracticeAssessment, finalState)).toBe(true);
-    expect(isFinalAssessmentItem(satPracticeAssessment, { ...finalState, itemIndex: 1 })).toBe(false);
-    expect(isFinalAssessmentModule(satPracticeAssessment, finalState)).toBe(true);
-    expect(isFinalAssessmentModule(satPracticeAssessment, { ...finalState, moduleIndex: 0 })).toBe(false);
+  it("derives remaining time from an absolute deadline", () => {
+    const active = start();
+    const ticked = assessmentSessionReducer(active, { type: "TICK", nowMs: nowMs + 61_200 });
+    expect(ticked.secondsRemaining).toBe(419);
+    const resumed = assessmentSessionReducer({ ...ticked, view: "home" }, {
+      type: "RESUME", plan, nowMs: nowMs + 120_000,
+    });
+    expect(resumed).toMatchObject({ view: "assessment", secondsRemaining: 360 });
   });
 
-  it("closes an expired module regardless of the current question", () => {
+  it("normalizes stale stored IDs to the first valid part and item", () => {
+    const resumed = assessmentSessionReducer({
+      ...start(), view: "home", partId: "missing", itemId: "missing",
+    }, { type: "RESUME", plan, nowMs });
+    expect(resumed).toMatchObject({ partId: "rw-module-1", itemId: "rw-1" });
+  });
+
+  it("prevents direct navigation when a part declares linear delivery", () => {
+    const linearPackage = parseAssessmentPackage({
+      ...satPracticeAssessment,
+      packageId: "linear-example",
+      parts: [{ ...satPracticeAssessment.parts[0]!, navigation: "linear" }],
+    });
+    const linearPlan = compileAssessment(linearPackage);
     const active = assessmentSessionReducer(initialAssessmentSession, {
-      type: "START",
-      assessment: satPracticeAssessment,
-      startedAt: "2026-09-02T10:00:00.000Z",
+      type: "START", plan: linearPlan, attemptId, startedAt: new Date(nowMs).toISOString(), nowMs,
     });
-    const expired = assessmentSessionReducer(active, {
-      type: "EXPIRE_MODULE",
-      assessment: satPracticeAssessment,
-    });
-    expect(expired).toMatchObject({ sectionIndex: 0, moduleIndex: 1, itemIndex: 0 });
-    expect(expired.secondsRemaining).toBe(8 * 60);
+    expect(assessmentSessionReducer(active, {
+      type: "SET_ITEM", plan: linearPlan, itemId: "rw-3",
+    }).itemId).toBe("rw-1");
   });
 
-  it("opens an immutable historical submission in the result view", () => {
+  it("opens immutable history in the result view", () => {
     const submission: AssessmentSubmission = {
       attemptId: "33333333-3333-4333-8333-333333333333",
       packageId: satPracticeAssessment.packageId,
-      profileId: satPracticeAssessment.profileId,
       package: satPracticeAssessment,
       responses: { "rw-1": "b" },
       result: gradeAssessment(satPracticeAssessment, { "rw-1": "b" }),
-      startedAt: "2026-09-02T10:00:00.000Z",
+      startedAt: new Date(nowMs).toISOString(),
       submittedAt: "2026-09-02T10:10:00.000Z",
     };
-    const state = assessmentSessionReducer(initialAssessmentSession, {
-      type: "OPEN_SUBMISSION",
-      submission,
-      evaluation: null,
-    });
-    expect(state).toMatchObject({ view: "result", packageId: submission.packageId, submission });
-  });
-
-  it("clamps stale persisted navigation before resuming", () => {
-    const resumed = assessmentSessionReducer({
-      ...initialAssessmentSession,
-      packageId: satPracticeAssessment.packageId,
-      sectionIndex: 99,
-      moduleIndex: 99,
-      itemIndex: 99,
-      secondsRemaining: 99_999,
-      startedAt: "2026-09-02T10:00:00.000Z",
-    }, {
-      type: "RESUME",
-      assessment: satPracticeAssessment,
-    });
-
-    expect(resumed).toMatchObject({
-      view: "assessment",
-      sectionIndex: 1,
-      moduleIndex: 1,
-      itemIndex: 2,
-      secondsRemaining: 8 * 60,
-    });
-  });
-
-  it("keeps direct item navigation inside the active module", () => {
-    const active = assessmentSessionReducer(initialAssessmentSession, {
-      type: "START",
-      assessment: satPracticeAssessment,
-      startedAt: "2026-09-02T10:00:00.000Z",
-    });
-    const moved = assessmentSessionReducer(active, {
-      type: "SET_ITEM",
-      assessment: satPracticeAssessment,
-      itemIndex: 99,
-    });
-
-    expect(moved.itemIndex).toBe(2);
+    expect(assessmentSessionReducer(initialAssessmentSession, {
+      type: "OPEN_SUBMISSION", submission, evaluation: null,
+    })).toMatchObject({ view: "result", packageId: submission.packageId, submission });
   });
 });

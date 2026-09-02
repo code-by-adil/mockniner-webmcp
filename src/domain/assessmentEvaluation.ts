@@ -11,9 +11,7 @@ export function validateAssessmentEvaluation(
   if (submission.result.awaitingEvaluationCount === 0) {
     throw new Error("This assessment has no responses requiring agent evaluation.");
   }
-  const agentItems = submission.package.sections.flatMap((section) =>
-    section.modules.flatMap((module) => module.items)
-  ).filter(
+  const agentItems = submission.package.parts.flatMap((part) => part.items).filter(
     (item) => item.scoring.type === "agent" && hasAssessmentResponse(submission.responses[item.id]),
   );
   const expectedRubricId = agentItems[0]?.evaluationRubricId;
@@ -74,4 +72,3 @@ export function validateAssessmentEvaluation(
     }
   });
 }
-

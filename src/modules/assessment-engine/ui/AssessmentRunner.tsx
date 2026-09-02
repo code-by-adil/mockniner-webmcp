@@ -1,62 +1,104 @@
-import { useEffect, useRef, type ReactElement } from "react";
 import {
-  ArrowLeft,
-  ArrowRight,
-  Bookmark,
-  BookmarkCheck,
-  Check,
-  Clock,
-  Send,
-} from "lucide-react";
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+} from "react";
+import { Bookmark, BookmarkCheck } from "lucide-react";
 import {
+  findPlanItem,
+  findPlanPart,
+  getAssessmentResponseGuidance,
   hasAssessmentResponse,
-  type AssessmentPackage,
+  partHasTool,
+  type AssessmentPlan,
   type AssessmentResponse,
+  type AssessmentSubmission,
 } from "@/domain/assessment";
-import {
-  isFinalAssessmentItem,
-  isFinalAssessmentModule,
-  type AssessmentSession,
-} from "@/domain/assessmentSession";
-import { WorkspaceBrandMark } from "@/shared/ui/global/WorkspaceBrandMark";
+import { isFinalPart, isLastItemInPart, type AssessmentSession } from "@/domain/assessmentSession";
+import { ResizableSplitPane } from "@/shared/ui/exam/ResizableSplitPane";
+import { AssessmentBoundaryDialog } from "./AssessmentBoundaryDialog";
 import { AssessmentContentBlockView } from "./AssessmentContentBlockView";
 import { AssessmentInteractionView } from "./AssessmentInteractionView";
+import { AssessmentQuestionNavigator } from "./AssessmentQuestionNavigator";
+import { AssessmentRunnerFooter } from "./AssessmentRunnerFooter";
+import { AssessmentRunnerHeader } from "./AssessmentRunnerHeader";
+import { getAssessmentThemeStyle } from "./assessmentTheme";
 
-function formatTime(seconds: number | null): string {
-  if (seconds === null) return "Untimed";
-  const minutes = Math.floor(Math.max(0, seconds) / 60);
-  const remainder = Math.max(0, seconds) % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
-}
 export function AssessmentRunner({
-  assessment,
+  plan,
   session,
   onExit,
   onResponse,
   onToggleMark,
+  onToggleElimination,
+  onSetTimerHidden,
   onSetItem,
   onTick,
-  onAdvance,
-  onExpireModule,
+  onAdvanceItem,
+  onCompletePart,
+  onExpirePart,
   onSubmit,
 }: {
-  assessment: AssessmentPackage;
+  plan: AssessmentPlan;
   session: AssessmentSession;
   onExit: () => void;
   onResponse: (itemId: string, response: AssessmentResponse) => void;
   onToggleMark: (itemId: string) => void;
-  onSetItem: (index: number) => void;
+  onToggleElimination: (itemId: string, optionId: string) => void;
+  onSetTimerHidden: (hidden: boolean) => void;
+  onSetItem: (itemId: string) => void;
   onTick: () => void;
-  onAdvance: () => void;
-  onExpireModule: () => void;
-  onSubmit: () => Promise<unknown>;
+  onAdvanceItem: () => void;
+  onCompletePart: (partId: string) => void;
+  onExpirePart: (partId: string) => void;
+  onSubmit: () => Promise<AssessmentSubmission>;
 }): ReactElement {
-  const section = assessment.sections[session.sectionIndex]!;
-  const module = section.modules[session.moduleIndex]!;
-  const item = module.items[session.itemIndex]!;
-  const finalItem = isFinalAssessmentItem(assessment, session);
-  const finalModule = isFinalAssessmentModule(assessment, session);
-  const expiredModuleRef = useRef<string | null>(null);
+  const assessment = plan.source;
+  const part = findPlanPart(plan, session.partId);
+  if (!part) throw new Error(`Active assessment part ${session.partId ?? "none"} was not found.`);
+  const item = findPlanItem(part, session.itemId);
+  if (!item) throw new Error(`Active assessment item ${session.itemId ?? "none"} was not found.`);
+  const finalItem = isLastItemInPart(plan, session);
+  const finalPart = isFinalPart(plan, session);
+  const expiredPartRef = useRef<string | null>(null);
+  const [navigatorOpen, setNavigatorOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const hasMarking = partHasTool(part, "mark_for_review");
+  const hasEliminator = partHasTool(part, "option_eliminator");
+  const hasCalculator = partHasTool(part, "calculator");
+  const marked = session.workspace.markedItemIds.includes(item.id);
+  const eliminated = session.workspace.eliminatedOptionIds[item.id] ?? [];
+  const warning = session.secondsRemaining !== null &&
+    session.secondsRemaining > 0 &&
+    session.secondsRemaining <= 300;
+  const style = getAssessmentThemeStyle(assessment.presentation.accent);
+  const panelPadding = assessment.presentation.density === "compact" ? "p-4 sm:p-5" : "p-5 sm:p-8";
+  const unansweredCount = part.items.filter(
+    (candidate) => !hasAssessmentResponse(session.responses[candidate.id]),
+  ).length;
+  const constrainedResponseCount = part.items.filter((candidate) => {
+    const response = session.responses[candidate.id];
+    return hasAssessmentResponse(response) &&
+      Boolean(getAssessmentResponseGuidance(candidate, response).issue);
+  }).length;
+
+  const submitAssessment = useCallback(async (): Promise<boolean> => {
+    setSubmitting(true);
+    setSubmissionError(null);
+    try {
+      await onSubmit();
+      return true;
+    } catch (error) {
+      setSubmissionError(error instanceof Error ? error.message : "The attempt could not be saved.");
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  }, [onSubmit, setSubmissionError, setSubmitting]);
 
   useEffect(() => {
     if (session.secondsRemaining === null || session.secondsRemaining <= 0) return;
@@ -65,101 +107,191 @@ export function AssessmentRunner({
   }, [onTick, session.secondsRemaining]);
 
   useEffect(() => {
-    const moduleKey = `${section.id}:${module.id}`;
-    if (session.secondsRemaining !== 0 || expiredModuleRef.current === moduleKey) return;
-    expiredModuleRef.current = moduleKey;
-    if (finalModule) void onSubmit();
-    else onExpireModule();
-  }, [finalModule, module.id, onExpireModule, onSubmit, section.id, session.secondsRemaining]);
+    if (session.secondsRemaining !== 0 || expiredPartRef.current === part.id) return;
+    expiredPartRef.current = part.id;
+    const expiration = window.setTimeout(() => {
+      if (finalPart) void submitAssessment();
+      else onExpirePart(part.id);
+    });
+    return () => window.clearTimeout(expiration);
+  }, [finalPart, onExpirePart, part.id, session.secondsRemaining, submitAssessment]);
+
+  const confirmBoundary = async () => {
+    if (finalPart && !await submitAssessment()) return;
+    if (!finalPart) onCompletePart(part.id);
+    setConfirmOpen(false);
+  };
+
+  const prompt = (
+    <div className="mx-auto max-w-2xl space-y-6">
+      <div className="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-neutral-900 font-mono text-xs font-bold text-white">
+              {item.numberInPart}
+            </span>
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+              Question {item.numberInPart} of {part.items.length}
+            </span>
+          </div>
+          {item.domain ? (
+            <p className="mt-2 text-xs font-medium text-neutral-500">
+              {item.domain}{item.skill ? ` · ${item.skill}` : ""}
+            </p>
+          ) : null}
+        </div>
+        {hasMarking ? (
+          <button
+            type="button"
+            onClick={() => onToggleMark(item.id)}
+            aria-label={marked ? "Remove mark for review" : "Mark question for review"}
+            aria-pressed={marked}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold ${
+              marked
+                ? "border-amber-300 bg-amber-50 text-amber-900"
+                : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+            }`}
+          >
+            {marked
+              ? <BookmarkCheck size={14} className="fill-current text-amber-600" />
+              : <Bookmark size={14} />}
+            <span className="hidden sm:inline">{marked ? "Marked" : "Mark for review"}</span>
+          </button>
+        ) : null}
+      </div>
+      <div className="space-y-4">
+        {item.prompt.map((block, index) => (
+          <AssessmentContentBlockView key={index} block={block} />
+        ))}
+      </div>
+      <AssessmentInteractionView
+        item={item}
+        response={session.responses[item.id]}
+        onChange={(response) => onResponse(item.id, response)}
+        eliminatedOptionIds={eliminated}
+        onToggleEliminateOption={hasEliminator
+          ? (optionId) => onToggleElimination(item.id, optionId)
+          : undefined}
+      />
+    </div>
+  );
+
+  const stimulusContent = item.stimulus.length ? (
+    <div className="mx-auto max-w-2xl space-y-5 text-neutral-900">
+      {item.presentation?.stimulusLabel ? (
+        <p className="border-b border-neutral-200 pb-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
+          {item.presentation.stimulusLabel}
+        </p>
+      ) : null}
+      {item.stimulus.map((block, index) => (
+        <AssessmentContentBlockView key={index} block={block} />
+      ))}
+    </div>
+  ) : null;
+  const stimulusPane = stimulusContent ? (
+    <div className={`h-full overflow-y-auto bg-white selection:bg-neutral-200 ${panelPadding}`}>
+      {stimulusContent}
+    </div>
+  ) : null;
+  const questionPane = (
+    <div className={`h-full overflow-y-auto bg-white selection:bg-neutral-200 ${panelPadding}`}>
+      {prompt}
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-neutral-100 text-neutral-950">
-      <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white">
-        <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-4 sm:px-8">
-          <WorkspaceBrandMark />
-          <div className="flex items-center gap-4">
-            <div className="hidden text-right sm:block">
-              <div className="text-xs font-semibold text-neutral-800">{section.title}</div>
-              <div className="text-[11px] text-neutral-500">{module.title}</div>
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 font-mono text-sm font-semibold tabular-nums">
-              <Clock size={15} /> {formatTime(session.secondsRemaining)}
-            </div>
-            <button type="button" onClick={onExit} className="rounded-lg border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50">Exit</button>
-          </div>
+    <div
+      style={style}
+      data-density={assessment.presentation.density}
+      className="flex h-screen w-full flex-col overflow-hidden bg-neutral-100 font-sans text-neutral-950"
+    >
+      <AssessmentRunnerHeader
+        assessmentTitle={assessment.title}
+        part={part}
+        secondsRemaining={session.secondsRemaining}
+        timerHidden={session.workspace.timerHidden}
+        warning={warning}
+        calculatorEnabled={hasCalculator}
+        onSetTimerHidden={onSetTimerHidden}
+        onExit={onExit}
+      />
+
+      {submissionError ? (
+        <div
+          role="alert"
+          className="flex shrink-0 items-center justify-between gap-4 border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-900"
+        >
+          <span>The attempt could not be saved: {submissionError}</span>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => void submitAssessment()}
+            className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-bold disabled:opacity-60"
+          >
+            Retry
+          </button>
         </div>
-      </header>
+      ) : null}
 
-      <main className="mx-auto grid max-w-[1400px] gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:px-8">
-        <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8">
-          <div className="mb-6 flex items-center justify-between border-b border-neutral-100 pb-4">
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-neutral-400">Question {session.itemIndex + 1} of {module.items.length}</div>
-              {item.domain ? <div className="mt-1 text-xs text-neutral-500">{item.domain}{item.skill ? ` · ${item.skill}` : ""}</div> : null}
-            </div>
-            <button
-              type="button"
-              onClick={() => onToggleMark(item.id)}
-              className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
-            >
-              {session.markedItemIds.includes(item.id) ? <BookmarkCheck size={15} className="text-[var(--exam-accent)]" /> : <Bookmark size={15} />}
-              {session.markedItemIds.includes(item.id) ? "Marked" : "Mark for review"}
-            </button>
+      <main className="min-h-0 flex-1 overflow-hidden bg-neutral-100">
+        {item.layout === "split" && stimulusPane ? (
+          <div className="mx-auto h-full max-w-[1440px] border-x border-neutral-200 bg-white shadow-xs">
+            <ResizableSplitPane
+              left={stimulusPane}
+              right={questionPane}
+              initialLeftPercent={50}
+              minLeftPercent={30}
+              maxLeftPercent={70}
+            />
           </div>
-
-          <div className="space-y-5">
-            {item.stimulus.map((block, index) => <AssessmentContentBlockView key={`stimulus-${index}`} block={block} />)}
-            <div className="space-y-3">{item.prompt.map((block, index) => <AssessmentContentBlockView key={`prompt-${index}`} block={block} />)}</div>
-            <div className="pt-2">
-              <AssessmentInteractionView item={item} response={session.responses[item.id]} onChange={(response) => onResponse(item.id, response)} />
+        ) : (
+          <div className="h-full overflow-y-auto p-4 sm:p-8">
+            <div
+              className={`mx-auto max-w-3xl space-y-6 rounded-2xl border border-neutral-200 bg-white shadow-sm ${panelPadding}`}
+            >
+              {stimulusContent ? (
+                <div className="border-b border-neutral-200 pb-6">{stimulusContent}</div>
+              ) : null}
+              {prompt}
             </div>
           </div>
-
-          <div className="mt-8 flex items-center justify-between border-t border-neutral-100 pt-5">
-            <button
-              type="button"
-              disabled={session.itemIndex === 0}
-              onClick={() => onSetItem(session.itemIndex - 1)}
-              className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 px-4 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-40"
-            >
-              <ArrowLeft size={16} /> Previous
-            </button>
-            <button
-              type="button"
-              onClick={() => finalItem ? void onSubmit() : onAdvance()}
-              className="inline-flex items-center gap-2 rounded-lg bg-[var(--exam-accent)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--exam-accent-hover)]"
-            >
-              {finalItem ? <><Send size={16} /> Submit assessment</> : <>Next <ArrowRight size={16} /></>}
-            </button>
-          </div>
-        </section>
-
-        <aside className="h-fit rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-bold text-neutral-900">{assessment.title}</h2>
-          <p className="mt-1 text-xs leading-5 text-neutral-500">You can revisit questions in the current module. Completed modules are locked.</p>
-          <div className="mt-5 grid grid-cols-5 gap-2">
-            {module.items.map((candidate, index) => {
-              const answered = hasAssessmentResponse(session.responses[candidate.id]);
-              const marked = session.markedItemIds.includes(candidate.id);
-              return (
-                <button
-                  key={candidate.id}
-                  type="button"
-                  onClick={() => onSetItem(index)}
-                  aria-label={`Question ${index + 1}${marked ? ", marked" : ""}`}
-                  className={`relative flex h-9 items-center justify-center rounded-lg border text-xs font-bold ${index === session.itemIndex ? "border-[var(--exam-accent)] bg-[var(--exam-accent)] text-white" : answered ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-neutral-200 bg-neutral-50 text-neutral-600"}`}
-                >
-                  {answered && index !== session.itemIndex ? <Check size={13} /> : index + 1}
-                  {marked ? <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-amber-400" /> : null}
-                </button>
-              );
-            })}
-          </div>
-          <div className="mt-5 border-t border-neutral-100 pt-4 text-[11px] leading-5 text-neutral-500">
-            Section {session.sectionIndex + 1} of {assessment.sections.length} · Module {session.moduleIndex + 1} of {section.modules.length}
-          </div>
-        </aside>
+        )}
       </main>
+
+      <AssessmentRunnerFooter
+        assessmentLabel={part.groupTitle ?? assessment.metadata.shortLabel ?? assessment.title}
+        part={part}
+        item={item}
+        responses={session.responses}
+        markedItemIds={session.workspace.markedItemIds}
+        finalPart={finalPart}
+        onSetItem={onSetItem}
+        onOpenNavigator={() => setNavigatorOpen(true)}
+        onAdvance={() => {
+          if (finalItem) setConfirmOpen(true);
+          else onAdvanceItem();
+        }}
+      />
+
+      <AssessmentQuestionNavigator
+        open={navigatorOpen}
+        onOpenChange={setNavigatorOpen}
+        part={part}
+        currentItemId={item.id}
+        responses={session.responses}
+        markedItemIds={session.workspace.markedItemIds}
+        onSelectItem={onSetItem}
+      />
+      <AssessmentBoundaryDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        partTitle={part.title}
+        finalPart={finalPart}
+        unansweredCount={unansweredCount}
+        constrainedResponseCount={constrainedResponseCount}
+        submitting={submitting}
+        onConfirm={confirmBoundary}
+      />
     </div>
   );
 }

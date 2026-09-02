@@ -28,7 +28,7 @@ export function createPracticeToolDefinitions({
       name: 'install_practice_set',
       title: 'Install IELTS practice set',
       description:
-        `Validate, save, and activate one complete IELTS Listening, Reading, or Writing practice set. The set becomes visible on the practice home screen. Do not call while the learner has an active attempt. ${KOKORO_LISTENING_AUTHORING_GUIDANCE}`,
+        `Validate, save, and activate one native IELTS Listening, Reading, or Writing practice set in the high-fidelity IELTS interface. Use install_assessment for GRE-style, SAT-style, school, professional, and other universal practice. The IELTS set becomes visible on the practice home screen. Call this when no learner attempt is active. ${KOKORO_LISTENING_AUTHORING_GUIDANCE}`,
       inputSchema: getPracticeContentJsonSchema(),
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute: async (input, { signal }) => {

@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { ArrowRight, Shapes, Sparkles } from "lucide-react";
+import { ArrowRight, Shapes } from "lucide-react";
 import {
   getAssessmentDurationSeconds,
   getAssessmentItemCount,
@@ -56,13 +56,11 @@ export function UniversalAssessmentLibrary({
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-900 text-white">
-                    {assessment.profileId === "sat-practice"
-                      ? <Sparkles size={18} />
-                      : <Shapes size={18} />}
+                    <Shapes size={18} />
                   </div>
                   <div className="flex gap-1.5">
                     <span className="rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-neutral-500">
-                      {assessment.profileId === "sat-practice" ? "SAT-style" : "Universal"}
+                      {assessment.metadata.shortLabel ?? assessment.metadata.subject ?? "Assessment"}
                     </span>
                     {assessment.source === "agent" ? (
                       <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
@@ -78,7 +76,7 @@ export function UniversalAssessmentLibrary({
                   {assessment.description}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-medium text-neutral-400">
-                  <span>{assessment.sections.length} sections</span>
+                  <span>{assessment.parts.length} {assessment.parts.length === 1 ? "part" : "parts"}</span>
                   <span>{itemCount} items</span>
                   <span>
                     {durationSeconds ? `${Math.round(durationSeconds / 60)} mins` : "Untimed"}

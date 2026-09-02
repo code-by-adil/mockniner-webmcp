@@ -1,216 +1,293 @@
 import { describe, expect, it } from "vitest";
+import { getAssessmentAuthoringKit } from "@/content/assessmentExamples";
+import { greStyleAssessment } from "@/content/gre";
 import { satPracticeAssessment } from "@/content/sat";
 import {
+  ASSESSMENT_AUTHORING_TEMPLATE_IDS,
   assessmentEvaluationInputSchema,
+  compileAssessment,
+  getAssessmentPackageJsonSchema,
+  getAssessmentResponseGuidance,
   gradeAssessment,
+  parseAssessmentAuthoringPackage,
   parseAssessmentPackage,
   stripAssessmentAnswers,
   validateAssessmentEvaluation,
+  type AssessmentPackage,
   type AssessmentSubmission,
 } from "./assessment";
 
-describe("universal assessment domain", () => {
-  it("validates the built-in two-section SAT-style profile", () => {
-    expect(satPracticeAssessment.profileId).toBe("sat-practice");
-    expect(satPracticeAssessment.sections.map((section) => section.id)).toEqual([
-      "reading-writing",
-      "math",
+function scoringContract(): AssessmentPackage {
+  const prompt = [{ type: "text" as const, text: "Answer this question." }];
+  return parseAssessmentPackage({
+    schemaVersion: 3 as const,
+    packageId: "scoring-contract",
+    revision: 1,
+    title: "Scoring contract",
+    source: "built-in",
+    parts: [{
+      id: "core",
+      title: "Core",
+      items: [
+        {
+          id: "single", prompt,
+          interaction: { type: "single_choice" as const, options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] },
+          scoring: { type: "exact" as const, answer: "b" },
+        },
+        {
+          id: "multiple", prompt,
+          interaction: {
+            type: "multiple_choice" as const,
+            options: [{ id: "a", label: "A" }, { id: "b", label: "B" }, { id: "c", label: "C" }],
+            minimumSelections: 2, maximumSelections: 2,
+          },
+          scoring: { type: "set" as const, answers: ["a", "c"] },
+        },
+        {
+          id: "text", prompt,
+          interaction: { type: "text_entry" as const },
+          scoring: { type: "aliases" as const, answers: ["renewable energy"], ignorePunctuation: true },
+        },
+        {
+          id: "numeric", prompt,
+          interaction: { type: "numeric_entry" as const },
+          scoring: { type: "numeric" as const, answer: 3.5 },
+        },
+        {
+          id: "matching", prompt,
+          interaction: {
+            type: "matching" as const,
+            prompts: [{ id: "p1", label: "One" }, { id: "p2", label: "Two" }],
+            options: [{ id: "x", label: "X" }, { id: "y", label: "Y" }],
+          },
+          scoring: { type: "mapping" as const, answers: { p1: "y", p2: "x" } },
+        },
+        {
+          id: "grouped", prompt,
+          interaction: {
+            type: "grouped_choice" as const,
+            groups: [
+              {
+                id: "blank-1",
+                label: "Blank 1",
+                options: [{ id: "b1-a", label: "A" }, { id: "b1-b", label: "B" }],
+              },
+              {
+                id: "blank-2",
+                label: "Blank 2",
+                options: [{ id: "b2-a", label: "A" }, { id: "b2-b", label: "B" }],
+              },
+            ],
+          },
+          scoring: { type: "mapping" as const, answers: { "blank-1": "b1-b", "blank-2": "b2-a" } },
+        },
+      ],
+    }],
+  });
+}
+
+describe("assessment domain", () => {
+  it("keeps package provenance outside the agent authoring contract", () => {
+    const { source: _source, ...authorable } = satPracticeAssessment;
+    expect(parseAssessmentAuthoringPackage(authorable).packageId).toBe(authorable.packageId);
+    expect(() => parseAssessmentAuthoringPackage(satPracticeAssessment)).toThrow(/Unrecognized key/);
+
+    const schema = getAssessmentPackageJsonSchema() as { properties?: Record<string, unknown> };
+    expect(schema.properties).not.toHaveProperty("source");
+  });
+
+  it("compiles the SAT-style package without encoding SAT rules in the engine", () => {
+    const plan = compileAssessment(satPracticeAssessment);
+    expect(satPracticeAssessment.schemaVersion).toBe(3);
+    expect(plan.parts.map((part) => part.id)).toEqual([
+      "rw-module-1", "rw-module-2", "math-module-1", "math-module-2",
     ]);
-    expect(satPracticeAssessment.sections.every((section) => section.modules.length === 2)).toBe(true);
+    expect(plan.parts[0]!.resources).toEqual([]);
+    expect(plan.parts[2]!.resources.map((resource) => resource.id)).toEqual(["math-formulas"]);
+    expect(plan.parts[0]!.items[0]!.layout).toBe("split");
+    expect(plan.parts[2]!.items[1]!.layout).toBe("single");
   });
 
-  it("grades choice and numeric responses with domain summaries", () => {
-    const result = gradeAssessment(satPracticeAssessment, {
-      "rw-1": "b",
-      "rw-2": "a",
-      "rw-3": "a",
-      "math-1": "6",
-      "math-2": "68.0",
-      "math-3": "c",
-    });
-
-    expect(result.rawScore).toBe(5);
-    expect(result.maximumScore).toBe(12);
-    expect(result.answeredCount).toBe(6);
-    expect(result.domains.find((domain) => domain.domain === "Algebra")).toEqual({
-      domain: "Algebra",
-      correct: 1,
-      total: 2,
-    });
-  });
-
-  it("grades every deterministic universal interaction", () => {
-    const prompt = [{ type: "text" as const, text: "Answer this question." }];
-    const assessment = parseAssessmentPackage({
-      schemaVersion: 2,
-      packageId: "scoring-contract",
-      revision: 1,
-      profileId: "universal",
-      title: "Scoring contract",
-      sections: [{
-        id: "core",
-        title: "Core",
-        modules: [{
-          id: "module-1",
-          title: "Module 1",
-          items: [
-            {
-              id: "single",
-              prompt,
-              interaction: { type: "single_choice", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] },
-              scoring: { type: "exact", answer: "b" },
-            },
-            {
-              id: "multiple",
-              prompt,
-              interaction: {
-                type: "multiple_choice",
-                options: [{ id: "a", label: "A" }, { id: "b", label: "B" }, { id: "c", label: "C" }],
-                minimumSelections: 2,
-                maximumSelections: 2,
-              },
-              scoring: { type: "set", answers: ["a", "c"] },
-            },
-            {
-              id: "text",
-              prompt,
-              interaction: { type: "text_entry" },
-              scoring: { type: "aliases", answers: ["renewable energy"], ignorePunctuation: true },
-            },
-            {
-              id: "numeric",
-              prompt,
-              interaction: { type: "numeric_entry" },
-              scoring: { type: "numeric", answer: 3.14, tolerance: 0.01 },
-            },
-            {
-              id: "matching",
-              prompt,
-              interaction: {
-                type: "matching",
-                prompts: [{ id: "p1", label: "One" }, { id: "p2", label: "Two" }],
-                options: [{ id: "x", label: "X" }, { id: "y", label: "Y" }],
-              },
-              scoring: { type: "mapping", answers: { p1: "y", p2: "x" } },
-            },
-          ],
-        }],
-      }],
-    });
+  it("grades every deterministic interaction, including fractional numeric input", () => {
+    const assessment = parseAssessmentPackage(scoringContract());
     const result = gradeAssessment(assessment, {
       single: "b",
       multiple: ["c", "a"],
       text: "Renewable energy!",
-      numeric: "3.149",
+      numeric: "7/2",
       matching: { p1: "y", p2: "x" },
+      grouped: { "blank-1": "b1-b", "blank-2": "b2-a" },
     });
-    expect(result).toMatchObject({ rawScore: 5, maximumScore: 5, answeredCount: 5 });
+    expect(result).toMatchObject({ rawScore: 6, maximumScore: 6, answeredCount: 6 });
+    expect(result.itemResults[0]).toMatchObject({ partId: "core" });
   });
 
-  it("rejects duplicate item IDs", () => {
-    const invalid = structuredClone(satPracticeAssessment);
-    invalid.sections[1].modules[0].items[0].id = "rw-1";
-    expect(() => parseAssessmentPackage(invalid)).toThrow(/Item IDs must be unique/);
-  });
-
-  it("rejects scoring rules that do not match their interaction", () => {
-    const invalid = structuredClone(satPracticeAssessment);
-    invalid.sections[0].modules[0].items[0].scoring = {
-      type: "exact",
-      answer: "missing-option",
-    };
-    expect(() => parseAssessmentPackage(invalid)).toThrow(/reference one option ID/);
-  });
-
-  it("keeps SAT Reading and Writing on the supported single-choice contract", () => {
-    const invalid = structuredClone(satPracticeAssessment);
-    invalid.sections[0].modules[0].items[0].interaction = {
-      type: "numeric_entry",
-    };
-    invalid.sections[0].modules[0].items[0].scoring = {
-      type: "numeric",
-      answer: 4,
-    };
-    expect(() => parseAssessmentPackage(invalid)).toThrow(
-      /SAT Reading and Writing items must use single choice/,
-    );
-  });
-
-  it("requires one coherent rubric across subjective items in a submission", () => {
-    const invalid = structuredClone(satPracticeAssessment);
-    invalid.profileId = "universal";
-    invalid.rubrics = ["essay-a", "essay-b"].map((id) => ({
-      id,
-      title: id,
-      scale: { minimum: 0, maximum: 4, step: 1 },
-      criteria: [{ id: "quality", label: "Quality", description: "Overall response quality." }],
-      requireEvidence: true,
-      allowAnnotations: true,
-    }));
-    invalid.sections[0].modules[0].items.slice(0, 2).forEach((item, index) => {
-      item.interaction = { type: "extended_text" };
-      item.scoring = { type: "agent" };
-      item.evaluationRubricId = invalid.rubrics[index]!.id;
+  it("grades the complete GRE-style example and leaves its essay for evaluation", () => {
+    const result = gradeAssessment(greStyleAssessment, {
+      "verbal-reading-main-point": "c",
+      "verbal-text-completion": { "blank-1": "blank-1-b", "blank-2": "blank-2-a" },
+      "verbal-sentence-equivalence": ["d", "b"],
+      "quant-comparison": "d",
+      "quant-multiple-selection": ["b", "a"],
+      "quant-numeric-entry": "1800",
+      "quant-data-interpretation": "c",
+      "analytical-writing-issue": "Public institutions should publish their evidence before acting.",
     });
-    expect(() => parseAssessmentPackage(invalid)).toThrow(/must share one rubric/);
+
+    expect(result).toMatchObject({
+      rawScore: 7,
+      maximumScore: 7,
+      answeredCount: 8,
+      totalItems: 8,
+      awaitingEvaluationCount: 1,
+    });
   });
 
-  it("rejects scoring rules outside the short-text interaction contract", () => {
-    const invalid = structuredClone(satPracticeAssessment);
-    invalid.profileId = "universal";
-    invalid.sections[0].modules[0].items[0].interaction = { type: "text_entry" };
-    invalid.sections[0].modules[0].items[0].scoring = { type: "set", answers: ["a"] };
-    expect(() => parseAssessmentPackage(invalid)).toThrow(
-      /Text-entry items require exact, alias, or agent scoring/,
-    );
+  it("rejects duplicate item IDs and invalid references", () => {
+    const duplicate = structuredClone(scoringContract());
+    duplicate.parts[0]!.items[1]!.id = "single";
+    expect(() => parseAssessmentPackage(duplicate)).toThrow(/Item IDs must be unique/);
+
+    const missingReference = structuredClone(scoringContract());
+    missingReference.parts[0]!.tools = [{ type: "reference_document", resourceId: "missing" }];
+    expect(() => parseAssessmentPackage(missingReference)).toThrow(/was not found/);
   });
 
-  it("removes answer keys from the candidate-facing package", () => {
+  it("rejects presentation and scoring declarations that cannot be rendered correctly", () => {
+    const invalidLayout = structuredClone(scoringContract());
+    invalidLayout.parts[0]!.items[0]!.presentation = { layout: "split" };
+    expect(() => parseAssessmentPackage(invalidLayout)).toThrow(/using split layout/);
+
+    const invalidInheritedLayout = structuredClone(scoringContract());
+    invalidInheritedLayout.parts[0]!.defaultLayout = "split";
+    expect(() => parseAssessmentPackage(invalidInheritedLayout)).toThrow(/using split layout/);
+
+    const invalidScoring = structuredClone(scoringContract());
+    invalidScoring.parts[0]!.items[0]!.scoring = { type: "exact", answer: "missing" };
+    expect(() => parseAssessmentPackage(invalidScoring)).toThrow(/reference one option ID/);
+
+    const invalidTextScoring = structuredClone(scoringContract());
+    invalidTextScoring.parts[0]!.items[2]!.scoring = { type: "set", answers: ["a"] };
+    expect(() => parseAssessmentPackage(invalidTextScoring)).toThrow(/Text-entry items require/);
+
+    const invalidGroupedAnswer = structuredClone(scoringContract());
+    invalidGroupedAnswer.parts[0]!.items[5]!.scoring = {
+      type: "mapping",
+      answers: { "blank-1": "b2-a", "blank-2": "b2-b" },
+    };
+    expect(() => parseAssessmentPackage(invalidGroupedAnswer)).toThrow(/answer for 'blank-1'/);
+  });
+
+  it("turns declared response limits into candidate guidance", () => {
+    const multipleChoice = scoringContract().parts[0]!.items[1]!;
+    expect(getAssessmentResponseGuidance(multipleChoice, ["a"])).toEqual({
+      instruction: "Choose exactly 2 answers.",
+      issue: "Select 1 more answer.",
+    });
+
+    const writing = parseAssessmentPackage({
+      schemaVersion: 3,
+      packageId: "limited-writing",
+      revision: 1,
+      title: "Limited writing",
+      source: "built-in",
+      parts: [{
+        id: "writing",
+        title: "Writing",
+        items: [{
+          id: "response",
+          prompt: [{ type: "text", text: "Respond." }],
+          interaction: { type: "extended_text", minimumWords: 3, maximumWords: 5 },
+          scoring: { type: "agent" },
+          evaluationRubricId: "quality",
+        }],
+      }],
+      rubrics: [{
+        id: "quality",
+        title: "Quality",
+        scale: { minimum: 0, maximum: 4, step: 1 },
+        criteria: [{ id: "quality", label: "Quality", description: "Response quality." }],
+      }],
+    });
+    expect(getAssessmentResponseGuidance(writing.parts[0]!.items[0]!, "Two words")).toEqual({
+      instruction: "Write 3 to 5 words.",
+      issue: "Write 1 more word.",
+    });
+  });
+
+  it("keeps assessment identity independent from interaction choice", () => {
+    const packageInput = scoringContract();
+    packageInput.parts[0]!.items = [packageInput.parts[0]!.items[3]!];
+    expect(() => parseAssessmentPackage(packageInput)).not.toThrow();
+  });
+
+  it("keeps every authoring example valid and omits application-owned provenance", () => {
+    ASSESSMENT_AUTHORING_TEMPLATE_IDS.forEach((template) => {
+      const kit = getAssessmentAuthoringKit(template);
+      expect(parseAssessmentAuthoringPackage(kit.examplePackage).schemaVersion).toBe(3);
+      expect(kit.examplePackage).not.toHaveProperty("source");
+      expect(kit.nextAction).toContain("install_assessment");
+    });
+  });
+
+  it("uses references to keep the registered authoring schema compact", () => {
+    const schema = getAssessmentPackageJsonSchema() as {
+      definitions?: Record<string, unknown>;
+      properties?: Record<string, unknown>;
+    };
+    const serialized = JSON.stringify(schema);
+    expect(schema.definitions).toHaveProperty("AssessmentInteraction");
+    expect(schema.definitions).toHaveProperty("AssessmentContentBlock");
+    expect(schema.definitions).toHaveProperty("AssessmentRubric.properties.scale.properties.minimum");
+    expect(schema.definitions).toHaveProperty("AssessmentRubric.properties.scale.properties.maximum");
+    expect(serialized).toContain('"$ref"');
+    expect(serialized.length).toBeLessThan(11_000);
+    expect(schema.properties).not.toHaveProperty("source");
+  });
+
+  it("removes answer keys from candidate-visible packages", () => {
     expect(JSON.stringify(stripAssessmentAnswers(satPracticeAssessment))).not.toContain('"scoring"');
   });
 
-  it("requires a structured rubric evaluation", () => {
-    const parsed = assessmentEvaluationInputSchema.safeParse({
-      attemptId: crypto.randomUUID(),
-      rubricId: "essay",
-      overallScore: 4,
-      criteria: [],
-      summary: "Clear response.",
-      strengths: ["Focused claim"],
-      improvements: ["Add evidence"],
-      annotations: [],
+  it("validates evaluation evidence against an immutable subjective submission", () => {
+    const assessment = parseAssessmentPackage({
+      schemaVersion: 3,
+      packageId: "argument-writing",
+      revision: 1,
+      title: "Argument writing",
+      source: "built-in",
+      review: { mode: "responses" },
+      rubrics: [{
+        id: "argument", title: "Argument rubric",
+        scale: { minimum: 0, maximum: 4, step: 1 },
+        criteria: [{ id: "claim", label: "Claim", description: "Quality of the central claim." }],
+        requireEvidence: true, allowAnnotations: true,
+      }],
+      parts: [{
+        id: "writing", title: "Writing", navigation: "linear",
+        items: [{
+          id: "essay-1", stimulus: [],
+          prompt: [{ type: "text", text: "Make an argument." }],
+          interaction: { type: "extended_text", minimumWords: 1 },
+          scoring: { type: "agent" }, evaluationRubricId: "argument",
+        }],
+      }],
     });
-    expect(parsed.success).toBe(false);
-  });
-
-  it("validates evidence and annotations against an immutable subjective submission", () => {
-    const authored = structuredClone(satPracticeAssessment);
-    authored.profileId = "universal";
-    authored.packageId = "argument-writing";
-    authored.sections = [authored.sections[0]!];
-    authored.sections[0]!.id = "writing";
-    authored.sections[0]!.modules = [authored.sections[0]!.modules[0]!];
-    authored.sections[0]!.modules[0]!.items = [authored.sections[0]!.modules[0]!.items[0]!];
-    const item = authored.sections[0]!.modules[0]!.items[0]!;
-    item.id = "essay-1";
-    item.interaction = { type: "extended_text", minimumWords: 1 };
-    item.scoring = { type: "agent" };
-    item.evaluationRubricId = "argument";
-    authored.rubrics = [{
-      id: "argument",
-      title: "Argument rubric",
-      scale: { minimum: 0, maximum: 4, step: 1 },
-      criteria: [{ id: "claim", label: "Claim", description: "Quality of the central claim." }],
-      requireEvidence: true,
-      allowAnnotations: true,
-    }];
-    const assessment = parseAssessmentPackage(authored);
+    const conflictingRubrics = structuredClone(assessment);
+    conflictingRubrics.rubrics.push({
+      ...conflictingRubrics.rubrics[0]!,
+      id: "second-rubric",
+    });
+    conflictingRubrics.parts[0]!.items.push({
+      ...conflictingRubrics.parts[0]!.items[0]!,
+      id: "essay-2",
+      evaluationRubricId: "second-rubric",
+    });
+    expect(() => parseAssessmentPackage(conflictingRubrics)).toThrow(/share one rubric/);
     const responses = { "essay-1": "Public libraries strengthen local communities." };
-    expect(gradeAssessment(assessment, {}).awaitingEvaluationCount).toBe(0);
     const submission: AssessmentSubmission = {
       attemptId: "33333333-3333-4333-8333-333333333333",
       packageId: assessment.packageId,
-      profileId: assessment.profileId,
       package: assessment,
       responses,
       result: gradeAssessment(assessment, responses),
@@ -222,22 +299,17 @@ describe("universal assessment domain", () => {
       rubricId: "argument",
       overallScore: 3,
       criteria: [{
-        criterionId: "claim",
-        score: 3,
-        feedback: "The claim is direct and relevant.",
+        criterionId: "claim", score: 3, feedback: "Direct and relevant.",
         evidence: ["strengthen local communities"],
       }],
-      summary: "A clear start that needs supporting evidence.",
-      strengths: ["Focused claim"],
-      improvements: ["Add a concrete example"],
+      summary: "A clear start that needs evidence.",
+      strengths: ["Focused claim"], improvements: ["Add a concrete example"],
       annotations: [{
-        itemId: "essay-1",
-        originalText: "strengthen local communities",
+        itemId: "essay-1", originalText: "strengthen local communities",
         suggestion: "strengthen communities by expanding access",
-        explanation: "This makes the mechanism more specific.",
+        explanation: "This makes the mechanism specific.",
       }],
     });
-
     expect(() => validateAssessmentEvaluation(submission, evaluation)).not.toThrow();
     expect(() => validateAssessmentEvaluation(submission, {
       ...evaluation,

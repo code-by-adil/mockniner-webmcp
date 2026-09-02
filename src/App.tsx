@@ -23,12 +23,27 @@ import { useExamApplication } from "@/application/useExamApplication";
 import { useListeningAudio } from "@/application/useListeningAudio";
 import { useWebMcpTools } from "@/webmcp/useWebMcpTools";
 import { useAssessmentApplication } from "@/application/useAssessmentApplication";
+import type { AssessmentSession } from "@/domain/assessmentSession";
 import { AssessmentRunner } from "@/modules/assessment-engine/ui/AssessmentRunner";
 import { AssessmentResults } from "@/modules/assessment-engine/ui/AssessmentResults";
 import { WorkspaceBrandMark } from "@/shared/ui/global/WorkspaceBrandMark";
+import type { AssessmentToolSurface } from "@/webmcp/assessmentTools";
 
 type Section = SectionKey;
 type Mode = ExamMode;
+
+function getAssessmentToolSurface(
+  nativeHome: boolean,
+  session: AssessmentSession,
+): AssessmentToolSurface {
+  if (session.view === "result") {
+    return session.submission?.result.awaitingEvaluationCount && !session.evaluation
+      ? "evaluation"
+      : "results";
+  }
+  return nativeHome && session.view === "home" ? "authoring" : "none";
+}
+
 const SECTION_META = {
   listening: {
     title: "Listening",
@@ -235,6 +250,10 @@ export default function App() {
   const { state, content, contentReady, commands } = useExamApplication();
   const assessmentApplication = useAssessmentApplication();
   const listeningAudio = useListeningAudio(content.listening);
+  const assessmentToolSurface = getAssessmentToolSurface(
+    state.view === "home",
+    assessmentApplication.state,
+  );
   useWebMcpTools({
     commands,
     assessmentCommands: assessmentApplication.commands,
@@ -243,6 +262,7 @@ export default function App() {
     currentAssessmentAttemptId: assessmentApplication.state.view === "result"
       ? assessmentApplication.state.submission?.attemptId
       : undefined,
+    assessmentToolSurface,
     enabled: contentReady && assessmentApplication.assessmentReady,
   });
   const section = state.currentSection;
@@ -258,21 +278,27 @@ export default function App() {
 
   if (
     assessmentApplication.state.view === "assessment" &&
-    assessmentApplication.currentAssessment
+    assessmentApplication.currentPlan
   ) {
     return (
-      <AssessmentRunner
-        assessment={assessmentApplication.currentAssessment}
-        session={assessmentApplication.state}
-        onExit={assessmentApplication.commands.goHome}
-        onResponse={assessmentApplication.commands.setResponse}
-        onToggleMark={assessmentApplication.commands.toggleMark}
-        onSetItem={assessmentApplication.commands.setItem}
-        onTick={assessmentApplication.commands.tick}
-        onAdvance={assessmentApplication.commands.advance}
-        onExpireModule={assessmentApplication.commands.expireModule}
-        onSubmit={assessmentApplication.commands.submit}
-      />
+      <ExamUiBoundary className="h-screen w-full overflow-hidden">
+        <AssessmentRunner
+          key={assessmentApplication.state.partId}
+          plan={assessmentApplication.currentPlan}
+          session={assessmentApplication.state}
+          onExit={assessmentApplication.commands.goHome}
+          onResponse={assessmentApplication.commands.setResponse}
+          onToggleMark={assessmentApplication.commands.toggleMark}
+          onToggleElimination={assessmentApplication.commands.toggleElimination}
+          onSetTimerHidden={assessmentApplication.commands.setTimerHidden}
+          onSetItem={assessmentApplication.commands.setItem}
+          onTick={assessmentApplication.commands.tick}
+          onAdvanceItem={assessmentApplication.commands.advanceItem}
+          onCompletePart={assessmentApplication.commands.completePart}
+          onExpirePart={assessmentApplication.commands.expirePart}
+          onSubmit={assessmentApplication.commands.submit}
+        />
+      </ExamUiBoundary>
     );
   }
 

@@ -14,7 +14,6 @@ import {
 
 type PackageRow = {
   packageId: string;
-  profileId: AssessmentPackage["profileId"];
   revision: number;
   documentJson: string;
 };
@@ -22,7 +21,6 @@ type PackageRow = {
 type AttemptRow = {
   id: string;
   packageId: string;
-  profileId: string;
   packageSnapshotJson: string;
   responsesJson: string;
   resultJson: string;
@@ -32,6 +30,7 @@ type AttemptRow = {
 };
 
 export type SaveAssessmentAttemptInput = {
+  attemptId: string;
   assessment: AssessmentPackage;
   responses: AssessmentResponseMap;
   result: AssessmentResult;
@@ -55,7 +54,6 @@ export async function loadAssessmentPackages(
   const rows = await database.sql<PackageRow>`
     SELECT
       package_id AS packageId,
-      profile_id AS profileId,
       revision,
       document_json AS documentJson
     FROM assessment_packages
@@ -66,7 +64,6 @@ export async function loadAssessmentPackages(
       const assessment = parseAssessmentPackage(JSON.parse(row.documentJson));
       if (
         assessment.packageId !== row.packageId ||
-        assessment.profileId !== row.profileId ||
         assessment.revision !== Number(row.revision)
       ) {
         throw new Error(`Stored assessment package ${row.packageId} does not match its index.`);
@@ -105,13 +102,12 @@ export async function saveAssessmentPackage(
     }
     await transaction.sql`
       INSERT INTO assessment_packages (
-        package_id, profile_id, schema_version, revision, document_json, installed_at
+        package_id, schema_version, revision, document_json, installed_at
       ) VALUES (
-        ${assessment.packageId}, ${assessment.profileId}, ${assessment.schemaVersion},
+        ${assessment.packageId}, ${assessment.schemaVersion},
         ${assessment.revision}, ${documentJson}, ${new Date().toISOString()}
       )
       ON CONFLICT(package_id) DO UPDATE SET
-        profile_id = excluded.profile_id,
         schema_version = excluded.schema_version,
         revision = excluded.revision,
         document_json = excluded.document_json,
@@ -125,9 +121,8 @@ export async function saveAssessmentAttempt(
   input: SaveAssessmentAttemptInput,
 ): Promise<AssessmentSubmission> {
   const submission: AssessmentSubmission = {
-    attemptId: crypto.randomUUID(),
+    attemptId: input.attemptId,
     packageId: input.assessment.packageId,
-    profileId: input.assessment.profileId,
     package: structuredClone(input.assessment),
     responses: structuredClone(input.responses),
     result: structuredClone(input.result),
@@ -135,16 +130,20 @@ export async function saveAssessmentAttempt(
     submittedAt: input.submittedAt,
   };
   await database.sql`
-    INSERT INTO assessment_attempts (
-      id, package_id, profile_id, package_snapshot_json, responses_json,
+    INSERT OR IGNORE INTO assessment_attempts (
+      id, package_id, package_snapshot_json, responses_json,
       result_json, started_at, submitted_at
     ) VALUES (
-      ${submission.attemptId}, ${submission.packageId}, ${submission.profileId},
+      ${submission.attemptId}, ${submission.packageId},
       ${JSON.stringify(submission.package)}, ${JSON.stringify(submission.responses)},
       ${JSON.stringify(submission.result)}, ${submission.startedAt}, ${submission.submittedAt}
     )
   `;
-  return submission;
+  const stored = await readAssessmentAttempt(database, submission.attemptId);
+  if (!stored) {
+    throw new Error(`Assessment attempt ${submission.attemptId} could not be persisted.`);
+  }
+  return stored.submission;
 }
 
 function parseAttemptRow(row: AttemptRow): {
@@ -154,7 +153,7 @@ function parseAttemptRow(row: AttemptRow): {
   const assessment = parseAssessmentPackage(JSON.parse(row.packageSnapshotJson));
   const responses = assessmentResponseMapSchema.parse(JSON.parse(row.responsesJson));
   const result = assessmentResultSchema.parse(JSON.parse(row.resultJson));
-  if (assessment.packageId !== row.packageId || assessment.profileId !== row.profileId) {
+  if (assessment.packageId !== row.packageId) {
     throw new Error(`Stored assessment attempt ${row.id} does not match its package snapshot.`);
   }
   const evaluation = row.evaluationJson
@@ -167,7 +166,6 @@ function parseAttemptRow(row: AttemptRow): {
     submission: {
       attemptId: row.id,
       packageId: row.packageId,
-      profileId: assessment.profileId,
       package: assessment,
       responses,
       result,
@@ -190,7 +188,6 @@ export async function readAssessmentAttempt(
         SELECT
           assessment_attempts.id,
           assessment_attempts.package_id AS packageId,
-          assessment_attempts.profile_id AS profileId,
           assessment_attempts.package_snapshot_json AS packageSnapshotJson,
           assessment_attempts.responses_json AS responsesJson,
           assessment_attempts.result_json AS resultJson,
@@ -206,7 +203,6 @@ export async function readAssessmentAttempt(
         SELECT
           assessment_attempts.id,
           assessment_attempts.package_id AS packageId,
-          assessment_attempts.profile_id AS profileId,
           assessment_attempts.package_snapshot_json AS packageSnapshotJson,
           assessment_attempts.responses_json AS responsesJson,
           assessment_attempts.result_json AS resultJson,
@@ -252,7 +248,6 @@ export async function readAssessmentHistory(
     SELECT
       assessment_attempts.id,
       assessment_attempts.package_id AS packageId,
-      assessment_attempts.profile_id AS profileId,
       assessment_attempts.package_snapshot_json AS packageSnapshotJson,
       assessment_attempts.responses_json AS responsesJson,
       assessment_attempts.result_json AS resultJson,
@@ -271,7 +266,6 @@ export async function readAssessmentHistory(
       return [{
         attemptId: submission.attemptId,
         packageId: submission.packageId,
-        profileId: submission.profileId,
         title: submission.package.title,
         rawScore: submission.result.rawScore,
         maximumScore: submission.result.maximumScore,

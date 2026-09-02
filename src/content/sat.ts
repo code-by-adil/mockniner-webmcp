@@ -1,10 +1,9 @@
 import { parseAssessmentPackage } from "@/domain/assessment";
 
 export const satPracticeAssessment = parseAssessmentPackage({
-  schemaVersion: 2,
+  schemaVersion: 3,
   packageId: "local-sat-foundations-v1",
   revision: 1,
-  profileId: "sat-practice",
   title: "SAT-Style Foundations Diagnostic",
   description:
     "A short original diagnostic demonstrating two-module Reading and Writing and Math practice.",
@@ -13,21 +12,40 @@ export const satPracticeAssessment = parseAssessmentPackage({
     subject: "College readiness",
     difficulty: "mixed",
     locale: "en-US",
+    shortLabel: "SAT-style",
     disclaimer:
       "Independent SAT-style practice. SAT is a registered trademark of College Board, which is not affiliated with or endorsing this application.",
   },
-  rubrics: [],
-  sections: [
+  presentation: { accent: "red", density: "comfortable" },
+  resources: [
     {
-      id: "reading-writing",
-      title: "Reading and Writing",
+      id: "math-formulas",
+      type: "document",
+      title: "Math formulas",
+      description: "Common geometry formulas supplied for this practice assessment.",
+      content: [
+        { type: "text", variant: "subtitle", text: "Circles" },
+        { type: "math", expression: "A = πr²    C = 2πr" },
+        { type: "text", variant: "subtitle", text: "Rectangular solids" },
+        { type: "math", expression: "V = lwh" },
+        { type: "text", variant: "subtitle", text: "Right triangles" },
+        { type: "math", expression: "a² + b² = c²" },
+      ],
+    },
+  ],
+  review: { mode: "answers" },
+  rubrics: [],
+  parts: [
+    {
+      id: "rw-module-1",
+      groupTitle: "Reading and Writing",
+      title: "Module 1",
       description: "Short passages testing comprehension, rhetoric, and language conventions.",
-      modules: [
-        {
-          id: "rw-module-1",
-          title: "Reading and Writing · Module 1",
-          durationSeconds: 8 * 60,
-          items: [
+      durationSeconds: 8 * 60,
+      navigation: "free",
+      defaultLayout: "split",
+      tools: [{ type: "mark_for_review" }, { type: "option_eliminator" }],
+      items: [
             {
               id: "rw-1",
               domain: "Information and Ideas",
@@ -85,6 +103,7 @@ export const satPracticeAssessment = parseAssessmentPackage({
               domain: "Standard English Conventions",
               skill: "Boundaries",
               stimulus: [],
+              presentation: { layout: "single" },
               prompt: [
                 {
                   type: "text",
@@ -103,13 +122,18 @@ export const satPracticeAssessment = parseAssessmentPackage({
               },
               scoring: { type: "exact", answer: "b" },
             },
-          ],
-        },
-        {
-          id: "rw-module-2",
-          title: "Reading and Writing · Module 2",
-          durationSeconds: 8 * 60,
-          items: [
+      ],
+    },
+    {
+      id: "rw-module-2",
+      groupTitle: "Reading and Writing",
+      title: "Module 2",
+      description: "Short passages testing comprehension, rhetoric, and language conventions.",
+      durationSeconds: 8 * 60,
+      navigation: "free",
+      defaultLayout: "split",
+      tools: [{ type: "mark_for_review" }, { type: "option_eliminator" }],
+      items: [
             {
               id: "rw-4",
               domain: "Information and Ideas",
@@ -192,20 +216,23 @@ export const satPracticeAssessment = parseAssessmentPackage({
               },
               scoring: { type: "exact", answer: "b" },
             },
-          ],
-        },
       ],
     },
     {
-      id: "math",
-      title: "Math",
+      id: "math-module-1",
+      groupTitle: "Math",
+      title: "Module 1",
       description: "Algebra, advanced math, data analysis, and geometry practice.",
-      modules: [
-        {
-          id: "math-module-1",
-          title: "Math · Module 1",
-          durationSeconds: 8 * 60,
-          items: [
+      durationSeconds: 8 * 60,
+      navigation: "free",
+      defaultLayout: "split",
+      tools: [
+        { type: "mark_for_review" },
+        { type: "option_eliminator" },
+        { type: "reference_document", resourceId: "math-formulas" },
+        { type: "calculator" },
+      ],
+      items: [
             {
               id: "math-1",
               domain: "Algebra",
@@ -220,6 +247,7 @@ export const satPracticeAssessment = parseAssessmentPackage({
               domain: "Problem-Solving and Data Analysis",
               skill: "Percentages",
               stimulus: [],
+              presentation: { layout: "single" },
               prompt: [
                 { type: "text", text: "A jacket originally costs $80. Its price is reduced by 15%. What is the sale price, in dollars?" },
               ],
@@ -245,13 +273,23 @@ export const satPracticeAssessment = parseAssessmentPackage({
               },
               scoring: { type: "exact", answer: "c" },
             },
-          ],
-        },
-        {
-          id: "math-module-2",
-          title: "Math · Module 2",
-          durationSeconds: 8 * 60,
-          items: [
+      ],
+    },
+    {
+      id: "math-module-2",
+      groupTitle: "Math",
+      title: "Module 2",
+      description: "Algebra, advanced math, data analysis, and geometry practice.",
+      durationSeconds: 8 * 60,
+      navigation: "free",
+      defaultLayout: "split",
+      tools: [
+        { type: "mark_for_review" },
+        { type: "option_eliminator" },
+        { type: "reference_document", resourceId: "math-formulas" },
+        { type: "calculator" },
+      ],
+      items: [
             {
               id: "math-4",
               domain: "Advanced Math",
@@ -302,8 +340,6 @@ export const satPracticeAssessment = parseAssessmentPackage({
               interaction: { type: "numeric_entry", placeholder: "Enter a number" },
               scoring: { type: "numeric", answer: 14 },
             },
-          ],
-        },
       ],
     },
   ],

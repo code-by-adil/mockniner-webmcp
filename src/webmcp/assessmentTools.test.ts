@@ -1,13 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
+import { getAssessmentAuthoringKit } from "@/content/assessmentExamples";
 import { satPracticeAssessment } from "@/content/sat";
-import { gradeAssessment, type AssessmentSubmission } from "@/domain/assessment";
+import {
+  gradeAssessment,
+  parseAssessmentAuthoringPackage,
+  type AssessmentSubmission,
+} from "@/domain/assessment";
 import { createAssessmentToolDefinitions } from "./assessmentTools";
 
 const attemptId = "33333333-3333-4333-8333-333333333333";
 const submission: AssessmentSubmission = {
   attemptId,
   packageId: satPracticeAssessment.packageId,
-  profileId: satPracticeAssessment.profileId,
   package: satPracticeAssessment,
   responses: { "rw-1": "b" },
   result: gradeAssessment(satPracticeAssessment, { "rw-1": "b" }),
@@ -18,21 +22,34 @@ const submission: AssessmentSubmission = {
 const options = () => ({ signal: new AbortController().signal });
 
 describe("universal assessment WebMCP tools", () => {
-  it("describes the supported trusted component vocabulary", async () => {
+  it("returns one complete authoring kit with honest GRE coverage", async () => {
     const tool = createAssessmentToolDefinitions({
       installAssessment: vi.fn(),
       readAssessmentAttempt: vi.fn(),
       attachEvaluation: vi.fn(),
       getCurrentAttemptId: () => undefined,
-    }).find((candidate) => candidate.name === "get_assessment_capabilities")!;
+    }).find((candidate) => candidate.name === "get_assessment_authoring_kit")!;
 
-    const result = await tool.execute({}, options()) as { ok: true; data: { interactions: string[] } };
-    expect(result.data.interactions).toEqual(expect.arrayContaining([
+    const result = await tool.execute({ template: "gre-style" }, options()) as {
+      ok: true;
+      data: {
+        capabilities: { interactions: string[] };
+        template: { coverage: { unsupported: Array<{ capability: string }> } };
+        examplePackage: { source?: string; parts: Array<{ items: Array<{ interaction: { type: string } }> }> };
+      };
+    };
+    expect(result.data.capabilities.interactions).toEqual(expect.arrayContaining([
       "single_choice",
       "numeric_entry",
       "extended_text",
-      "matching",
+      "grouped_choice",
     ]));
+    expect(result.data.template.coverage.unsupported).toContainEqual(
+      expect.objectContaining({ capability: "select in passage" }),
+    );
+    expect(result.data.examplePackage).not.toHaveProperty("source");
+    expect(result.data.examplePackage.parts.flatMap((part) => part.items))
+      .toContainEqual(expect.objectContaining({ interaction: expect.objectContaining({ type: "grouped_choice" }) }));
   });
 
   it("installs a complete assessment and reports its visible side effect", async () => {
@@ -44,12 +61,42 @@ describe("universal assessment WebMCP tools", () => {
       getCurrentAttemptId: () => undefined,
     }).find((candidate) => candidate.name === "install_assessment")!;
 
-    const result = await tool.execute(satPracticeAssessment, options());
+    const result = await tool.execute(getAssessmentAuthoringKit("sat-style").examplePackage, options());
     expect(result).toMatchObject({
       ok: true,
-      data: { profileId: "sat-practice", itemCount: 12 },
+      data: { itemCount: 12 },
       sideEffect: { visibleView: "assessment_library" },
     });
+  });
+
+  it("returns repairable paths when a complete package fails validation", async () => {
+    const installAssessment = vi.fn(async (input: unknown) => ({
+      ...parseAssessmentAuthoringPackage(input),
+      source: "agent" as const,
+    }));
+    const tool = createAssessmentToolDefinitions({
+      installAssessment,
+      readAssessmentAttempt: vi.fn(),
+      attachEvaluation: vi.fn(),
+      getCurrentAttemptId: () => undefined,
+    }).find((candidate) => candidate.name === "install_assessment")!;
+    const invalid = structuredClone(getAssessmentAuthoringKit("minimal-objective").examplePackage);
+    invalid.parts[0]!.items[0]!.interaction = {
+      type: "single_choice",
+      options: [{ id: "a", label: "Only one option" }],
+    };
+
+    const result = await tool.execute(invalid, options());
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_ASSESSMENT", retryable: true },
+    });
+    expect(result).toHaveProperty(
+      "error.issues",
+      expect.arrayContaining([
+        expect.objectContaining({ path: "parts.0.items.0.interaction.options" }),
+      ]),
+    );
   });
 
   it("never returns answer keys with a submission", async () => {
@@ -58,10 +105,58 @@ describe("universal assessment WebMCP tools", () => {
       readAssessmentAttempt: async () => ({ submission, evaluation: null }),
       attachEvaluation: vi.fn(),
       getCurrentAttemptId: () => attemptId,
-    }).find((candidate) => candidate.name === "get_assessment_submission")!;
+    }, "results").find((candidate) => candidate.name === "get_assessment_submission")!;
 
     const result = await tool.execute({}, options());
     expect(result).toMatchObject({ ok: true, data: { evaluationStatus: "not_required" } });
     expect(JSON.stringify(result)).not.toContain('"scoring"');
+  });
+
+  it("registers only tools relevant to the visible assessment surface", () => {
+    const dependencies = {
+      installAssessment: vi.fn(),
+      readAssessmentAttempt: vi.fn(),
+      attachEvaluation: vi.fn(),
+      getCurrentAttemptId: () => undefined,
+    };
+    expect(createAssessmentToolDefinitions(dependencies, "authoring").map((tool) => tool.name)).toEqual([
+      "get_assessment_authoring_kit", "install_assessment",
+    ]);
+    expect(createAssessmentToolDefinitions(dependencies, "results").map((tool) => tool.name)).toEqual([
+      "get_assessment_submission",
+    ]);
+    expect(createAssessmentToolDefinitions(dependencies, "evaluation").map((tool) => tool.name)).toEqual([
+      "get_assessment_submission", "attach_assessment_evaluation",
+    ]);
+    expect(createAssessmentToolDefinitions(dependencies, "none")).toEqual([]);
+  });
+
+  it("rejects an unknown authoring template without installing anything", async () => {
+    const installAssessment = vi.fn();
+    const tool = createAssessmentToolDefinitions({
+      installAssessment,
+      readAssessmentAttempt: vi.fn(),
+      attachEvaluation: vi.fn(),
+      getCurrentAttemptId: () => undefined,
+    }).find((candidate) => candidate.name === "get_assessment_authoring_kit")!;
+    const result = await tool.execute({ template: "unknown" }, options());
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_AUTHORING_TEMPLATE", retryable: true },
+    });
+    expect(installAssessment).not.toHaveBeenCalled();
+  });
+
+  it("routes IELTS and universal authoring clearly in tool descriptions", () => {
+    const tools = createAssessmentToolDefinitions({
+      installAssessment: vi.fn(),
+      readAssessmentAttempt: vi.fn(),
+      attachEvaluation: vi.fn(),
+      getCurrentAttemptId: () => undefined,
+    });
+    expect(tools.find((tool) => tool.name === "get_assessment_authoring_kit")?.description)
+      .toContain("Native IELTS Listening, Reading, and Writing use install_practice_set");
+    expect(tools.find((tool) => tool.name === "install_assessment")?.description)
+      .toContain("GRE-style");
   });
 });

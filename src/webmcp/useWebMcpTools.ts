@@ -7,6 +7,7 @@ import { createPracticeToolDefinitions } from './practiceTools'
 import { createWritingToolDefinitions } from './writingTools'
 import { createSpeakingToolDefinitions } from './speakingTools'
 import { createAssessmentToolDefinitions } from './assessmentTools'
+import type { AssessmentToolSurface } from './assessmentTools'
 
 type WebMcpToolOptions = {
   commands: ExamApplicationCommands
@@ -14,7 +15,22 @@ type WebMcpToolOptions = {
   currentWritingAttemptId?: string
   currentSpeakingAttemptId?: string
   currentAssessmentAttemptId?: string
+  assessmentToolSurface: AssessmentToolSurface
   enabled: boolean
+}
+
+async function registerTools(
+  modelContext: WebMCP.ModelContext,
+  tools: WebMCP.ModelContextTool[],
+  signal: AbortSignal,
+): Promise<void> {
+  await Promise.all(tools.map((tool) => modelContext.registerTool(tool, { signal })))
+}
+
+function reportRegistrationFailure(error: unknown, signal: AbortSignal): void {
+  if (!signal.aborted) {
+    reportWebHandledProductFailure(error, { feature: 'webmcp-tools' })
+  }
 }
 
 export function useWebMcpTools({
@@ -23,6 +39,7 @@ export function useWebMcpTools({
   currentWritingAttemptId,
   currentSpeakingAttemptId,
   currentAssessmentAttemptId,
+  assessmentToolSurface,
   enabled,
 }: WebMcpToolOptions): void {
   const installContentRef = useRef(commands.installContent)
@@ -68,7 +85,7 @@ export function useWebMcpTools({
         ])
         return repository.readWritingAttempt(await getLocalDatabase(), attemptId)
       }
-      const tools = [
+      const nativeTools = [
         ...createPracticeToolDefinitions({
           installContent: (input) => installContentRef.current(input),
         }),
@@ -105,35 +122,38 @@ export function useWebMcpTools({
             attachSpeakingEvaluationRef.current(input),
           getCurrentSpeakingAttemptId: () => currentSpeakingAttemptIdRef.current,
         }),
-        ...createAssessmentToolDefinitions({
-          installAssessment: (input) => installAssessmentRef.current(input),
-          readAssessmentAttempt: async (attemptId) => {
-            const [{ getLocalDatabase }, repository] = await Promise.all([
-              import('@/infrastructure/database/client'),
-              import('@/infrastructure/database/assessmentRepository'),
-            ])
-            return repository.readAssessmentAttempt(
-              await getLocalDatabase(),
-              attemptId,
-            )
-          },
-          attachEvaluation: (input) => attachAssessmentEvaluationRef.current(input),
-          getCurrentAttemptId: () => currentAssessmentAttemptIdRef.current,
-        }),
       ]
-      await Promise.all(
-        tools.map((tool) =>
-          modelContext.registerTool(tool, { signal: controller.signal }),
-        ),
-      )
+      await registerTools(modelContext, nativeTools, controller.signal)
     }
 
-    void register().catch((error) => {
-      if (!controller.signal.aborted) {
-        reportWebHandledProductFailure(error, { feature: 'webmcp-tools' })
-      }
-    })
+    void register().catch((error) => reportRegistrationFailure(error, controller.signal))
 
     return () => controller.abort()
   }, [enabled])
+
+  useEffect(() => {
+    if (!enabled || assessmentToolSurface === 'none') return
+    const modelContext = document.modelContext
+    if (!modelContext) return
+
+    const controller = new AbortController()
+    const register = async () => {
+      const assessmentTools = createAssessmentToolDefinitions({
+        installAssessment: (input) => installAssessmentRef.current(input),
+        readAssessmentAttempt: async (attemptId) => {
+          const [{ getLocalDatabase }, repository] = await Promise.all([
+            import('@/infrastructure/database/client'),
+            import('@/infrastructure/database/assessmentRepository'),
+          ])
+          return repository.readAssessmentAttempt(await getLocalDatabase(), attemptId)
+        },
+        attachEvaluation: (input) => attachAssessmentEvaluationRef.current(input),
+        getCurrentAttemptId: () => currentAssessmentAttemptIdRef.current,
+      }, assessmentToolSurface)
+      await registerTools(modelContext, assessmentTools, controller.signal)
+    }
+
+    void register().catch((error) => reportRegistrationFailure(error, controller.signal))
+    return () => controller.abort()
+  }, [assessmentToolSurface, enabled])
 }
