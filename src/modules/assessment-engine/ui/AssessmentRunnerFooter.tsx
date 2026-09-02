@@ -3,8 +3,8 @@ import { ArrowLeft, ArrowRight, Bookmark, SlidersHorizontal } from "lucide-react
 import {
   hasAssessmentResponse,
   type AssessmentResponseMap,
-  type CompiledAssessmentItem,
-  type CompiledAssessmentPart,
+  type AssessmentItem,
+  type AssessmentPart,
 } from "@/domain/assessment";
 
 export function AssessmentRunnerFooter({
@@ -19,8 +19,8 @@ export function AssessmentRunnerFooter({
   onAdvance,
 }: {
   assessmentLabel: string;
-  part: CompiledAssessmentPart;
-  item: CompiledAssessmentItem;
+  part: AssessmentPart;
+  item: AssessmentItem;
   responses: AssessmentResponseMap;
   markedItemIds: string[];
   finalPart: boolean;
@@ -29,6 +29,7 @@ export function AssessmentRunnerFooter({
   onAdvance: () => void;
 }): ReactElement {
   const itemIndex = part.items.findIndex((candidate) => candidate.id === item.id);
+  const itemNumber = itemIndex + 1;
   const finalItem = itemIndex === part.items.length - 1;
   const previousItem = part.items[itemIndex - 1];
 
@@ -42,7 +43,7 @@ export function AssessmentRunnerFooter({
         <div className="flex min-w-0 flex-1 items-center justify-center">
           {part.navigation === "free" ? (
             <div className="flex max-w-full items-center gap-1.5 overflow-x-auto px-1 py-1">
-              {part.items.map((candidate) => {
+              {part.items.map((candidate, candidateIndex) => {
                 const current = candidate.id === item.id;
                 const answered = hasAssessmentResponse(responses[candidate.id]);
                 const marked = markedItemIds.includes(candidate.id);
@@ -57,10 +58,10 @@ export function AssessmentRunnerFooter({
                     type="button"
                     onClick={() => onSetItem(candidate.id)}
                     aria-current={current ? "true" : undefined}
-                    aria-label={`Question ${candidate.numberInPart}, ${answered ? "answered" : "unanswered"}`}
+                    aria-label={`Question ${candidateIndex + 1}, ${answered ? "answered" : "unanswered"}`}
                     className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-xs font-bold ${stateClass}`}
                   >
-                    {candidate.numberInPart}
+                    {candidateIndex + 1}
                     {marked ? (
                       <Bookmark
                         size={9}
@@ -82,7 +83,7 @@ export function AssessmentRunnerFooter({
             </div>
           ) : (
             <p className="text-xs font-semibold text-neutral-600">
-              Question {item.numberInPart} of {part.items.length}
+              Question {itemNumber} of {part.items.length}
             </p>
           )}
         </div>

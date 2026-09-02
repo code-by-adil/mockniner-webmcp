@@ -1,23 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { satPracticeAssessment } from "@/content/sat";
 import { greStyleAssessment } from "@/content/gre";
-import { compileAssessment, gradeAssessment, parseAssessmentPackage, type AssessmentSubmission } from "./assessment";
+import { gradeAssessment, parseAssessmentPackage, type AssessmentSubmission } from "./assessment";
 import {
   assessmentSessionReducer,
+  ASSESSMENT_SESSION_STORAGE_KEY,
   getDraftAssessmentPackageId,
   initialAssessmentSession,
   isFinalPart,
   isLastItemInPart,
+  loadAssessmentSession,
+  saveAssessmentSession,
 } from "./assessmentSession";
 
-const plan = compileAssessment(satPracticeAssessment);
 const nowMs = Date.parse("2026-09-02T10:00:00.000Z");
 const attemptId = "33333333-3333-4333-8333-333333333333";
+
+afterEach(() => vi.unstubAllGlobals());
 
 function start() {
   return assessmentSessionReducer(initialAssessmentSession, {
     type: "START",
-    plan,
+    assessment: satPracticeAssessment,
     attemptId,
     startedAt: new Date(nowMs).toISOString(),
     nowMs,
@@ -60,10 +64,12 @@ describe("assessment session", () => {
     let state = start();
     state = assessmentSessionReducer(state, { type: "SET_RESPONSE", itemId: "rw-1", response: "b" });
     state = { ...state, itemId: "rw-3" };
-    expect(assessmentSessionReducer(state, { type: "ADVANCE_ITEM", plan })).toEqual(state);
+    expect(assessmentSessionReducer(state, {
+      type: "ADVANCE_ITEM", assessment: satPracticeAssessment,
+    })).toEqual(state);
     state = assessmentSessionReducer(state, {
       type: "COMPLETE_PART",
-      plan,
+      assessment: satPracticeAssessment,
       partId: "rw-module-1",
       nowMs: nowMs + 5_000,
     });
@@ -74,7 +80,7 @@ describe("assessment session", () => {
   it("ignores duplicate or stale part-completion events", () => {
     const completion = {
       type: "COMPLETE_PART" as const,
-      plan,
+      assessment: satPracticeAssessment,
       partId: "rw-module-1",
       nowMs: nowMs + 5_000,
     };
@@ -85,17 +91,21 @@ describe("assessment session", () => {
   });
 
   it("recognizes the end of a part separately from the end of the assessment", () => {
-    expect(isLastItemInPart(plan, { ...start(), itemId: "rw-3" })).toBe(true);
-    expect(isFinalPart(plan, { ...start(), partId: "rw-module-1" })).toBe(false);
-    expect(isFinalPart(plan, { ...start(), partId: "math-module-2", itemId: "math-6" })).toBe(true);
+    expect(isLastItemInPart(satPracticeAssessment, { ...start(), itemId: "rw-3" })).toBe(true);
+    expect(isFinalPart(satPracticeAssessment, { ...start(), partId: "rw-module-1" })).toBe(false);
+    expect(isFinalPart(satPracticeAssessment, {
+      ...start(), partId: "math-module-2", itemId: "math-6",
+    })).toBe(true);
   });
 
   it("persists authorized marking and elimination and clears an eliminated response", () => {
     let state = start();
     state = assessmentSessionReducer(state, { type: "SET_RESPONSE", itemId: "rw-1", response: "b" });
-    state = assessmentSessionReducer(state, { type: "TOGGLE_MARK", plan, itemId: "rw-1" });
     state = assessmentSessionReducer(state, {
-      type: "TOGGLE_ELIMINATION", plan, itemId: "rw-1", optionId: "b",
+      type: "TOGGLE_MARK", assessment: satPracticeAssessment, itemId: "rw-1",
+    });
+    state = assessmentSessionReducer(state, {
+      type: "TOGGLE_ELIMINATION", assessment: satPracticeAssessment, itemId: "rw-1", optionId: "b",
     });
     expect(state.responses["rw-1"]).toBeUndefined();
     expect(state.workspace.markedItemIds).toEqual(["rw-1"]);
@@ -103,10 +113,9 @@ describe("assessment session", () => {
   });
 
   it("clears a grouped-choice response when its selected option is eliminated", () => {
-    const grePlan = compileAssessment(greStyleAssessment);
     let state = assessmentSessionReducer(initialAssessmentSession, {
       type: "START",
-      plan: grePlan,
+      assessment: greStyleAssessment,
       attemptId,
       startedAt: new Date(nowMs).toISOString(),
       nowMs,
@@ -119,7 +128,7 @@ describe("assessment session", () => {
     });
     state = assessmentSessionReducer(state, {
       type: "TOGGLE_ELIMINATION",
-      plan: grePlan,
+      assessment: greStyleAssessment,
       itemId: "verbal-text-completion",
       optionId: "blank-1-b",
     });
@@ -132,7 +141,7 @@ describe("assessment session", () => {
     const ticked = assessmentSessionReducer(active, { type: "TICK", nowMs: nowMs + 61_200 });
     expect(ticked.secondsRemaining).toBe(419);
     const resumed = assessmentSessionReducer({ ...ticked, view: "home" }, {
-      type: "RESUME", plan, nowMs: nowMs + 120_000,
+      type: "RESUME", assessment: satPracticeAssessment, nowMs: nowMs + 120_000,
     });
     expect(resumed).toMatchObject({ view: "assessment", secondsRemaining: 360 });
   });
@@ -140,8 +149,46 @@ describe("assessment session", () => {
   it("normalizes stale stored IDs to the first valid part and item", () => {
     const resumed = assessmentSessionReducer({
       ...start(), view: "home", partId: "missing", itemId: "missing",
-    }, { type: "RESUME", plan, nowMs });
+    }, { type: "RESUME", assessment: satPracticeAssessment, nowMs });
     expect(resumed).toMatchObject({ partId: "rw-module-1", itemId: "rw-1" });
+  });
+
+  it("clamps a stale stored timer to the active part duration", () => {
+    const resumed = assessmentSessionReducer({
+      ...start(), view: "home", secondsRemaining: 9_999, deadlineAt: null,
+    }, { type: "RESUME", assessment: satPracticeAssessment, nowMs });
+
+    expect(resumed).toMatchObject({
+      secondsRemaining: 480,
+      deadlineAt: nowMs + 480_000,
+    });
+  });
+
+  it("persists session state without copying the assessment package", () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+    });
+    const active = assessmentSessionReducer(start(), {
+      type: "SET_RESPONSE", itemId: "rw-1", response: "b",
+    });
+
+    saveAssessmentSession(active);
+
+    const stored = JSON.parse(values.get(ASSESSMENT_SESSION_STORAGE_KEY)!) as Record<string, unknown>;
+    expect(stored).not.toHaveProperty("assessment");
+    expect(stored).not.toHaveProperty("parts");
+    expect(loadAssessmentSession()).toMatchObject({
+      view: "home",
+      packageId: satPracticeAssessment.packageId,
+      partId: "rw-module-1",
+      itemId: "rw-1",
+      responses: { "rw-1": "b" },
+    });
   });
 
   it("prevents direct navigation when a part declares linear delivery", () => {
@@ -150,12 +197,11 @@ describe("assessment session", () => {
       packageId: "linear-example",
       parts: [{ ...satPracticeAssessment.parts[0]!, navigation: "linear" }],
     });
-    const linearPlan = compileAssessment(linearPackage);
     const active = assessmentSessionReducer(initialAssessmentSession, {
-      type: "START", plan: linearPlan, attemptId, startedAt: new Date(nowMs).toISOString(), nowMs,
+      type: "START", assessment: linearPackage, attemptId, startedAt: new Date(nowMs).toISOString(), nowMs,
     });
     expect(assessmentSessionReducer(active, {
-      type: "SET_ITEM", plan: linearPlan, itemId: "rw-3",
+      type: "SET_ITEM", assessment: linearPackage, itemId: "rw-3",
     }).itemId).toBe("rw-1");
   });
 

@@ -3,7 +3,7 @@ import { Bookmark, Check, Grid, X } from "lucide-react";
 import {
   hasAssessmentResponse,
   type AssessmentResponseMap,
-  type CompiledAssessmentPart,
+  type AssessmentPart,
 } from "@/domain/assessment";
 import { handleExamDialogBackdropClick, useExamNativeDialog } from "@/shared/ui/exam/useExamNativeDialog";
 
@@ -24,7 +24,7 @@ export function AssessmentQuestionNavigator({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  part: CompiledAssessmentPart;
+  part: AssessmentPart;
   currentItemId: string;
   responses: AssessmentResponseMap;
   markedItemIds: string[];
@@ -93,7 +93,7 @@ export function AssessmentQuestionNavigator({
       </div>
       <div className="max-h-[55vh] overflow-y-auto p-5">
         <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6">
-          {part.items.map((item) => {
+          {part.items.map((item, itemIndex) => {
             const current = item.id === currentItemId;
             const answered = hasAssessmentResponse(responses[item.id]);
             const marked = markedItemIds.includes(item.id);
@@ -103,7 +103,7 @@ export function AssessmentQuestionNavigator({
                 key={item.id}
                 type="button"
                 aria-current={current ? "true" : undefined}
-                aria-label={`Question ${item.numberInPart}, ${answered ? "answered" : "unanswered"}${
+                aria-label={`Question ${itemIndex + 1}, ${answered ? "answered" : "unanswered"}${
                   marked ? ", marked" : ""
                 }`}
                 onClick={() => {
@@ -114,7 +114,7 @@ export function AssessmentQuestionNavigator({
                   questionButtonClass(current, answered)
                 }`}
               >
-                <span className="font-bold">{item.numberInPart}</span>
+                <span className="font-bold">{itemIndex + 1}</span>
                 <span className="mt-1 flex h-3 items-center gap-1">
                   {answered && !current ? <Check size={11} /> : null}
                   {marked ? (

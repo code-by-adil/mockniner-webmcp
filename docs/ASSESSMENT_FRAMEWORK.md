@@ -26,7 +26,7 @@ trusted capabilities in application code
 complete AssessmentPackage supplied by an agent
                  |
                  v
-compiled AssessmentPlan used by the universal interface
+universal interface reads the validated package directly
 ```
 
 An `AssessmentPackage` contains identity, metadata, resources, ordered parts,
@@ -215,7 +215,7 @@ The kit reports these limits to the agent:
 An agent can still build useful GRE-style practice. It must not describe the
 result as an official or predicted GRE score.
 
-## Validation and compilation
+## Validation and runtime selection
 
 All agent input crosses one schema-version-3 boundary. Runtime validation
 checks:
@@ -234,9 +234,10 @@ The model-facing JSON Schema uses shared definitions and references to avoid
 repeating the same content and interaction schemas. The application still runs
 the complete Zod validator before it writes anything.
 
-The compiler resolves resources, applies part layout defaults, and assigns
-display numbers. React renders only the compiled `AssessmentPlan`. Compilation
-does not change the package or introduce another configurable format.
+The validated `AssessmentPackage` is the runtime source. Small selectors find
+the active part and item, resolve declared reference documents, and apply layout
+defaults. React derives display numbers from each item's position in its part.
+There is no second package-shaped runtime model.
 
 ## Sessions, submissions, and results
 

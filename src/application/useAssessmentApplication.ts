@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { satPracticeAssessment } from "@/content/sat";
 import {
   assessmentEvaluationInputSchema,
-  compileAssessment,
   getAssessmentEvaluationStatus,
   gradeAssessment,
   parseAssessmentAuthoringPackage,
@@ -11,7 +10,6 @@ import {
   type AssessmentEvaluationInput,
   type AssessmentHistoryEntry,
   type AssessmentPackage,
-  type AssessmentPlan,
   type AssessmentResponse,
   type AssessmentSubmission,
 } from "@/domain/assessment";
@@ -66,7 +64,6 @@ export function useAssessmentApplication(): {
   state: AssessmentSession;
   assessments: AssessmentPackage[];
   currentAssessment: AssessmentPackage | null;
-  currentPlan: AssessmentPlan | null;
   assessmentReady: boolean;
   history: AssessmentHistoryEntry[];
   commands: AssessmentApplicationCommands;
@@ -101,10 +98,6 @@ export function useAssessmentApplication(): {
   }, []);
 
   const currentAssessment = assessments.find((assessment) => assessment.packageId === state.packageId) ?? null;
-  const currentPlan = useMemo(
-    () => currentAssessment ? compileAssessment(currentAssessment) : null,
-    [currentAssessment],
-  );
   const draftPackageId = getDraftAssessmentPackageId(state);
 
   useEffect(() => {
@@ -121,7 +114,7 @@ export function useAssessmentApplication(): {
     const now = new Date();
     dispatch({
       type: "START",
-      plan: compileAssessment(assessment),
+      assessment,
       attemptId: crypto.randomUUID(),
       startedAt: now.toISOString(),
       nowMs: now.getTime(),
@@ -161,8 +154,8 @@ export function useAssessmentApplication(): {
       startAssessment(assessment);
     },
     resume() {
-      if (!currentPlan) throw new Error("The resumable assessment is not installed.");
-      dispatch({ type: "RESUME", plan: currentPlan, nowMs: Date.now() });
+      if (!currentAssessment) throw new Error("The resumable assessment is not installed.");
+      dispatch({ type: "RESUME", assessment: currentAssessment, nowMs: Date.now() });
     },
     restart() {
       if (!draftPackageId || !currentAssessment) {
@@ -190,30 +183,30 @@ export function useAssessmentApplication(): {
     goHome() { dispatch({ type: "GO_HOME" }); },
     setResponse(itemId, response) { dispatch({ type: "SET_RESPONSE", itemId, response }); },
     toggleMark(itemId) {
-      if (!currentPlan) throw new Error("No assessment is active.");
-      dispatch({ type: "TOGGLE_MARK", plan: currentPlan, itemId });
+      if (!currentAssessment) throw new Error("No assessment is active.");
+      dispatch({ type: "TOGGLE_MARK", assessment: currentAssessment, itemId });
     },
     toggleElimination(itemId, optionId) {
-      if (!currentPlan) throw new Error("No assessment is active.");
-      dispatch({ type: "TOGGLE_ELIMINATION", plan: currentPlan, itemId, optionId });
+      if (!currentAssessment) throw new Error("No assessment is active.");
+      dispatch({ type: "TOGGLE_ELIMINATION", assessment: currentAssessment, itemId, optionId });
     },
     setTimerHidden(hidden) { dispatch({ type: "SET_TIMER_HIDDEN", hidden }); },
     setItem(itemId) {
-      if (!currentPlan) throw new Error("No assessment is active.");
-      dispatch({ type: "SET_ITEM", plan: currentPlan, itemId });
+      if (!currentAssessment) throw new Error("No assessment is active.");
+      dispatch({ type: "SET_ITEM", assessment: currentAssessment, itemId });
     },
     tick() { dispatch({ type: "TICK", nowMs: Date.now() }); },
     advanceItem() {
-      if (!currentPlan) throw new Error("No assessment is active.");
-      dispatch({ type: "ADVANCE_ITEM", plan: currentPlan });
+      if (!currentAssessment) throw new Error("No assessment is active.");
+      dispatch({ type: "ADVANCE_ITEM", assessment: currentAssessment });
     },
     completePart(partId) {
-      if (!currentPlan) throw new Error("No assessment is active.");
-      dispatch({ type: "COMPLETE_PART", plan: currentPlan, partId, nowMs: Date.now() });
+      if (!currentAssessment) throw new Error("No assessment is active.");
+      dispatch({ type: "COMPLETE_PART", assessment: currentAssessment, partId, nowMs: Date.now() });
     },
     expirePart(partId) {
-      if (!currentPlan) throw new Error("No assessment is active.");
-      dispatch({ type: "EXPIRE_PART", plan: currentPlan, partId, nowMs: Date.now() });
+      if (!currentAssessment) throw new Error("No assessment is active.");
+      dispatch({ type: "EXPIRE_PART", assessment: currentAssessment, partId, nowMs: Date.now() });
     },
     async submit() {
       if (state.submission) return state.submission;
@@ -283,7 +276,6 @@ export function useAssessmentApplication(): {
   }), [
     assessments,
     currentAssessment,
-    currentPlan,
     draftPackageId,
     startAssessment,
     state.attemptId,
@@ -294,5 +286,5 @@ export function useAssessmentApplication(): {
     state.view,
   ]);
 
-  return { state, assessments, currentAssessment, currentPlan, assessmentReady, history, commands };
+  return { state, assessments, currentAssessment, assessmentReady, history, commands };
 }

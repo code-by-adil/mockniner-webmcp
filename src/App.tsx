@@ -273,12 +273,12 @@ export default function App() {
     );
   }
 
-  if (assessmentApplication.state.view === "assessment" && assessmentApplication.currentPlan) {
+  if (assessmentApplication.state.view === "assessment" && assessmentApplication.currentAssessment) {
     return (
       <ExamUiBoundary className="h-screen w-full overflow-hidden">
         <AssessmentRunner
           key={assessmentApplication.state.partId}
-          plan={assessmentApplication.currentPlan}
+          assessment={assessmentApplication.currentAssessment}
           session={assessmentApplication.state}
           onExit={assessmentApplication.commands.goHome}
           onResponse={assessmentApplication.commands.setResponse}

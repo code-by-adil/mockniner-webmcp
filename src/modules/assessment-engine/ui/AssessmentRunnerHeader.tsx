@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from "react";
 import { Calculator, ChevronDown, Clock, Eye, EyeOff, FileText, LogOut } from "lucide-react";
-import type { CompiledAssessmentPart } from "@/domain/assessment";
+import type { AssessmentPart, AssessmentResource } from "@/domain/assessment";
 import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { AssessmentCalculatorDialog } from "./AssessmentCalculatorDialog";
 import { AssessmentReferenceDialog } from "./AssessmentReferenceDialog";
@@ -15,6 +15,7 @@ function formatTime(seconds: number | null): string {
 export function AssessmentRunnerHeader({
   assessmentTitle,
   part,
+  resources,
   secondsRemaining,
   timerHidden,
   warning,
@@ -23,7 +24,8 @@ export function AssessmentRunnerHeader({
   onExit,
 }: {
   assessmentTitle: string;
-  part: CompiledAssessmentPart;
+  part: AssessmentPart;
+  resources: AssessmentResource[];
   secondsRemaining: number | null;
   timerHidden: boolean;
   warning: boolean;
@@ -34,7 +36,7 @@ export function AssessmentRunnerHeader({
   const [directionsOpen, setDirectionsOpen] = useState(false);
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
-  const reference = part.resources.find((resource) => resource.id === referenceId) ?? null;
+  const reference = resources.find((resource) => resource.id === referenceId) ?? null;
 
   return (
     <>
@@ -83,7 +85,7 @@ export function AssessmentRunnerHeader({
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            {part.resources.map((resource) => (
+            {resources.map((resource) => (
               <button
                 key={resource.id}
                 type="button"

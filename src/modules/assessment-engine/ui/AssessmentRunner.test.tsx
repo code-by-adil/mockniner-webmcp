@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { getAssessmentAuthoringKit } from "@/content/assessmentExamples";
 import { satPracticeAssessment } from "@/content/sat";
-import { compileAssessment, type AssessmentPlan } from "@/domain/assessment";
+import { type AssessmentPackage } from "@/domain/assessment";
 import {
   assessmentSessionReducer,
   initialAssessmentSession,
@@ -13,20 +13,20 @@ import { AssessmentRunner } from "./AssessmentRunner";
 const attemptId = "33333333-3333-4333-8333-333333333333";
 const nowMs = Date.parse("2026-09-02T10:00:00.000Z");
 
-function start(plan: AssessmentPlan): AssessmentSession {
+function start(assessment: AssessmentPackage): AssessmentSession {
   return assessmentSessionReducer(initialAssessmentSession, {
     type: "START",
-    plan,
+    assessment,
     attemptId,
     startedAt: new Date(nowMs).toISOString(),
     nowMs,
   });
 }
 
-function renderRunner(plan: AssessmentPlan, session: AssessmentSession): string {
+function renderRunner(assessment: AssessmentPackage, session: AssessmentSession): string {
   return renderToStaticMarkup(
     <AssessmentRunner
-      plan={plan}
+      assessment={assessment}
       session={session}
       onExit={() => undefined}
       onResponse={() => undefined}
@@ -47,11 +47,11 @@ function renderRunner(plan: AssessmentPlan, session: AssessmentSession): string 
 
 describe("universal assessment shell", () => {
   it("omits candidate tools that the active part did not declare", () => {
-    const plan = compileAssessment({
+    const assessment: AssessmentPackage = {
       ...getAssessmentAuthoringKit("minimal-objective").examplePackage,
       source: "built-in",
-    });
-    const html = renderRunner(plan, start(plan));
+    };
+    const html = renderRunner(assessment, start(assessment));
 
     expect(html).toContain("Mark for review");
     expect(html).not.toContain('aria-label="Open calculator"');
@@ -61,13 +61,12 @@ describe("universal assessment shell", () => {
   });
 
   it("renders resources and tools declared by a math part", () => {
-    const plan = compileAssessment(satPracticeAssessment);
     const session = {
-      ...start(plan),
+      ...start(satPracticeAssessment),
       partId: "math-module-1",
       itemId: "math-3",
     };
-    const html = renderRunner(plan, session);
+    const html = renderRunner(satPracticeAssessment, session);
 
     expect(html).toContain('aria-label="Open Math formulas"');
     expect(html).toContain('aria-label="Open calculator"');

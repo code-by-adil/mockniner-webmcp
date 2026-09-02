@@ -7,12 +7,14 @@ import {
 } from "react";
 import { Bookmark, BookmarkCheck } from "lucide-react";
 import {
-  findPlanItem,
-  findPlanPart,
+  assessmentPartHasTool,
+  findAssessmentItem,
+  findAssessmentPart,
+  getAssessmentItemLayout,
+  getAssessmentPartResources,
   getAssessmentResponseGuidance,
   hasAssessmentResponse,
-  partHasTool,
-  type AssessmentPlan,
+  type AssessmentPackage,
   type AssessmentResponse,
   type AssessmentSubmission,
 } from "@/domain/assessment";
@@ -27,7 +29,7 @@ import { AssessmentRunnerHeader } from "./AssessmentRunnerHeader";
 import { getAssessmentThemeStyle } from "./assessmentTheme";
 
 export function AssessmentRunner({
-  plan,
+  assessment,
   session,
   onExit,
   onResponse,
@@ -41,7 +43,7 @@ export function AssessmentRunner({
   onExpirePart,
   onSubmit,
 }: {
-  plan: AssessmentPlan;
+  assessment: AssessmentPackage;
   session: AssessmentSession;
   onExit: () => void;
   onResponse: (itemId: string, response: AssessmentResponse) => void;
@@ -55,21 +57,23 @@ export function AssessmentRunner({
   onExpirePart: (partId: string) => void;
   onSubmit: () => Promise<AssessmentSubmission>;
 }): ReactElement {
-  const assessment = plan.source;
-  const part = findPlanPart(plan, session.partId);
+  const part = findAssessmentPart(assessment, session.partId);
   if (!part) throw new Error(`Active assessment part ${session.partId ?? "none"} was not found.`);
-  const item = findPlanItem(part, session.itemId);
+  const item = findAssessmentItem(part, session.itemId);
   if (!item) throw new Error(`Active assessment item ${session.itemId ?? "none"} was not found.`);
-  const finalItem = isLastItemInPart(plan, session);
-  const finalPart = isFinalPart(plan, session);
+  const finalItem = isLastItemInPart(assessment, session);
+  const finalPart = isFinalPart(assessment, session);
+  const itemNumber = part.items.findIndex((candidate) => candidate.id === item.id) + 1;
+  const itemLayout = getAssessmentItemLayout(part, item);
+  const resources = getAssessmentPartResources(assessment, part);
   const expiredPartRef = useRef<string | null>(null);
   const [navigatorOpen, setNavigatorOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
-  const hasMarking = partHasTool(part, "mark_for_review");
-  const hasEliminator = partHasTool(part, "option_eliminator");
-  const hasCalculator = partHasTool(part, "calculator");
+  const hasMarking = assessmentPartHasTool(part, "mark_for_review");
+  const hasEliminator = assessmentPartHasTool(part, "option_eliminator");
+  const hasCalculator = assessmentPartHasTool(part, "calculator");
   const marked = session.workspace.markedItemIds.includes(item.id);
   const eliminated = session.workspace.eliminatedOptionIds[item.id] ?? [];
   const warning = session.secondsRemaining !== null &&
@@ -128,10 +132,10 @@ export function AssessmentRunner({
         <div>
           <div className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-neutral-900 font-mono text-xs font-bold text-white">
-              {item.numberInPart}
+              {itemNumber}
             </span>
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-              Question {item.numberInPart} of {part.items.length}
+              Question {itemNumber} of {part.items.length}
             </span>
           </div>
           {item.domain ? (
@@ -208,6 +212,7 @@ export function AssessmentRunner({
       <AssessmentRunnerHeader
         assessmentTitle={assessment.title}
         part={part}
+        resources={resources}
         secondsRemaining={session.secondsRemaining}
         timerHidden={session.workspace.timerHidden}
         warning={warning}
@@ -234,7 +239,7 @@ export function AssessmentRunner({
       ) : null}
 
       <main className="min-h-0 flex-1 overflow-hidden bg-neutral-100">
-        {item.layout === "split" && stimulusPane ? (
+        {itemLayout === "split" && stimulusPane ? (
           <div className="mx-auto h-full max-w-[1440px] border-x border-neutral-200 bg-white shadow-xs">
             <ResizableSplitPane
               left={stimulusPane}

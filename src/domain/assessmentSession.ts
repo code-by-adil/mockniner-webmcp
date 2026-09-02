@@ -1,11 +1,11 @@
 import { z } from "zod";
 import {
   assessmentResponseMapSchema,
-  findPlanItem,
-  findPlanPart,
-  partHasTool,
+  assessmentPartHasTool,
+  findAssessmentItem,
+  findAssessmentPart,
   type AssessmentEvaluation,
-  type AssessmentPlan,
+  type AssessmentPackage,
   type AssessmentResponse,
   type AssessmentResponseMap,
   type AssessmentSubmission,
@@ -33,18 +33,18 @@ export type AssessmentSession = {
 };
 
 export type AssessmentSessionAction =
-  | { type: "START"; plan: AssessmentPlan; attemptId: string; startedAt: string; nowMs: number }
-  | { type: "RESUME"; plan: AssessmentPlan; nowMs: number }
+  | { type: "START"; assessment: AssessmentPackage; attemptId: string; startedAt: string; nowMs: number }
+  | { type: "RESUME"; assessment: AssessmentPackage; nowMs: number }
   | { type: "GO_HOME" }
   | { type: "SET_RESPONSE"; itemId: string; response: AssessmentResponse }
-  | { type: "TOGGLE_MARK"; plan: AssessmentPlan; itemId: string }
-  | { type: "TOGGLE_ELIMINATION"; plan: AssessmentPlan; itemId: string; optionId: string }
+  | { type: "TOGGLE_MARK"; assessment: AssessmentPackage; itemId: string }
+  | { type: "TOGGLE_ELIMINATION"; assessment: AssessmentPackage; itemId: string; optionId: string }
   | { type: "SET_TIMER_HIDDEN"; hidden: boolean }
-  | { type: "SET_ITEM"; plan: AssessmentPlan; itemId: string }
+  | { type: "SET_ITEM"; assessment: AssessmentPackage; itemId: string }
   | { type: "TICK"; nowMs: number }
-  | { type: "ADVANCE_ITEM"; plan: AssessmentPlan }
-  | { type: "COMPLETE_PART"; plan: AssessmentPlan; partId: string; nowMs: number }
-  | { type: "EXPIRE_PART"; plan: AssessmentPlan; partId: string; nowMs: number }
+  | { type: "ADVANCE_ITEM"; assessment: AssessmentPackage }
+  | { type: "COMPLETE_PART"; assessment: AssessmentPackage; partId: string; nowMs: number }
+  | { type: "EXPIRE_PART"; assessment: AssessmentPackage; partId: string; nowMs: number }
   | { type: "COMPLETE"; submission: AssessmentSubmission }
   | { type: "OPEN_SUBMISSION"; submission: AssessmentSubmission; evaluation: AssessmentEvaluation | null }
   | { type: "ATTACH_EVALUATION"; evaluation: AssessmentEvaluation }
@@ -87,11 +87,11 @@ function remainingSeconds(deadlineAt: number | null, fallback: number | null, no
 
 function enterPart(
   state: AssessmentSession,
-  plan: AssessmentPlan,
+  assessment: AssessmentPackage,
   partIndex: number,
   nowMs: number,
 ): AssessmentSession {
-  const part = plan.parts[partIndex];
+  const part = assessment.parts[partIndex];
   if (!part) return state;
   return {
     ...state,
@@ -101,10 +101,14 @@ function enterPart(
   };
 }
 
-function resumeAssessment(state: AssessmentSession, plan: AssessmentPlan, nowMs: number): AssessmentSession {
-  if (state.packageId !== plan.source.packageId || state.submission) return state;
-  const part = findPlanPart(plan, state.partId) ?? plan.parts[0]!;
-  const item = findPlanItem(part, state.itemId) ?? part.items[0]!;
+function resumeAssessment(
+  state: AssessmentSession,
+  assessment: AssessmentPackage,
+  nowMs: number,
+): AssessmentSession {
+  if (state.packageId !== assessment.packageId || state.submission) return state;
+  const part = findAssessmentPart(assessment, state.partId) ?? assessment.parts[0]!;
+  const item = findAssessmentItem(part, state.itemId) ?? part.items[0]!;
   const duration = part.durationSeconds ?? null;
   const fallback = duration === null ? null : Math.min(state.secondsRemaining ?? duration, duration);
   return {
@@ -125,13 +129,13 @@ export function assessmentSessionReducer(
 ): AssessmentSession {
   switch (action.type) {
     case "START": {
-      const firstPart = action.plan.parts[0]!;
+      const firstPart = action.assessment.parts[0]!;
       return {
         ...initialAssessmentSession,
         workspace: { ...initialWorkspace },
         view: "assessment",
         attemptId: action.attemptId,
-        packageId: action.plan.source.packageId,
+        packageId: action.assessment.packageId,
         partId: firstPart.id,
         itemId: firstPart.items[0]!.id,
         startedAt: action.startedAt,
@@ -139,7 +143,7 @@ export function assessmentSessionReducer(
       };
     }
     case "RESUME":
-      return resumeAssessment(state, action.plan, action.nowMs);
+      return resumeAssessment(state, action.assessment, action.nowMs);
     case "GO_HOME":
       return { ...state, view: "home" };
     case "SET_RESPONSE":
@@ -147,9 +151,9 @@ export function assessmentSessionReducer(
       return { ...state, responses: { ...state.responses, [action.itemId]: action.response } };
     case "TOGGLE_MARK": {
       if (state.view !== "assessment" || action.itemId !== state.itemId) return state;
-      const part = findPlanPart(action.plan, state.partId);
+      const part = findAssessmentPart(action.assessment, state.partId);
       if (!part) return state;
-      if (!partHasTool(part, "mark_for_review")) return state;
+      if (!assessmentPartHasTool(part, "mark_for_review")) return state;
       const marked = state.workspace.markedItemIds;
       return {
         ...state,
@@ -163,9 +167,9 @@ export function assessmentSessionReducer(
     }
     case "TOGGLE_ELIMINATION": {
       if (state.view !== "assessment" || action.itemId !== state.itemId) return state;
-      const part = findPlanPart(action.plan, state.partId);
+      const part = findAssessmentPart(action.assessment, state.partId);
       if (!part) return state;
-      if (!partHasTool(part, "option_eliminator")) return state;
+      if (!assessmentPartHasTool(part, "option_eliminator")) return state;
       const current = state.workspace.eliminatedOptionIds[action.itemId] ?? [];
       const eliminated = current.includes(action.optionId)
         ? current.filter((optionId) => optionId !== action.optionId)
@@ -197,7 +201,7 @@ export function assessmentSessionReducer(
       return { ...state, workspace: { ...state.workspace, timerHidden: action.hidden } };
     case "SET_ITEM": {
       if (state.view !== "assessment") return state;
-      const part = findPlanPart(action.plan, state.partId);
+      const part = findAssessmentPart(action.assessment, state.partId);
       if (!part) return state;
       if (part.navigation !== "free" || !part.items.some((item) => item.id === action.itemId)) return state;
       return { ...state, itemId: action.itemId };
@@ -208,7 +212,7 @@ export function assessmentSessionReducer(
     }
     case "ADVANCE_ITEM": {
       if (state.view !== "assessment") return state;
-      const part = findPlanPart(action.plan, state.partId);
+      const part = findAssessmentPart(action.assessment, state.partId);
       if (!part) return state;
       const index = part.items.findIndex((item) => item.id === state.itemId);
       return index >= 0 && index < part.items.length - 1
@@ -218,9 +222,9 @@ export function assessmentSessionReducer(
     case "COMPLETE_PART":
     case "EXPIRE_PART": {
       if (state.view !== "assessment" || state.partId !== action.partId) return state;
-      const currentIndex = action.plan.parts.findIndex((part) => part.id === state.partId);
-      return currentIndex >= 0 && currentIndex < action.plan.parts.length - 1
-        ? enterPart(state, action.plan, currentIndex + 1, action.nowMs)
+      const currentIndex = action.assessment.parts.findIndex((part) => part.id === state.partId);
+      return currentIndex >= 0 && currentIndex < action.assessment.parts.length - 1
+        ? enterPart(state, action.assessment, currentIndex + 1, action.nowMs)
         : state;
     }
     case "COMPLETE":
@@ -291,10 +295,10 @@ export function saveAssessmentSession(session: AssessmentSession): void {
   }));
 }
 
-export function isLastItemInPart(plan: AssessmentPlan, session: AssessmentSession): boolean {
-  return findPlanPart(plan, session.partId)?.items.at(-1)?.id === session.itemId;
+export function isLastItemInPart(assessment: AssessmentPackage, session: AssessmentSession): boolean {
+  return findAssessmentPart(assessment, session.partId)?.items.at(-1)?.id === session.itemId;
 }
 
-export function isFinalPart(plan: AssessmentPlan, session: AssessmentSession): boolean {
-  return plan.parts.at(-1)?.id === session.partId;
+export function isFinalPart(assessment: AssessmentPackage, session: AssessmentSession): boolean {
+  return assessment.parts.at(-1)?.id === session.partId;
 }

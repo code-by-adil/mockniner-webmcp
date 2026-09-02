@@ -5,7 +5,8 @@ import { satPracticeAssessment } from "@/content/sat";
 import {
   ASSESSMENT_AUTHORING_TEMPLATE_IDS,
   assessmentEvaluationInputSchema,
-  compileAssessment,
+  getAssessmentItemLayout,
+  getAssessmentPartResources,
   getAssessmentPackageJsonSchema,
   getAssessmentResponseGuidance,
   gradeAssessment,
@@ -96,16 +97,22 @@ describe("assessment domain", () => {
     expect(schema.properties).not.toHaveProperty("source");
   });
 
-  it("compiles the SAT-style package without encoding SAT rules in the engine", () => {
-    const plan = compileAssessment(satPracticeAssessment);
+  it("derives runtime resources and layouts directly from the validated package", () => {
     expect(satPracticeAssessment.schemaVersion).toBe(3);
-    expect(plan.parts.map((part) => part.id)).toEqual([
+    expect(satPracticeAssessment.parts.map((part) => part.id)).toEqual([
       "rw-module-1", "rw-module-2", "math-module-1", "math-module-2",
     ]);
-    expect(plan.parts[0]!.resources).toEqual([]);
-    expect(plan.parts[2]!.resources.map((resource) => resource.id)).toEqual(["math-formulas"]);
-    expect(plan.parts[0]!.items[0]!.layout).toBe("split");
-    expect(plan.parts[2]!.items[1]!.layout).toBe("single");
+    expect(getAssessmentPartResources(satPracticeAssessment, satPracticeAssessment.parts[0]!)).toEqual([]);
+    expect(getAssessmentPartResources(satPracticeAssessment, satPracticeAssessment.parts[2]!)
+      .map((resource) => resource.id)).toEqual(["math-formulas"]);
+    expect(getAssessmentItemLayout(
+      satPracticeAssessment.parts[0]!,
+      satPracticeAssessment.parts[0]!.items[0]!,
+    )).toBe("split");
+    expect(getAssessmentItemLayout(
+      satPracticeAssessment.parts[2]!,
+      satPracticeAssessment.parts[2]!.items[1]!,
+    )).toBe("single");
   });
 
   it("grades every deterministic interaction, including fractional numeric input", () => {
