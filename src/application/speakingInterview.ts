@@ -25,13 +25,12 @@ export type AgentSpeakingTurnResult =
       submission: SpeakingSubmission
     }
 
-type AgentSpeakingTurnHandler = (
+export type AgentSpeakingTurnHandler = (
   input: AgentSpeakingTurnInput,
   signal: AbortSignal,
 ) => Promise<AgentSpeakingTurnResult>
 
-type AgentSpeakingTurnErrorCode =
-  | 'SPEAKING_MODE_NOT_READY'
+export type AgentSpeakingTurnErrorCode =
   | 'SPEAKING_AUDIO_NOT_PREPARED'
   | 'SPEAKING_TURN_IN_PROGRESS'
   | 'SPEAKING_NO_RESPONSES'
@@ -47,28 +46,4 @@ export class AgentSpeakingTurnError extends Error {
     this.name = 'AgentSpeakingTurnError'
     this.code = code
   }
-}
-
-let activeHandler: AgentSpeakingTurnHandler | null = null
-
-export function registerAgentSpeakingTurnHandler(
-  handler: AgentSpeakingTurnHandler,
-): () => void {
-  activeHandler = handler
-  return () => {
-    if (activeHandler === handler) activeHandler = null
-  }
-}
-
-export function conductAgentSpeakingTurn(
-  input: AgentSpeakingTurnInput,
-  signal: AbortSignal,
-): Promise<AgentSpeakingTurnResult> {
-  if (!activeHandler) {
-    throw new AgentSpeakingTurnError(
-      'SPEAKING_MODE_NOT_READY',
-      'Open Speaking, choose Agent interview, and prepare the microphone before asking the agent to begin.',
-    )
-  }
-  return activeHandler(input, signal)
 }

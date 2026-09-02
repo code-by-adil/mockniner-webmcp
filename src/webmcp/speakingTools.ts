@@ -1,11 +1,11 @@
 import { z } from "zod";
 import type { ExamApplicationCommands } from "@/application/commands";
-import type { SpeakingEvaluation, SpeakingSubmission } from "@/domain/types";
-import { speakingEvaluationInputSchema } from "@/domain/speakingEvaluation";
 import {
   AgentSpeakingTurnError,
-  conductAgentSpeakingTurn,
-} from "@/modules/section-packs/speaking/agentSpeakingCoordinator";
+  type AgentSpeakingTurnHandler,
+} from "@/application/speakingInterview";
+import type { SpeakingEvaluation, SpeakingSubmission } from "@/domain/types";
+import { speakingEvaluationInputSchema } from "@/domain/speakingEvaluation";
 import {
   getToolExecutionSignal,
   throwIfCancelled,
@@ -51,17 +51,12 @@ type SpeakingToolDependencies = {
   getCurrentSpeakingAttemptId: () => string | undefined;
 };
 
-export type SpeakingToolSurface = "interview" | "results" | "evaluation" | "none";
+export type SpeakingToolSurface = "results" | "evaluation" | "none";
 
-export function createSpeakingToolDefinitions(
-  {
-    readSpeakingAttempt,
-    attachSpeakingEvaluation,
-    getCurrentSpeakingAttemptId,
-  }: SpeakingToolDependencies,
-  surface: SpeakingToolSurface = "evaluation",
-): WebMCP.ModelContextTool[] {
-  const interviewTool: WebMCP.ModelContextTool = {
+export function createSpeakingInterviewToolDefinition(
+  conductSpeakingTurn: AgentSpeakingTurnHandler,
+): WebMCP.ModelContextTool {
+  return {
     name: "conduct_speaking_turn",
     title: "Conduct one IELTS Speaking turn",
     description:
@@ -81,7 +76,7 @@ export function createSpeakingToolDefinitions(
         );
       }
       try {
-        const result = await conductAgentSpeakingTurn(parsed.data, signal);
+        const result = await conductSpeakingTurn(parsed.data, signal);
         throwIfCancelled(signal);
         return {
           ok: true,
@@ -105,6 +100,16 @@ export function createSpeakingToolDefinitions(
       }
     },
   };
+}
+
+export function createSpeakingToolDefinitions(
+  {
+    readSpeakingAttempt,
+    attachSpeakingEvaluation,
+    getCurrentSpeakingAttemptId,
+  }: SpeakingToolDependencies,
+  surface: SpeakingToolSurface = "evaluation",
+): WebMCP.ModelContextTool[] {
   const submissionTool: WebMCP.ModelContextTool = {
     name: "get_speaking_submission",
     title: "Read IELTS Speaking transcript",
@@ -214,7 +219,6 @@ export function createSpeakingToolDefinitions(
       };
     },
   };
-  if (surface === "interview") return [interviewTool];
   if (surface === "results") return [submissionTool];
   if (surface === "evaluation") return [submissionTool, evaluationTool];
   return [];

@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SpeakingEvaluation, SpeakingSubmission } from "@/domain/types";
-import { registerAgentSpeakingTurnHandler } from "@/modules/section-packs/speaking/agentSpeakingCoordinator";
-import { createSpeakingToolDefinitions } from "./speakingTools";
+import {
+  createSpeakingInterviewToolDefinition,
+  createSpeakingToolDefinitions,
+} from "./speakingTools";
 import type { SpeakingToolSurface } from "./speakingTools";
 
 const attemptId = "33333333-3333-4333-8333-333333333333";
@@ -62,8 +64,8 @@ describe("Speaking WebMCP tools", () => {
       getCurrentSpeakingAttemptId: () => undefined,
     };
     expect(
-      createSpeakingToolDefinitions(dependencies, "interview").map((tool) => tool.name),
-    ).toEqual(["conduct_speaking_turn"]);
+      createSpeakingInterviewToolDefinition(vi.fn()).name,
+    ).toBe("conduct_speaking_turn");
     expect(createSpeakingToolDefinitions(dependencies, "results").map((tool) => tool.name)).toEqual(
       ["get_speaking_submission"],
     );
@@ -74,7 +76,7 @@ describe("Speaking WebMCP tools", () => {
   });
 
   it("conducts one question and returns the learner-approved transcript", async () => {
-    const unregister = registerAgentSpeakingTurnHandler(async (input) => {
+    const tool = createSpeakingInterviewToolDefinition(async (input) => {
       if (input.finishInterview) return { status: "interview_completed", submission };
       return {
         status: "answer_received",
@@ -84,9 +86,6 @@ describe("Speaking WebMCP tools", () => {
         durationMs: 21_000,
       };
     });
-    const tool = createTools(null, vi.fn(), "interview").find(
-      (item) => item.name === "conduct_speaking_turn",
-    )!;
 
     await expect(
       tool.execute(
@@ -105,28 +104,6 @@ describe("Speaking WebMCP tools", () => {
         transcript: "My hometown is a busy coastal city.",
       },
       sideEffect: { visibleView: "agent_speaking_interview" },
-    });
-    unregister();
-  });
-
-  it("explains how to prepare the page when Agent interview is not open", async () => {
-    const tool = createTools(null, vi.fn(), "interview").find(
-      (item) => item.name === "conduct_speaking_turn",
-    )!;
-
-    await expect(
-      tool.execute(
-        {
-          examinerText: "Where do you live?",
-          part: 1,
-          responseTimeSeconds: 30,
-          finishInterview: false,
-        },
-        toolOptions(),
-      ),
-    ).resolves.toMatchObject({
-      ok: false,
-      error: { code: "SPEAKING_MODE_NOT_READY", retryable: true },
     });
   });
 

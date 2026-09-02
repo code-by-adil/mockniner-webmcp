@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CompleteSpeakingAttemptInput } from '@/application/attemptWriter'
-import type { SpeakingSubmission } from '@/domain/types'
-import { KokoroSpeakingPlayer } from '@/infrastructure/media/kokoroSpeakingPlayer'
 import {
   AgentSpeakingTurnError,
-  registerAgentSpeakingTurnHandler,
   type AgentSpeakingTurnInput,
   type AgentSpeakingTurnResult,
-} from './agentSpeakingCoordinator'
+} from '@/application/speakingInterview'
+import type { SpeakingSubmission } from '@/domain/types'
+import { KokoroSpeakingPlayer } from '@/infrastructure/media/kokoroSpeakingPlayer'
+import { useSpeakingInterviewTool } from '@/webmcp/useSpeakingInterviewTool'
 import {
   supportsSpeechTranscription,
   useSpeakingRecorder,
@@ -141,6 +141,10 @@ export function useAgentSpeakingInterview({ onComplete }: Options) {
 
     const turnController = new AbortController()
     const handleToolAbort = () => turnController.abort()
+    const releaseCancellation = () => {
+      toolSignal.removeEventListener('abort', handleToolAbort)
+      if (activeTurnRef.current === turnController) activeTurnRef.current = null
+    }
     if (toolSignal.aborted) turnController.abort()
     else toolSignal.addEventListener('abort', handleToolAbort, { once: true })
     activeTurnRef.current = turnController
@@ -159,13 +163,13 @@ export function useAgentSpeakingInterview({ onComplete }: Options) {
             'Ask at least one question and collect an answer before finishing the interview.',
           )
         }
+        releaseCancellation()
         setPhase('saving')
         const submission = await onComplete({
           contentKey: AGENT_SPEAKING_CONTENT_KEY,
           startedAt: attemptStartedAt,
           recordings: recordingsRef.current,
         })
-        if (turnController.signal.aborted) throw abortError()
         return { status: 'interview_completed', submission }
       }
 
@@ -207,11 +211,12 @@ export function useAgentSpeakingInterview({ onComplete }: Options) {
       }
       throw turnError
     } finally {
-      toolSignal.removeEventListener('abort', handleToolAbort)
-      if (activeTurnRef.current === turnController) activeTurnRef.current = null
+      releaseCancellation()
       busyRef.current = false
     }
   }, [attemptStartedAt, cancelRecorder, onComplete, requirePlayer, waitForCandidate])
+
+  useSpeakingInterviewTool(conductTurn)
 
   useEffect(() => {
     mountedRef.current = true
@@ -228,11 +233,6 @@ export function useAgentSpeakingInterview({ onComplete }: Options) {
       player.dispose()
     }
   }, [])
-
-  useEffect(
-    () => registerAgentSpeakingTurnHandler(conductTurn),
-    [conductTurn],
-  )
 
   const startRecording = useCallback(async () => {
     try {

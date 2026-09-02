@@ -71,7 +71,7 @@ describe("contextual WebMCP surfaces", () => {
     ).toBe("none");
   });
 
-  it("shows the live Speaking tool during the interview and evaluation tools after submission", () => {
+  it("leaves live interview registration to the mounted Agent mode", () => {
     expect(
       getNativeToolSurfaces(
         {
@@ -81,7 +81,7 @@ describe("contextual WebMCP surfaces", () => {
         },
         initialAssessmentSession,
       ).speaking,
-    ).toBe("interview");
+    ).toBe("none");
 
     expect(
       getNativeToolSurfaces(

@@ -39,9 +39,7 @@ export function getNativeToolSurfaces(
     if (writingIsVisible) writing = session.writingEvaluation ? "results" : "evaluation";
   }
 
-  if (session.view === "exam" && session.currentSection === "speaking") {
-    speaking = "interview";
-  } else if (session.speakingSubmission && session.view !== "home") {
+  if (session.speakingSubmission && session.view !== "home") {
     const speakingIsVisible = session.currentSection === "speaking" || session.view === "result";
     if (speakingIsVisible) speaking = session.speakingEvaluation ? "results" : "evaluation";
   }
