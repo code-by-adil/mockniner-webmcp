@@ -460,8 +460,9 @@ export const BundledListeningAudioBar: React.FC<Props> = ({
     audio.addEventListener("error", onError);
     audio.addEventListener("ended", onEnded);
 
-    if (audio.readyState >= 1) onLoadedMetadata();
-    if (audio.readyState >= 3) onCanPlay();
+    // This effect owns the source so setup also restores it after effect replay.
+    audio.src = sources.audioUrl;
+    audio.load();
 
     return () => {
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
@@ -630,7 +631,7 @@ export const BundledListeningAudioBar: React.FC<Props> = ({
 
   return (
     <>
-      <audio ref={audioRef} src={sources.audioUrl} />
+      <audio ref={audioRef} />
       {showActionsRow ? (
         <ListeningAudioActions
           placement={placement}
