@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const text = z.string().trim().min(1).max(20_000);
 
-export const writingBarChartSchema = z.strictObject({
+const writingBarChartSchema = z.strictObject({
   title: text,
   years: z.tuple([text, text]),
   unit: text,

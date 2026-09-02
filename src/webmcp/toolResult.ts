@@ -5,20 +5,11 @@ export type ToolIssue = {
   message: string
 }
 
-export type ToolError = {
+type ToolError = {
   code: string
   message: string
   retryable: boolean
   issues?: ToolIssue[]
-}
-
-export type ToolSuccess<T> = {
-  ok: true
-  data: T
-  sideEffect?: {
-    type: string
-    visibleView?: string
-  }
 }
 
 export type ToolFailure = {

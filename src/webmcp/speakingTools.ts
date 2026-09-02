@@ -25,7 +25,7 @@ const closingTurnSchema = z.strictObject({
   finishInterview: z.literal(true),
 });
 
-export const agentSpeakingTurnSchema = z.discriminatedUnion("finishInterview", [
+const agentSpeakingTurnSchema = z.discriminatedUnion("finishInterview", [
   questionTurnSchema,
   closingTurnSchema,
 ]);

@@ -1,7 +1,7 @@
 import React from "react";
 
-export const DRAG_GROUP_MIME = "application/x-assessment-lab-drag-group";
-export const DRAG_VALUE_MIME = "application/x-assessment-lab-drag-value";
+const DRAG_GROUP_MIME = "application/x-assessment-lab-drag-group";
+const DRAG_VALUE_MIME = "application/x-assessment-lab-drag-value";
 
 const PLAIN_PAYLOAD_PREFIX = "assessment-lab:";
 
@@ -45,7 +45,7 @@ export type DropTargetRect = {
 };
 
 /** Distance from a point to the nearest edge of an axis-aligned rect (0 when inside). */
-export function distanceToRectEdge(
+function distanceToRectEdge(
   px: number,
   py: number,
   centerX: number,
@@ -62,7 +62,7 @@ export function distanceToRectEdge(
  * Picks the drop target whose box (optionally padded) is closest to the pointer.
  * Returns null when every target is farther than `maxEdgeDistancePx` from its box edge.
  */
-export function findNearestDropTarget(
+function findNearestDropTarget(
   clientX: number,
   clientY: number,
   targets: DropTargetRect[],
@@ -93,25 +93,6 @@ export function findNearestDropTarget(
   }
 
   return best?.id ?? null;
-}
-
-/** Resolves a map/matching slot question id from pointer coordinates. */
-export function resolveDropTargetId(
-  clientX: number,
-  clientY: number,
-  targets: DropTargetRect[],
-  maxEdgeDistancePx = 0,
-  preferredId?: string | number | null,
-  preferredBiasPx = 0,
-): string | number | null {
-  return findNearestDropTarget(
-    clientX,
-    clientY,
-    targets,
-    maxEdgeDistancePx,
-    preferredId,
-    preferredBiasPx,
-  );
 }
 
 /** Nearest slot that passes eligibility (e.g. can receive the dragged option). */
@@ -161,7 +142,7 @@ export function measureDropTargetRects(
   return targets;
 }
 
-export function readExamDragPayload(event: React.DragEvent): ExamDragPayload | null {
+function readExamDragPayload(event: React.DragEvent): ExamDragPayload | null {
   const groupId = event.dataTransfer.getData(DRAG_GROUP_MIME);
   const value = event.dataTransfer.getData(DRAG_VALUE_MIME);
 

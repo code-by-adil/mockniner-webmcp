@@ -1,6 +1,5 @@
 /** Feature detection + shared tokens for exam CSS Anchor Positioning / Popover. */
 
-export const EXAM_POPOVER_ANCHOR_NAME = "--exam-popover-anchor";
 export const EXAM_HIGHLIGHT_MENU_ANCHOR_NAME = "--exam-highlight-menu-anchor";
 
 export function supportsPopoverApi(): boolean {

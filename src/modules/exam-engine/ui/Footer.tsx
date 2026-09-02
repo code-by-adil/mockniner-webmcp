@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { countWords } from '@/shared/text';
 import { ArrowLeft, ArrowRight, Check, ChevronDown } from 'lucide-react';
 import type { ObjectiveFooterPart } from '@/modules/exam-engine/footerParts';
 import {
@@ -91,13 +92,6 @@ function getQuestionFromEventTarget(target: EventTarget | null): number | null {
 function isAnsweredValue(value: string | undefined): boolean {
   if (typeof value !== 'string') return false;
   return value.trim().length > 0;
-}
-
-function countWords(value: string | undefined): number {
-  if (typeof value !== 'string') return 0;
-  const trimmed = value.trim();
-  if (!trimmed) return 0;
-  return trimmed.split(/\s+/).length;
 }
 
 const WRITING_WORD_TARGETS: Record<number, number> = {

@@ -30,7 +30,7 @@ const writingAnnotationSchema = z
   })
   .strict()
 
-export const writingTaskEvaluationSchema = z
+const writingTaskEvaluationSchema = z
   .object({
     band: bandScoreSchema,
     taskAchievement: bandScoreSchema,

@@ -1,4 +1,5 @@
-import { countWords, gradeObjectiveDocument } from '@/domain/exam'
+import { gradeObjectiveDocument } from '@/domain/exam'
+import { countWords } from '@/shared/text'
 import {
   parsePracticeContentDocument,
   replaceActiveContent,

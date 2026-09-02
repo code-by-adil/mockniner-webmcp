@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { Header } from "@/modules/exam-engine/ui/Header";
 import { ObjectiveExamFooter } from "@/modules/exam-engine/ui/Footer";
 import { buildObjectiveFooterParts } from "@/modules/exam-engine/footerParts";
-import { formatTime } from "@/domain/exam";
+import { formatTime } from "@/shared/time";
 import { ObjectivePartView } from "@/modules/section-packs/objective/ui/ObjectivePartView";
 import type { ObjectivePracticeRunnerProps } from "@/modules/section-packs/objective/types/ObjectivePracticeRunnerProps";
 import { ListeningAudioBar } from "./ListeningAudioBar";

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 export const projectRoot = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
-export const casesPath = path.join(projectRoot, "agent-evals", "authoring-cases.json");
+const casesPath = path.join(projectRoot, "agent-evals", "authoring-cases.json");
 export const artifactDirectory = path.join(projectRoot, ".evals", "agent-authoring", "fixtures");
 export const reportDirectory = path.join(projectRoot, ".evals", "agent-authoring", "reports");
 export const toolsArtifactPath = path.join(artifactDirectory, "tools.json");

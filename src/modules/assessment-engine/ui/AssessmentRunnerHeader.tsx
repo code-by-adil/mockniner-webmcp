@@ -1,16 +1,10 @@
 import { useState, type ReactElement } from "react";
+import { formatMinutesAndSeconds } from "@/shared/time";
 import { Calculator, ChevronDown, Clock, Eye, EyeOff, FileText, LogOut } from "lucide-react";
 import type { AssessmentPart, AssessmentResource } from "@/domain/assessment";
 import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { AssessmentCalculatorDialog } from "./AssessmentCalculatorDialog";
 import { AssessmentReferenceDialog } from "./AssessmentReferenceDialog";
-
-function formatTime(seconds: number | null): string {
-  if (seconds === null) return "Untimed";
-  const minutes = Math.floor(Math.max(0, seconds) / 60);
-  const remainder = Math.max(0, seconds) % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
-}
 
 export function AssessmentRunnerHeader({
   assessmentTitle,
@@ -37,6 +31,9 @@ export function AssessmentRunnerHeader({
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const reference = resources.find((resource) => resource.id === referenceId) ?? null;
+  const timerText = secondsRemaining === null
+    ? "Untimed"
+    : formatMinutesAndSeconds(Math.max(0, secondsRemaining));
 
   return (
     <>
@@ -70,7 +67,7 @@ export function AssessmentRunnerHeader({
               }`}
             >
               <Clock size={14} />
-              <span>{timerHidden ? "••:••" : formatTime(secondsRemaining)}</span>
+              <span>{timerHidden ? "••:••" : timerText}</span>
             </div>
             {secondsRemaining !== null ? (
               <button

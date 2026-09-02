@@ -10,7 +10,7 @@ import {
   supportsNativeDialog,
 } from "./cssAnchorPositioning";
 
-export type ExamDialogClosedBy = "any" | "closerequest" | "none";
+type ExamDialogClosedBy = "any" | "closerequest" | "none";
 
 export type UseExamNativeDialogOptions = {
   open: boolean;

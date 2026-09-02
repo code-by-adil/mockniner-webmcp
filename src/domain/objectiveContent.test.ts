@@ -9,7 +9,8 @@ import {
   parseObjectiveContentDocument,
   type ObjectiveContentBlock,
 } from "./objectiveContent";
-import { countWords, gradeObjectiveDocument } from "./exam";
+import { gradeObjectiveDocument } from "./exam";
+import { countWords } from "@/shared/text";
 
 function questionIds(block: ObjectiveContentBlock): number[] {
   return getObjectiveBlockQuestionIds(block);

@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useRef, useEffect } from "react";
+import { formatMinutesAndSeconds } from "@/shared/time";
 import { Loader2, Mic, RotateCcw, Square } from "lucide-react";
 import type { CompleteSpeakingAttemptInput } from "@/application/attemptWriter";
 import { reportWebHandledProductFailure } from "@/shared/observability/report-error";
@@ -244,12 +245,6 @@ export const StandardSpeakingMode: React.FC<Props> = ({
   const timerStrokeDashoffset =
     timerCircumference - (timerProgress / 100) * timerCircumference;
 
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${sec.toString().padStart(2, "0")}`;
-  };
-
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-180px)] max-w-2xl mx-auto px-4 sm:px-6 py-6 select-none">
       {/* Segmented Step Progress */}
@@ -383,7 +378,7 @@ export const StandardSpeakingMode: React.FC<Props> = ({
               className="text-white fill-white mb-1 group-hover:scale-110 transition-transform duration-200"
             />
             <span className="text-white/90 text-xs font-bold tabular-nums">
-              {formatTime(timeLeft)}
+              {formatMinutesAndSeconds(timeLeft, 1)}
             </span>
           </button>
         ) : status === "save-failed" ? (

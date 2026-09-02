@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
-import { SECTION_ORDER } from "@/domain/exam";
+import { SECTION_META, SECTION_ORDER } from "@/domain/sections";
 import {
   getResumableSection,
   type ExamMode,
@@ -47,36 +47,33 @@ type HomeProps = {
   ) => Promise<void>;
 };
 
-const SECTION_CONFIG = {
+const SECTION_PRESENTATION = {
   listening: {
-    title: "Listening",
-    timing: "30 mins",
-    structure: "4 parts · 40 questions",
     summary: "Recorded conversations and lectures with timed question pacing.",
     icon: Headphones,
   },
   reading: {
-    title: "Reading",
-    timing: "60 mins",
-    structure: "3 passages · 40 questions",
     summary: "Academic passages with split-pane text and interactive questions.",
     icon: BookOpen,
   },
   writing: {
-    title: "Writing",
-    timing: "60 mins",
-    structure: "2 tasks · 150 & 250 words",
     summary: "Report and essay responses stored locally for agent evaluation.",
     icon: FileText,
   },
   speaking: {
-    title: "Speaking",
-    timing: "11–14 mins",
-    structure: "3 parts · interview",
     summary: "Voice prompts and audio recording with transcript scoring.",
     icon: Mic,
   },
 } as const;
+
+// The overview estimates total time to the nearest five minutes.
+const fullExamMinutes = Math.round(
+  SECTION_ORDER.reduce((total, section) => total + SECTION_META[section].durationSeconds, 0) / 300,
+) * 5;
+const fullExamSequence = SECTION_ORDER.map((section) => {
+  const { label, durationSeconds } = SECTION_META[section];
+  return `${label} (${durationSeconds / 60}m)`;
+}).join(" → ");
 
 const PROMPT_SUGGESTIONS = [
   "Create and install an original SAT-style diagnostic focused on algebra and inference.",
@@ -164,14 +161,14 @@ export function Home({
                   Native IELTS
                 </span>
                 <span className="text-xs text-neutral-500 inline-flex items-center gap-1">
-                  <Clock size={12} /> ~2 hrs 45 mins · 4 sections
+                  <Clock size={12} /> ~{Math.floor(fullExamMinutes / 60)} hrs {fullExamMinutes % 60} mins · {SECTION_ORDER.length} sections
                 </span>
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-neutral-900">
                 Full IELTS Simulation
               </h2>
               <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed max-w-2xl">
-                Listening (30m) → Reading (60m) → Writing (60m) → Speaking (14m) with authentic exam-day timing and section sequencing.
+                {fullExamSequence} with authentic exam-day timing and section sequencing.
               </p>
             </div>
 
@@ -189,7 +186,7 @@ export function Home({
                 <PlayCircle size={16} />
                 <span>
                   {resumableFullExamSection
-                    ? `Resume Exam (${SECTION_CONFIG[resumableFullExamSection].title})`
+                    ? `Resume Exam (${SECTION_META[resumableFullExamSection].label})`
                     : "Start Full Exam"}
                 </span>
               </button>
@@ -223,8 +220,9 @@ export function Home({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {SECTION_ORDER.map((sec) => {
-              const meta = SECTION_CONFIG[sec];
-              const Icon = meta.icon;
+              const meta = SECTION_META[sec];
+              const presentation = SECTION_PRESENTATION[sec];
+              const Icon = presentation.icon;
               const activeDoc = sec === "speaking" ? null : content[sec];
               const isAgent = Boolean(
                 activeDoc &&
@@ -246,10 +244,10 @@ export function Home({
                         </div>
                         <div>
                           <h3 className="text-sm font-bold text-neutral-900 leading-none">
-                            {meta.title}
+                            {meta.label}
                           </h3>
                           <span className="text-[11px] text-neutral-400">
-                            {meta.timing}
+                            {meta.minimumDurationSeconds ? `${meta.minimumDurationSeconds / 60}–` : ""}{meta.durationSeconds / 60} mins
                           </span>
                         </div>
                       </div>
@@ -262,7 +260,7 @@ export function Home({
                     </div>
 
                     <p className="text-xs text-neutral-500 leading-relaxed min-h-[36px]">
-                      {meta.summary}
+                      {presentation.summary}
                     </p>
 
                     <div className="text-[11px] text-neutral-400 font-medium">
@@ -305,7 +303,7 @@ export function Home({
                       className="w-full flex items-center justify-between rounded-md bg-neutral-50 hover:bg-neutral-100 border border-neutral-200/60 px-3.5 py-2 text-xs font-semibold text-neutral-800 transition-colors disabled:opacity-40 cursor-pointer"
                     >
                       <span>
-                        {isResumable ? "Resume" : "Practice"} {meta.title}
+                        {isResumable ? "Resume" : "Practice"} {meta.label}
                       </span>
                       <ArrowRight size={13} className="text-neutral-400" />
                     </button>

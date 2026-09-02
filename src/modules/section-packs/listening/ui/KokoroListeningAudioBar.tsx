@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Play, SkipForward, X } from "lucide-react";
-import { formatTime } from "@/domain/exam";
+import { formatTime } from "@/shared/time";
 import type { ListeningAudioSession } from "@/application/useListeningAudio";
 import type { StoredListeningAudioChunk } from "@/infrastructure/database/listeningAudioRepository";
 import type {

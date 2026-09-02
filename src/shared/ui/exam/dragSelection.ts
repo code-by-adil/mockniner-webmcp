@@ -45,11 +45,6 @@ export function getActiveDragGroupId(): string | null {
   return activeDragGroupId;
 }
 
-export function setSelectedDragValue(value: string | null): void {
-  selectedDragValue = value;
-  emitDragSelectionChange();
-}
-
 export function selectDragOption(groupId: string, value: string): void {
   activeDragGroupId = groupId;
   selectedDragValue = value;
@@ -100,13 +95,6 @@ export function canAssignDragOption(
   if (!option || option.isReviewMode) return false;
   if (option.isUsed && option.value !== currentZoneValue) return false;
   return true;
-}
-
-/** Clears module-level drag state — for tests and hard resets between exam sections. */
-export function resetExamDragState(): void {
-  dragOptions.clear();
-  endDragSession();
-  emitDragOptionsChange();
 }
 
 export function registerDragOption(record: DragOptionRecord): () => void {

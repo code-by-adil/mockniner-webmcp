@@ -10,14 +10,14 @@ export type MapSlotCatchInput = {
 };
 
 /** Map-level proximity is the single drag target; per-slot isOver overlaps on inflated hit rects. */
-export function shouldUseMapProximityTargeting(
+function shouldUseMapProximityTargeting(
   mapDragEnabled: boolean,
   isExamDragging: boolean,
 ): boolean {
   return mapDragEnabled && isExamDragging;
 }
 
-export function getMapSlotCatchState(input: MapSlotCatchInput): MapSlotCatchState {
+function getMapSlotCatchState(input: MapSlotCatchInput): MapSlotCatchState {
   const {
     isReviewMode,
     isOver,

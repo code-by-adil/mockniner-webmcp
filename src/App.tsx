@@ -16,7 +16,7 @@ import { WritingExamRunner } from "@/modules/section-packs/writing/ui/WritingExa
 import { WritingAttemptReview } from "@/modules/section-packs/writing/ui/WritingAttemptReview";
 import { SpeakingExamRunner } from "@/modules/section-packs/speaking/ui/SpeakingExamRunner";
 import { SpeakingAttemptReview } from "@/modules/section-packs/speaking/ui/SpeakingAttemptReview";
-import { SECTION_ORDER } from "@/domain/exam";
+import { SECTION_META, SECTION_ORDER } from "@/domain/sections";
 import type { ExamMode, ExamSession } from "@/domain/session";
 import type { SectionKey } from "@/domain/types";
 import { useExamApplication } from "@/application/useExamApplication";
@@ -31,27 +31,11 @@ import { getAssessmentToolSurface, getNativeToolSurfaces } from "@/webmcp/toolSu
 type Section = SectionKey;
 type Mode = ExamMode;
 
-const SECTION_META = {
-  listening: {
-    title: "Listening",
-    description: "4 parts · 40 questions · continuous recording",
-    icon: Headphones,
-  },
-  reading: {
-    title: "Reading",
-    description: "3 passages · 40 questions · split-pane workspace",
-    icon: BookOpen,
-  },
-  writing: {
-    title: "Writing",
-    description: "2 tasks · 60 minutes · locally saved responses",
-    icon: FileText,
-  },
-  speaking: {
-    title: "Speaking",
-    description: "3 parts · standard or agent-guided interview",
-    icon: Mic,
-  },
+const SECTION_ICONS = {
+  listening: Headphones,
+  reading: BookOpen,
+  writing: FileText,
+  speaking: Mic,
 } as const;
 
 function AppHeader() {
@@ -101,7 +85,7 @@ function Complete({
           Section submitted
         </div>
         <h1 className="mt-3 text-3xl font-extrabold tracking-tight">
-          {SECTION_META[section].title} is complete
+          {SECTION_META[section].label} is complete
         </h1>
         <p className="mt-3 max-w-xl leading-7 text-[var(--exam-text-muted)]">
           Your answers are locked and retained locally for this practice attempt.
@@ -141,7 +125,7 @@ function Complete({
           >
             {isFinal
               ? "View results"
-              : `Continue to ${SECTION_META[SECTION_ORDER[SECTION_ORDER.indexOf(section) + 1]!].title}`}
+              : `Continue to ${SECTION_META[SECTION_ORDER[SECTION_ORDER.indexOf(section) + 1]!].label}`}
             <ArrowRight size={16} />
           </button>
         </div>
@@ -176,7 +160,7 @@ function Results({
         <div className="grid gap-5 md:grid-cols-2">
           {session.completedSections.map((section) => {
             const meta = SECTION_META[section];
-            const Icon = meta.icon;
+            const Icon = SECTION_ICONS[section];
             const result =
               section === "listening" || section === "reading"
                 ? session.objectiveSubmissions[section]?.result
@@ -196,7 +180,7 @@ function Results({
                     <Icon size={20} />
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold">{meta.title}</h2>
+                    <h2 className="text-xl font-semibold">{meta.label}</h2>
                     <p className="mt-1 text-sm text-[var(--exam-text-muted)]">
                       {result
                         ? `${result.raw} of 40 correct · Band ${result.band}`

@@ -15,7 +15,7 @@ function pickerOptionsListClassName(optionCount: number, layout: "tap" | "drag")
   );
 }
 
-export type AnswerPickerOption = {
+type AnswerPickerOption = {
   value: string;
   label: string;
   isUsed?: boolean;

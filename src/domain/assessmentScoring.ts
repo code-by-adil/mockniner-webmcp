@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { countWords } from "@/shared/text";
 import type {
   AssessmentItem,
   AssessmentPackage,
@@ -134,8 +135,7 @@ export function getAssessmentResponseGuidance(
     return { instruction: "Enter an integer, decimal, or fraction." };
   }
   if (interaction.type === "extended_text") {
-    const value = typeof response === "string" ? response.trim() : "";
-    const count = value ? value.split(/\s+/).length : 0;
+    const count = countWords(typeof response === "string" ? response : undefined);
     const { minimumWords: minimum, maximumWords: maximum } = interaction;
     return {
       instruction: wordInstruction(minimum, maximum),

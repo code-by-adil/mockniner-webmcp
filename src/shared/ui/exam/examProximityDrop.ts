@@ -12,7 +12,7 @@ import {
 import { clearDragSelection, getSelectedDragValue } from "./dragSelection";
 
 /** Extra snap padding when resolving nearest slot from pointer position (map + matching). */
-export const EXAM_SLOT_DROP_SNAP_PX = 20;
+const EXAM_SLOT_DROP_SNAP_PX = 20;
 
 /** Invisible hit-area padding around a slot surface (map + matching). */
 export const EXAM_SLOT_HIT_INSET_PX = 14;

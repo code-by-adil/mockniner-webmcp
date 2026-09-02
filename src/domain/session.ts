@@ -7,7 +7,7 @@ import type {
   WritingEvaluation,
   WritingSubmission,
 } from './types'
-import { SECTION_ORDER } from './exam'
+import { SECTION_META, SECTION_ORDER } from './sections'
 import { z } from 'zod'
 import {
   answerMapSchema,
@@ -23,7 +23,7 @@ import {
 } from './objectiveContent'
 
 export type ExamMode = 'full' | 'section'
-export type SessionView = 'home' | 'exam' | 'transition' | 'result' | 'review'
+type SessionView = 'home' | 'exam' | 'transition' | 'result' | 'review'
 
 export type ListeningPlaybackState = {
   currentTimeSec: number
@@ -99,7 +99,7 @@ export type SessionAction =
   | { type: 'GO_HOME' }
   | { type: 'RESET' }
 
-export const SESSION_STORAGE_KEY = 'ielts-practice-session-v4'
+const SESSION_STORAGE_KEY = 'ielts-practice-session-v4'
 
 export const initialSession: ExamSession = {
   view: 'home',
@@ -107,10 +107,10 @@ export const initialSession: ExamSession = {
   currentSection: null,
   partBySection: { listening: 1, reading: 1, writing: 1, speaking: 1 },
   secondsRemaining: {
-    listening: 30 * 60,
-    reading: 60 * 60,
-    writing: 60 * 60,
-    speaking: 14 * 60,
+    listening: SECTION_META.listening.durationSeconds,
+    reading: SECTION_META.reading.durationSeconds,
+    writing: SECTION_META.writing.durationSeconds,
+    speaking: SECTION_META.speaking.durationSeconds,
   },
   answers: { listening: {}, reading: {} },
   writingDrafts: { 1: '', 2: '' },

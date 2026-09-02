@@ -1,4 +1,5 @@
-import { formatTime } from "@/domain/exam";
+import { formatTime } from "@/shared/time";
+import { countWords } from "@/shared/text";
 import type {
   WritingContentDocument,
   WritingTask1,
@@ -22,7 +23,7 @@ type ResponsePaneProps = {
 };
 
 function ResponsePane({ taskId, value, onChange, isLocked }: ResponsePaneProps) {
-  const wordCount = value.trim() ? value.trim().split(/\s+/).length : 0;
+  const wordCount = countWords(value);
   return (
     <div className="flex h-[360px] flex-col md:h-full">
       <div className="mt-4 flex-1 p-4 pt-0 sm:mt-8 sm:p-8 sm:pt-0">

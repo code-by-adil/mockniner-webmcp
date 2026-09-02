@@ -13,7 +13,7 @@ export type AnnotationIssue = {
   start: number | null;
 };
 
-export type ReviewAnnotation = WritingAnnotation & {
+type ReviewAnnotation = WritingAnnotation & {
   repeatCount: number;
 };
 

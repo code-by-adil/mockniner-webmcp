@@ -5,7 +5,7 @@ import type {
   WritingSubmission,
 } from '@/domain/types'
 
-export type StoredWritingAttempt = {
+type StoredWritingAttempt = {
   submission: WritingSubmission
   evaluation: WritingEvaluation | null
 }

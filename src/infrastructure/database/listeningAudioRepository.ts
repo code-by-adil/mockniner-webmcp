@@ -64,7 +64,7 @@ export async function prepareListeningAudioCache(
   return chunks.slice(0, invalidIndex);
 }
 
-export async function deleteListeningAudioChunksFrom(
+async function deleteListeningAudioChunksFrom(
   database: SQLocal,
   contentKey: string,
   sequence: number,
@@ -75,7 +75,7 @@ export async function deleteListeningAudioChunksFrom(
   `;
 }
 
-export function isValidListeningAudioChunk(
+function isValidListeningAudioChunk(
   chunk: StoredListeningAudioChunk,
 ): boolean {
   if (chunk.durationMs <= 0) return false;

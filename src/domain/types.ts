@@ -2,7 +2,7 @@ import type { WritingTask } from './writingContent'
 
 export type SectionKey = 'listening' | 'reading' | 'writing' | 'speaking'
 
-export type AnswerValue = string
+type AnswerValue = string
 export type AnswerMap = Record<number, AnswerValue>
 export type AnswerKey = Record<number, string | string[]>
 
@@ -95,7 +95,7 @@ export type SpeakingSubmission = {
   submittedAt: string
 }
 
-export type SpeakingSubmittedResponse = {
+type SpeakingSubmittedResponse = {
   recordingId: string
   promptId: number
   partLabel: string
@@ -117,4 +117,3 @@ export type SpeakingEvaluation = {
   improvements: string[]
   evaluatedAt: string
 }
-export type { WritingTask } from './writingContent'

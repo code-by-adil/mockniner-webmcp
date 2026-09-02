@@ -1,4 +1,4 @@
-export type RecentObjectivePerformance = {
+type RecentObjectivePerformance = {
   attemptId: string
   contentKey: string
   band: number
@@ -21,7 +21,7 @@ export type WritingCriteriaSummary = {
   grammaticalRange: number
 }
 
-export type RecentWritingPerformance = {
+type RecentWritingPerformance = {
   attemptId: string
   contentKey: string
   status: 'submitted' | 'evaluated'
@@ -30,7 +30,7 @@ export type RecentWritingPerformance = {
   submittedAt: string
 }
 
-export type WritingLearningSummary = {
+type WritingLearningSummary = {
   attemptCount: number
   evaluatedCount: number
   recentAverageOverallBand: number | null

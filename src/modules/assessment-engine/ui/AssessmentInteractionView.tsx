@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { countWords } from "@/shared/text";
 import { Slash, Undo2 } from "lucide-react";
 import {
   getAssessmentResponseGuidance,
@@ -199,7 +200,7 @@ export function AssessmentInteractionView({
 
   if (interaction.type === "extended_text") {
     const value = typeof response === "string" ? response : "";
-    const wordCount = value.trim() ? value.trim().split(/\s+/).length : 0;
+    const wordCount = countWords(value);
     return (
       <div className="space-y-2">
         <textarea

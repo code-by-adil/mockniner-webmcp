@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Header } from "@/modules/exam-engine/ui/Header";
 import { ObjectiveExamFooter } from "@/modules/exam-engine/ui/Footer";
 import { buildObjectiveFooterParts } from "@/modules/exam-engine/footerParts";
-import { formatTime } from "@/domain/exam";
+import { formatTime } from "@/shared/time";
 import type { ObjectivePracticeRunnerProps } from "@/modules/section-packs/objective/types/ObjectivePracticeRunnerProps";
 import { useTimedSubmission } from "@/modules/exam-engine/useTimedSubmission";
 import { ResizableSplitPaneMobileHeaderProvider } from "@/shared/ui/exam/ResizableSplitPane";

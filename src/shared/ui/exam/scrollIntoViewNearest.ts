@@ -7,7 +7,7 @@
  * yanked along with a split pane.
  */
 
-export type ScrollLogicalPosition = "start" | "center" | "end" | "nearest";
+type ScrollLogicalPosition = "start" | "center" | "end" | "nearest";
 
 export type ScrollIntoViewNearestOptions = {
   behavior?: ScrollBehavior;
@@ -36,7 +36,7 @@ async function awaitMaybePromise(value: unknown): Promise<void> {
  * getter probe: engines only read known members, so an accessor fires only
  * when `container` is implemented.
  */
-export function supportsScrollIntoViewContainer(): boolean {
+function supportsScrollIntoViewContainer(): boolean {
   if (containerSupportCache !== undefined) {
     return containerSupportCache;
   }
@@ -63,11 +63,6 @@ export function supportsScrollIntoViewContainer(): boolean {
   return supported;
 }
 
-/** Reset cached feature detection (tests only). */
-export function resetScrollIntoViewContainerSupportCache(): void {
-  containerSupportCache = undefined;
-}
-
 function isScrollableElement(element: HTMLElement): boolean {
   const style = window.getComputedStyle(element);
   const overflowY = style.overflowY;
@@ -82,7 +77,7 @@ function isScrollableElement(element: HTMLElement): boolean {
 }
 
 /** Prefer exam-marked containers, then any scrollable ancestor. */
-export function findNearestExamScrollContainer(element: Element): HTMLElement | null {
+function findNearestExamScrollContainer(element: Element): HTMLElement | null {
   let current = element.parentElement;
 
   while (current && current !== document.body && current !== document.documentElement) {

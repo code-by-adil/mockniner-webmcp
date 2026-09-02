@@ -10,7 +10,7 @@ export type ObjectiveWebRenderContext = {
   isReviewMode: boolean;
 };
 
-export type ObjectiveWebBlockByType<T extends ObjectiveBlockType> = Extract<
+type ObjectiveWebBlockByType<T extends ObjectiveBlockType> = Extract<
   ObjectiveContentBlock,
   { type: T }
 >;

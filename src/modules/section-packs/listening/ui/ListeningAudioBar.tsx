@@ -5,7 +5,7 @@ import {
   parseListeningTimeline,
   type NormalizedListeningTimeline,
 } from "@/infrastructure/media/listeningTimeline";
-import { formatTime } from "@/domain/exam";
+import { formatTime } from "@/shared/time";
 import type { ListeningContentDocument } from "@/domain/objectiveContent";
 import type { ListeningAudioSession } from "@/application/useListeningAudio";
 import { KokoroListeningAudioBar } from "./KokoroListeningAudioBar";

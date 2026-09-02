@@ -10,7 +10,6 @@ import {
   type WritingContentDocument,
 } from "./writingContent";
 
-export type ContentSection = "listening" | "reading" | "writing";
 export type PracticeContentDocument =
   | ObjectiveContentDocument
   | WritingContentDocument;
