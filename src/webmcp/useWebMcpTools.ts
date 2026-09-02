@@ -1,4 +1,6 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createSpeakingInterviewController } from "@/application/speakingInterviewController";
+import { toolFailure } from './toolResult';
 import type { IeltsCommands } from "@/application/ieltsCommands";
 import type { AssessmentApplicationCommands } from "@/application/assessmentCommands";
 import { reportHandledError } from "@/shared/reportHandledError";
@@ -9,6 +11,8 @@ import {
 } from "./writingTools";
 import {
   createSpeakingToolDefinitions,
+  createSpeakingInterviewToolDefinition,
+  createSpeakingProgressToolDefinition,
   type SpeakingToolSurface,
 } from "./speakingTools";
 import {
@@ -16,7 +20,7 @@ import {
   type AssessmentToolSurface,
 } from "./assessmentTools";
 
-type WebMcpToolOptions = {
+export type WebMcpToolOptions = {
   commands: IeltsCommands;
   assessmentCommands: AssessmentApplicationCommands;
   currentWritingAttemptId?: string;
@@ -38,24 +42,31 @@ const getAssessmentRepository = async () =>
     await import("@/infrastructure/database/assessmentRepository")
   ).getAssessmentRepository();
 
-export function useWebMcpTools(options: WebMcpToolOptions): void {
+export type WebMcpRegistrationStatus = 'loading' | 'ready' | 'unavailable' | 'error';
+
+export function useWebMcpTools(options: WebMcpToolOptions) {
+  const [interview] = useState(createSpeakingInterviewController);
+  const [registrationStatus, setRegistrationStatus] = useState<WebMcpRegistrationStatus>('loading');
   const latest = useRef(options);
   useLayoutEffect(() => {
     latest.current = options;
   }, [options]);
-  const {
-    enabled,
-    nativeAuthoringEnabled,
-    assessmentToolSurface,
-    writingToolSurface,
-    speakingToolSurface,
-  } = options;
+  const { enabled } = options;
   useEffect(() => {
-    if (!enabled || !document.modelContext) return;
+    if (!enabled) return;
+    if (!document.modelContext) return;
     const modelContext = document.modelContext;
     const controller = new AbortController();
     const tools: WebMCP.ModelContextTool[] = [];
-    if (nativeAuthoringEnabled && assessmentToolSurface === "authoring") {
+    // Register once per document. Repeated contextual registration exhausts the
+    // in-app browser's change budget. Preserve state restrictions at execution.
+    const guard = (tool: WebMCP.ModelContextTool, available: () => boolean, message: string): WebMCP.ModelContextTool => ({
+      ...tool,
+      execute: (input, executionOptions) => available()
+        ? tool.execute(input, executionOptions)
+        : Promise.resolve(toolFailure('TOOL_NOT_AVAILABLE', message, true)),
+    });
+    const homeAvailable = () => latest.current.nativeAuthoringEnabled && latest.current.assessmentToolSurface === 'authoring';
       tools.push(
         ...createHomeToolDefinitions({
           installContent: (input) =>
@@ -64,9 +75,8 @@ export function useWebMcpTools(options: WebMcpToolOptions): void {
             latest.current.assessmentCommands.installAssessment(input),
           readLearningSummary: async (limit) =>
             (await getIeltsRepository()).readLearningSummary(limit),
-        }),
+        }).map((tool) => guard(tool, homeAvailable, 'Return to the practice home screen to author practice or read the learning summary.')),
       );
-    }
     tools.push(
       ...createWritingToolDefinitions(
         {
@@ -77,8 +87,11 @@ export function useWebMcpTools(options: WebMcpToolOptions): void {
           getCurrentWritingAttemptId: () =>
             latest.current.currentWritingAttemptId,
         },
-        writingToolSurface,
-      ),
+        'evaluation',
+      ).map((tool) => guard(tool, () => tool.name.startsWith('attach_')
+        ? latest.current.writingToolSurface === 'evaluation'
+        : latest.current.writingToolSurface !== 'none',
+      'Open a submitted IELTS Writing attempt. Evaluation attachment requires the visible attempt to be awaiting evaluation.')),
     );
     tools.push(
       ...createSpeakingToolDefinitions(
@@ -90,13 +103,12 @@ export function useWebMcpTools(options: WebMcpToolOptions): void {
           getCurrentSpeakingAttemptId: () =>
             latest.current.currentSpeakingAttemptId,
         },
-        speakingToolSurface,
-      ),
+        'evaluation',
+      ).map((tool) => guard(tool, () => tool.name.startsWith('attach_')
+        ? latest.current.speakingToolSurface === 'evaluation'
+        : latest.current.speakingToolSurface !== 'none',
+      'Open a submitted IELTS Speaking attempt. Evaluation attachment requires the visible attempt to be awaiting evaluation.')),
     );
-    if (
-      assessmentToolSurface === "results" ||
-      assessmentToolSurface === "evaluation"
-    ) {
       tools.push(
         ...createAssessmentToolDefinitions(
           {
@@ -109,24 +121,27 @@ export function useWebMcpTools(options: WebMcpToolOptions): void {
             getCurrentAttemptId: () =>
               latest.current.currentAssessmentAttemptId,
           },
-          assessmentToolSurface,
-        ),
+          'evaluation',
+        ).map((tool) => guard(tool, () => tool.name.startsWith('attach_')
+          ? latest.current.assessmentToolSurface === 'evaluation'
+          : ['results', 'evaluation'].includes(latest.current.assessmentToolSurface),
+        'Open a submitted universal assessment. Evaluation attachment requires the visible attempt to be awaiting evaluation.')),
       );
-    }
+    tools.push(createSpeakingInterviewToolDefinition(interview.configure), createSpeakingProgressToolDefinition(interview.read));
     void Promise.all(
       tools.map((tool) =>
         modelContext.registerTool(tool, { signal: controller.signal }),
       ),
-    ).catch((error) => {
-      if (!controller.signal.aborted)
+    ).then(() => {
+      if (!controller.signal.aborted) setRegistrationStatus('ready');
+    }).catch((error) => {
+      if (!controller.signal.aborted) {
+        controller.abort();
+        setRegistrationStatus('error');
         reportHandledError(error, { feature: "webmcp-tools" });
+      }
     });
     return () => controller.abort();
-  }, [
-    enabled,
-    nativeAuthoringEnabled,
-    assessmentToolSurface,
-    writingToolSurface,
-    speakingToolSurface,
-  ]);
+  }, [enabled, interview]);
+  return { bindSpeakingInterview: interview.bind, registrationStatus: enabled && !document.modelContext ? 'unavailable' as const : registrationStatus };
 }

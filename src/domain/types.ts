@@ -95,6 +95,7 @@ export type SpeakingSubmission = {
 }
 
 type SpeakingSubmittedResponse = {
+  status: 'answered' | 'skipped'
   recordingId: string
   promptId: number
   partLabel: string

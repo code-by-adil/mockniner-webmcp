@@ -30,6 +30,10 @@ export function getNativeToolSurfaces(
     return { authoringEnabled: false, writing: "none", speaking: "none" };
   }
 
+  if (session.view === 'review' && session.review?.kind === 'speaking') {
+    return { authoringEnabled: false, writing: 'none', speaking: 'results' };
+  }
+
   const authoringEnabled = session.view === "home";
   let writing: WritingToolSurface = "none";
   let speaking: SpeakingToolSurface = "none";

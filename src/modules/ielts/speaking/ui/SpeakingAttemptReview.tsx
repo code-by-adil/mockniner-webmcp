@@ -7,6 +7,7 @@ type Props = {
   submission: SpeakingSubmission
   evaluation: SpeakingEvaluation
   onExit: () => void
+  backLabel?: string
 }
 
 const criteria = [
@@ -15,14 +16,14 @@ const criteria = [
   ['Grammar range & accuracy', 'grammaticalRangeAccuracy'],
 ] as const
 
-export function SpeakingAttemptReview({ submission, evaluation, onExit }: Props) {
+export function SpeakingAttemptReview({ submission, evaluation, onExit, backLabel = 'Back to results' }: Props) {
   return (
     <ExamUiBoundary>
       <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
         <Header testType="speaking" position="contained" onExit={onExit} />
         <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
           <button type="button" onClick={onExit} className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-[var(--exam-accent)]">
-            <ArrowLeft size={16} /> Back to results
+            <ArrowLeft size={16} /> {backLabel}
           </button>
           <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
             <section className="rounded-xl border border-[var(--exam-border-muted)] bg-[var(--exam-surface)] p-6 shadow-sm">
@@ -41,7 +42,7 @@ export function SpeakingAttemptReview({ submission, evaluation, onExit }: Props)
                 ))}
                 <div className="rounded border border-[var(--exam-border-muted)] bg-[var(--exam-surface-muted)] px-4 py-3">
                   <div className="flex items-center gap-2 text-sm font-semibold"><Volume2 size={16} /> Pronunciation not scored</div>
-                  <p className="mt-1 text-xs leading-5 text-[var(--exam-text-muted)]">The agent evaluated the approved transcript and did not receive your locally stored audio.</p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--exam-text-muted)]">The agent evaluated the completed interview transcript and did not receive your locally stored audio.</p>
                 </div>
               </div>
 
@@ -66,7 +67,7 @@ export function SpeakingAttemptReview({ submission, evaluation, onExit }: Props)
                 <span className="flex h-10 w-10 items-center justify-center rounded bg-gray-900 text-white"><Mic size={19} /></span>
                 <div>
                   <h2 className="text-xl font-bold">Interview transcript</h2>
-                  <p className="text-sm text-[var(--exam-text-muted)]">{submission.responses.length} answers · saved locally</p>
+                  <p className="text-sm text-[var(--exam-text-muted)]">{submission.responses.filter(r => r.status === 'answered').length} recorded · {submission.responses.filter(r => r.status === 'skipped').length} skipped · saved locally</p>
                 </div>
               </div>
               <ol className="mt-7 space-y-6">
@@ -75,7 +76,7 @@ export function SpeakingAttemptReview({ submission, evaluation, onExit }: Props)
                     <div className="text-xs font-bold uppercase tracking-widest text-[var(--exam-accent)]">{response.partLabel} · {Math.round(response.durationMs / 1000)}s</div>
                     <p className="mt-2 font-semibold leading-6">{response.promptText}</p>
                     <div className="mt-3 rounded bg-[var(--exam-surface-muted)] px-4 py-3 text-sm leading-6 text-[var(--exam-text-muted)]">
-                      {response.transcript || 'No transcript was captured for this recording.'}
+                      {response.status === 'skipped' ? 'Question skipped — no answer recorded.' : response.transcript}
                     </div>
                   </li>
                 ))}

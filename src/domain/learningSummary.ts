@@ -44,6 +44,9 @@ export type LearningSummary = {
     listening: ObjectiveLearningSummary
     reading: ObjectiveLearningSummary
     writing: WritingLearningSummary
-    speaking: { attemptCount: number }
+    speaking: {
+      attemptCount: number
+      recent?: { attemptId: string; submittedAt: string; overallBand?: number }[]
+    }
   }
 }

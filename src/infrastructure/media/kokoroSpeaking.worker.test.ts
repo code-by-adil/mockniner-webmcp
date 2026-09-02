@@ -4,7 +4,8 @@ import type {
   KokoroSpeakingWorkerResponse,
 } from './kokoroSpeaking.worker'
 
-const mocked = vi.hoisted(() => ({ fromPretrained: vi.fn() }))
+const mocked = vi.hoisted(() => ({ fromPretrained: vi.fn(), split: vi.fn(async () => ['Where do you live?']) }))
+vi.mock('./kokoroScript', () => ({ splitKokoroSpeech: mocked.split }))
 
 vi.mock('kokoro-js', () => ({
   KokoroTTS: { from_pretrained: mocked.fromPretrained },
@@ -38,11 +39,11 @@ afterEach(() => {
 
 describe('Kokoro Speaking worker', () => {
   it('clears a failed model load so a later request can retry', async () => {
-    const generatedAudio = new Blob([new Uint8Array([1])], { type: 'audio/wav' })
+    const generatedAudio = { audio: new Float32Array([0, 0.2]), sampling_rate: 24000 }
     mocked.fromPretrained
       .mockRejectedValueOnce(new Error('Temporary model download failure.'))
       .mockResolvedValueOnce({
-        generate: vi.fn().mockResolvedValue({ toBlob: () => generatedAudio }),
+        generate: vi.fn().mockResolvedValue(generatedAudio),
       })
 
     request('first')
@@ -56,7 +57,7 @@ describe('Kokoro Speaking worker', () => {
 
     request('second')
     await vi.waitFor(() => {
-      expect(posted).toHaveBeenCalledWith({ id: 'second', type: 'audio', audio: generatedAudio })
+      expect(posted).toHaveBeenCalledWith({ id: 'second', type: 'audio', audio: expect.any(Blob) })
     })
     expect(mocked.fromPretrained).toHaveBeenCalledTimes(2)
   })

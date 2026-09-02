@@ -1,9 +1,6 @@
 import { z } from "zod";
 import type { IeltsCommands } from "@/application/ieltsCommands";
-import {
-  AgentSpeakingTurnError,
-  type AgentSpeakingTurnHandler,
-} from "@/application/speakingInterview";
+import { speakingPlanSchema, type SpeakingPlan } from "@/domain/speakingPlan";
 import type { SpeakingEvaluation, SpeakingSubmission } from "@/domain/types";
 import { speakingEvaluationInputSchema } from "@/domain/speakingEvaluation";
 import {
@@ -13,23 +10,6 @@ import {
   toolFailure,
   zodIssues,
 } from "./toolResult";
-
-const questionTurnSchema = z.strictObject({
-  examinerText: z.string().trim().min(1).max(800),
-  part: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-  responseTimeSeconds: z.number().int().min(15).max(180),
-  finishInterview: z.literal(false),
-});
-
-const closingTurnSchema = z.strictObject({
-  examinerText: z.string().trim().min(1).max(800),
-  finishInterview: z.literal(true),
-});
-
-const agentSpeakingTurnSchema = z.discriminatedUnion("finishInterview", [
-  questionTurnSchema,
-  closingTurnSchema,
-]);
 
 const getSpeakingSubmissionInputSchema = {
   type: "object",
@@ -55,53 +35,36 @@ type SpeakingToolDependencies = {
 
 export type SpeakingToolSurface = "results" | "evaluation" | "none";
 
-export function createSpeakingInterviewToolDefinition(
-  conductSpeakingTurn: AgentSpeakingTurnHandler,
-): WebMCP.ModelContextTool {
+export function createSpeakingInterviewToolDefinition(configure: (input: SpeakingPlan) => unknown): WebMCP.ModelContextTool {
   return {
-    name: "conduct_ielts_speaking_turn",
-    title: "Conduct one IELTS Speaking turn",
-    description:
-      "Conduct exactly one turn of the visible Agent interview. For a question, provide examinerText, IELTS part 1-3, a response limit, and finishInterview=false; Kokoro speaks it and the call waits until the learner approves a transcript. Use that transcript to choose the next question. Finish with one short closing examinerText and finishInterview=true to save the complete attempt. Call turns serially.",
-    inputSchema: z.toJSONSchema(agentSpeakingTurnSchema, {
-      target: "draft-07",
-    }),
+    name: 'set_ielts_speaking_interview',
+    title: 'Set the complete Speaking interview',
+    description: 'Install all 10–12 original questions at once in the visible Speaking setup screen. Include Parts 1 and 3 and exactly one Part 2 long turn with 60s preparation, 120s speaking and 3–4 cue points. The learner starts, records and submits each answer; audio and progression run locally without agent calls. Questions lock on start. Retrieve the complete transcript only after submission.',
+    inputSchema: z.toJSONSchema(speakingPlanSchema, { target: 'draft-07' }),
     annotations: { readOnlyHint: false, untrustedContentHint: true },
     execute: async (input, options) => {
-      const signal = getToolExecutionSignal(options);
-      throwIfCancelled(signal);
-      const parsed = agentSpeakingTurnSchema.safeParse(input);
-      if (!parsed.success) {
-        return toolFailure(
-          "INVALID_SPEAKING_TURN",
-          "The examiner turn does not satisfy the Agent interview contract.",
-          true,
-          zodIssues(parsed.error),
-        );
-      }
+      throwIfCancelled(getToolExecutionSignal(options));
+      const parsed = speakingPlanSchema.safeParse(input);
+      if (!parsed.success) return toolFailure('INVALID_SPEAKING_PLAN', 'The interview plan is invalid.', true, zodIssues(parsed.error));
       try {
-        const result = await conductSpeakingTurn(parsed.data, signal);
-        throwIfCancelled(signal);
-        return {
-          ok: true,
-          data: result,
-          sideEffect: {
-            type:
-              result.status === "answer_received"
-                ? "speaking_answer_captured"
-                : "speaking_interview_submitted",
-            visibleView:
-              result.status === "answer_received"
-                ? "agent_speaking_interview"
-                : "speaking_complete",
-          },
-        };
-      } catch (error) {
-        if (error instanceof AgentSpeakingTurnError) {
-          return toolFailure(error.code, error.message, true);
-        }
-        throw error;
-      }
+        return { ok: true, data: configure(parsed.data), sideEffect: { type: 'speaking_interview_configured', visibleView: 'speaking_setup' } };
+      } catch (error) { return applicationFailure(error); }
+    },
+  };
+}
+
+export function createSpeakingProgressToolDefinition(readProgress: () => unknown): WebMCP.ModelContextTool {
+  return {
+    name: 'get_ielts_speaking_progress',
+    title: 'Read Speaking interview progress',
+    description: 'Read phase, question position and answered/skipped counts without transcripts. Optional observation only: the complete interview runs locally and never waits for polling or another agent question. After submission use get_ielts_speaking_submission.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true, untrustedContentHint: true },
+    execute: async (input, options) => {
+      throwIfCancelled(getToolExecutionSignal(options));
+      const parsed = z.strictObject({}).safeParse(input);
+      if (!parsed.success) return toolFailure('INVALID_INPUT', 'Speaking progress takes no parameters.', true, zodIssues(parsed.error));
+      return { ok: true, data: readProgress() };
     },
   };
 }

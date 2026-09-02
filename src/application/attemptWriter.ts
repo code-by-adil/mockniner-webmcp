@@ -28,13 +28,14 @@ export type SaveWritingAttemptInput = {
 };
 
 export type SpeakingRecordingInput = {
+  status: 'answered' | 'skipped';
   promptId: number;
   partLabel: string;
   sequence: number;
   promptText: string;
   timeLimitSeconds: number;
   durationMs: number;
-  audio: Blob;
+  audio: Blob | null;
   transcript: string;
 };
 

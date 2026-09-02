@@ -82,7 +82,7 @@ export type IeltsCommands = {
   openReview: (section: SectionKey) => Promise<void>;
   openAttempt: (
     attemptId: string,
-    section: "listening" | "reading" | "writing",
+    section: "listening" | "reading" | "writing" | "speaking",
   ) => Promise<void>;
   closeReview: () => void;
   reset: () => void;
@@ -127,10 +127,17 @@ export function createIeltsCommands({
 
   const openStoredAttempt = async (
     attemptId: string,
-    section: "listening" | "reading" | "writing",
+    section: "listening" | "reading" | "writing" | "speaking",
     returnTo: "home" | "result",
   ): Promise<void> => {
     const reader = await getRepository();
+    if (section === 'speaking') {
+      const stored = await reader.readSpeakingAttempt(attemptId);
+      if (!stored) throw new Error(`Speaking attempt ${attemptId} was not found.`);
+      if (!stored.evaluation) throw new Error(`Speaking attempt ${attemptId} has not been evaluated.`);
+      openReview({ kind: 'speaking', section, submission: stored.submission, evaluation: stored.evaluation, part: 1, returnTo });
+      return;
+    }
     if (section === "writing") {
       const stored = await reader.readWritingAttempt(attemptId);
       if (!stored) {

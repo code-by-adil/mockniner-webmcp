@@ -151,6 +151,29 @@ const migrations = [
         ON assessment_attempts(package_id, submitted_at DESC)`,
     ],
   },
+  {
+    version: 10,
+    statements: [
+      `CREATE TABLE speaking_responses_new (
+        id TEXT PRIMARY KEY, attempt_id TEXT NOT NULL, prompt_id INTEGER NOT NULL,
+        part_label TEXT NOT NULL, sequence INTEGER NOT NULL CHECK (sequence >= 0),
+        prompt_text TEXT NOT NULL, time_limit_seconds INTEGER NOT NULL CHECK (time_limit_seconds > 0),
+        duration_ms INTEGER NOT NULL CHECK (duration_ms >= 0),
+        mime_type TEXT, byte_length INTEGER NOT NULL CHECK (byte_length >= 0), audio BLOB,
+        transcript TEXT NOT NULL, response_status TEXT NOT NULL CHECK (response_status IN ('answered', 'skipped')),
+        UNIQUE (attempt_id, prompt_id), UNIQUE (attempt_id, sequence),
+        FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,
+        CHECK ((response_status = 'answered' AND audio IS NOT NULL AND byte_length > 0 AND length(trim(transcript)) > 0)
+          OR (response_status = 'skipped' AND audio IS NULL AND byte_length = 0 AND duration_ms = 0 AND transcript = ''))
+      )`,
+      `INSERT INTO speaking_responses_new SELECT id, attempt_id, prompt_id, part_label, sequence,
+        prompt_text, time_limit_seconds, duration_ms, mime_type, byte_length, audio, transcript, 'answered'
+        FROM speaking_responses`,
+      `DROP TABLE speaking_responses`,
+      `ALTER TABLE speaking_responses_new RENAME TO speaking_responses`,
+      `CREATE INDEX speaking_responses_attempt_id ON speaking_responses(attempt_id)`,
+    ],
+  },
 ] as const
 
 export async function migrateDatabase(database: SQLocal): Promise<void> {

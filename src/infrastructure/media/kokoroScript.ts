@@ -107,6 +107,14 @@ async function splitOversizedSentence(
   return chunks;
 }
 
+export async function splitKokoroSpeech(text: string, voice: KokoroVoice, count: KokoroPhonemeCounter = countPhonemes): Promise<string[]> {
+  const chunks: string[] = [];
+  for (const sentence of splitSentences(text)) {
+    chunks.push(...await splitOversizedSentence(sentence, voice, count));
+  }
+  return chunks;
+}
+
 export async function createKokoroPlan(
   audio: KokoroListeningAudio,
   count: KokoroPhonemeCounter = countPhonemes,

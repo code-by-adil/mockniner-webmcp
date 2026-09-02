@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SQLocal } from 'sqlocal'
 import { migrateDatabase } from './migrations'
+import { readLearningSummary } from './attemptRepository'
 import {
   readSpeakingAttempt,
   saveSpeakingAttempt,
@@ -38,6 +39,18 @@ afterEach(async () => {
 })
 
 describe('Speaking SQLite repository', () => {
+  it('stores a skipped question without manufacturing audio or a transcript', async () => {
+    const input = {
+      attemptId: crypto.randomUUID(), contentKey: 'skip-check', startedAt: '2026-09-03T10:00:00.000Z', submittedAt: '2026-09-03T10:01:00.000Z',
+      recordings: [{ status: 'skipped' as const, promptId: 1, partLabel: 'Part 1', sequence: 0, promptText: 'Where do you live?', timeLimitSeconds: 30, durationMs: 0, audio: null, transcript: '' }],
+    }
+    const submission = await saveSpeakingAttempt(database, input)
+    const saved = await readSpeakingAttempt(database, submission.attemptId)
+    expect(saved?.submission.responses[0]).toMatchObject({ status: 'skipped', transcript: '', durationMs: 0 })
+    const [row] = await database.sql<{ audio: unknown; size: number }>`SELECT audio, byte_length AS size FROM speaking_responses WHERE attempt_id = ${submission.attemptId}`
+    expect(row).toMatchObject({ audio: null, size: 0 })
+    await expect(saveSpeakingAttempt(database, { ...input, attemptId: crypto.randomUUID(), recordings: [{ ...input.recordings[0]!, transcript: 'Invented speech' }] })).rejects.toThrow('Skipped responses')
+  })
   it('stores an immutable attempt and its ordered audio BLOBs atomically', async () => {
     const submission = await saveSpeakingAttempt(database, {
       attemptId: crypto.randomUUID(),
@@ -46,7 +59,7 @@ describe('Speaking SQLite repository', () => {
       submittedAt: '2026-08-31T10:10:00.000Z',
       recordings: [
         {
-          promptId: 7,
+          status: 'answered' as const, promptId: 7,
           partLabel: 'Part 2',
           sequence: 0,
           promptText: 'Describe a public place where you enjoy spending time.',
@@ -56,7 +69,7 @@ describe('Speaking SQLite repository', () => {
           audio: new Blob([new Uint8Array([1, 2, 3])], { type: 'audio/webm' }),
         },
         {
-          promptId: 8,
+          status: 'answered' as const, promptId: 8,
           partLabel: 'Part 3',
           sequence: 1,
           promptText: 'Why are public spaces important?',
@@ -89,7 +102,7 @@ describe('Speaking SQLite repository', () => {
 
   it('rejects duplicate prompt recordings before writing an attempt', async () => {
     const duplicate = {
-      promptId: 1,
+      status: 'answered' as const, promptId: 1,
       partLabel: 'Part 1',
       promptText: 'Where do you live?',
       timeLimitSeconds: 35,
@@ -120,7 +133,7 @@ describe('Speaking SQLite repository', () => {
     const rows = await database.sql<{ version: number }>`
       SELECT version FROM app_schema_migrations ORDER BY version
     `
-    expect(rows.map((row) => Number(row.version))).toEqual([1, 2, 3, 4, 5, 6, 9])
+    expect(rows.map((row) => Number(row.version))).toEqual([1, 2, 3, 4, 5, 6, 9, 10])
   })
 
   it('stores one transcript-based evaluation and marks the attempt evaluated', async () => {
@@ -130,7 +143,7 @@ describe('Speaking SQLite repository', () => {
       startedAt: '2026-08-31T10:00:00.000Z',
       submittedAt: '2026-08-31T10:05:00.000Z',
       recordings: [{
-        promptId: 1,
+        status: 'answered' as const, promptId: 1,
         partLabel: 'Part 1',
         sequence: 0,
         promptText: 'Tell me about your hometown.',
@@ -154,5 +167,10 @@ describe('Speaking SQLite repository', () => {
 
     const stored = await readSpeakingAttempt(database, submission.attemptId)
     expect(stored?.evaluation?.overallBand).toBe(6.5)
+    const history = await readLearningSummary(database, 5)
+    expect(history.sections.speaking.recent).toEqual([
+      { attemptId: submission.attemptId, submittedAt: submission.submittedAt, overallBand: 6.5 },
+    ])
+    expect(JSON.stringify(history.sections.speaking)).not.toContain(submission.responses[0]!.transcript)
   })
 })

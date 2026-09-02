@@ -40,7 +40,7 @@ type HomeProps = {
   learningSummary: LearningSummary | null;
   onReviewAttempt: (
     attemptId: string,
-    section: "listening" | "reading" | "writing",
+    section: "listening" | "reading" | "writing" | "speaking",
   ) => Promise<void>;
 };
 

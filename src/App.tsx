@@ -16,6 +16,7 @@ import { WritingExamRunner } from "@/modules/ielts/writing/ui/WritingExamRunner"
 import { WritingAttemptReview } from "@/modules/ielts/writing/ui/WritingAttemptReview";
 import { SpeakingExamRunner } from "@/modules/ielts/speaking/ui/SpeakingExamRunner";
 import { SpeakingAttemptReview } from "@/modules/ielts/speaking/ui/SpeakingAttemptReview";
+import { SpeakingEvaluationPrompt } from "@/modules/ielts/speaking/ui/SpeakingEvaluationPrompt";
 import { SECTION_META, SECTION_ORDER } from "@/domain/sections";
 import type { IeltsMode, IeltsSession } from "@/domain/session";
 import type { SectionKey } from "@/domain/types";
@@ -62,14 +63,16 @@ function AppHeader() {
   );
 }
 
-function Complete({
+export function Complete({
   section,
   mode,
+  speakingAttemptId,
   onContinue,
   onHome,
 }: {
   section: Section;
   mode: Mode;
+  speakingAttemptId?: string;
   onContinue: () => void;
   onHome: () => void;
 }) {
@@ -98,16 +101,8 @@ function Complete({
               It can read your saved response and return feedback here.
             </p>
           </div>
-        ) : section === "speaking" ? (
-          <div className="mt-6 w-full max-w-xl rounded-lg border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-5 py-4 text-left shadow-sm">
-            <p className="text-sm font-bold text-[var(--exam-text)]">
-              Ready for transcript evaluation
-            </p>
-            <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">
-              Ask your agent: “Evaluate my latest IELTS Speaking transcript.” It can score fluency,
-              vocabulary, and grammar, then return the review here.
-            </p>
-          </div>
+        ) : section === "speaking" && speakingAttemptId ? (
+          <SpeakingEvaluationPrompt key={speakingAttemptId} attemptId={speakingAttemptId} />
         ) : null}
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <button
@@ -134,7 +129,7 @@ function Complete({
   );
 }
 
-function Results({
+export function Results({
   session,
   onHome,
   onReview,
@@ -173,7 +168,7 @@ function Results({
             return (
               <article
                 key={section}
-                className="rounded-lg border border-[var(--exam-border-muted)] bg-[var(--exam-surface)] px-6 py-6 shadow-sm"
+                className={`rounded-lg border border-[var(--exam-border-muted)] bg-[var(--exam-surface)] px-6 py-6 shadow-sm ${section === 'speaking' && !session.speakingEvaluation ? 'md:col-span-2' : ''}`}
               >
                 <div className="flex items-start gap-4">
                   <div className="flex h-11 w-11 items-center justify-center rounded bg-[var(--exam-accent)] text-white">
@@ -189,7 +184,7 @@ function Results({
                           : section === "speaking" && session.speakingSubmission
                             ? session.speakingEvaluation
                               ? `Estimated overall band ${session.speakingEvaluation.overallBand} · Evaluation ready`
-                              : `${session.speakingSubmission.responses.length} recordings saved locally · Awaiting evaluation`
+                              : `${session.speakingSubmission.responses.filter(r => r.status === 'answered').length} answers recorded · ${session.speakingSubmission.responses.filter(r => r.status === 'skipped').length} skipped · Awaiting evaluation`
                             : "Submission ready for evaluation"}
                     </p>
                     {canReview ? (
@@ -204,6 +199,9 @@ function Results({
                     ) : null}
                   </div>
                 </div>
+                {section === 'speaking' && session.speakingSubmission && !session.speakingEvaluation ? (
+                  <SpeakingEvaluationPrompt key={session.speakingSubmission.attemptId} attemptId={session.speakingSubmission.attemptId} />
+                ) : null}
               </article>
             );
           })}
@@ -229,11 +227,12 @@ export default function App() {
     assessmentApplication.state,
   );
   const nativeToolSurfaces = getNativeToolSurfaces(state, assessmentApplication.state);
-  useWebMcpTools({
+  const webMcp = useWebMcpTools({
     commands,
     assessmentCommands: assessmentApplication.commands,
     currentWritingAttemptId: state.writingSubmission?.attemptId,
-    currentSpeakingAttemptId: state.speakingSubmission?.attemptId,
+    currentSpeakingAttemptId: state.view === 'review' && state.review?.kind === 'speaking'
+      ? state.review.submission.attemptId : state.speakingSubmission?.attemptId,
     currentAssessmentAttemptId:
       assessmentApplication.state.view === "result"
         ? assessmentApplication.state.submission?.attemptId
@@ -330,6 +329,7 @@ export default function App() {
       <Complete
         section={section}
         mode={mode}
+        speakingAttemptId={state.speakingSubmission?.attemptId}
         onHome={commands.goHome}
         onContinue={commands.continueExam}
       />
@@ -411,6 +411,7 @@ export default function App() {
   if (state.view === "review" && state.review?.kind === "speaking") {
     return (
       <SpeakingAttemptReview
+        backLabel={state.review.returnTo === 'home' ? 'Back to practice' : 'Back to results'}
         submission={state.review.submission}
         evaluation={state.review.evaluation}
         onExit={commands.closeReview}
@@ -418,5 +419,6 @@ export default function App() {
     );
   }
 
-  return <SpeakingExamRunner onExit={commands.goHome} onSubmit={commands.submitSpeaking} />;
+  return <SpeakingExamRunner onExit={commands.goHome} onSubmit={commands.submitSpeaking}
+    bindSpeakingInterview={webMcp.bindSpeakingInterview} />;
 }

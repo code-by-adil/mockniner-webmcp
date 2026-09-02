@@ -1,8 +1,8 @@
 import type { ReactElement } from 'react'
-import { BookOpen, FileText, Headphones } from 'lucide-react'
+import { BookOpen, FileText, Headphones, Mic } from 'lucide-react'
 import type { LearningSummary } from '@/domain/learningSummary'
 
-type NativeHistorySection = 'listening' | 'reading' | 'writing'
+type NativeHistorySection = 'listening' | 'reading' | 'writing' | 'speaking'
 
 type NativeHistoryRow = {
   attemptId: string
@@ -16,6 +16,7 @@ const sectionPresentation = {
   listening: { title: 'Listening Practice', icon: Headphones },
   reading: { title: 'Reading Practice', icon: BookOpen },
   writing: { title: 'Writing Practice', icon: FileText },
+  speaking: { title: 'Speaking Practice', icon: Mic },
 } as const
 
 function getNativeHistoryRows(
@@ -43,6 +44,13 @@ function getNativeHistoryRows(
       result: attempt.overallBand === undefined
         ? 'Awaiting Evaluation'
         : `Band ${attempt.overallBand}`,
+      reviewable: attempt.overallBand !== undefined,
+    })),
+    ...(summary.sections.speaking.recent ?? []).slice(0, 2).map((attempt) => ({
+      attemptId: attempt.attemptId,
+      section: 'speaking' as const,
+      submittedAt: attempt.submittedAt,
+      result: attempt.overallBand === undefined ? 'Awaiting Evaluation' : `Band ${attempt.overallBand}`,
       reviewable: attempt.overallBand !== undefined,
     })),
   ].sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))

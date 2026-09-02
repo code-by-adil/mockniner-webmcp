@@ -61,7 +61,7 @@ function createHarness({
         contentKey: input.contentKey,
         responses: input.recordings.map((recording, index) => ({
           recordingId: `recording-${index}`,
-          promptId: recording.promptId,
+          status: 'answered' as const, promptId: recording.promptId,
           partLabel: recording.partLabel,
           sequence: recording.sequence,
           promptText: recording.promptText,
@@ -351,7 +351,7 @@ describe('exam application commands', () => {
       contentKey: 'local-speaking-v1',
       startedAt: '2026-08-31T09:58:00.000Z',
       recordings: [{
-        promptId: 1,
+        status: 'answered' as const, promptId: 1,
         partLabel: 'Part 1',
         sequence: 0,
         promptText: 'Where do you live?',
@@ -378,7 +378,7 @@ describe('exam application commands', () => {
       contentKey: 'local-speaking-v1',
       startedAt: '2026-08-31T09:58:00.000Z',
       recordings: [{
-        promptId: 1,
+        status: 'answered' as const, promptId: 1,
         partLabel: 'Part 1',
         sequence: 0,
         promptText: 'Where do you live?',
@@ -395,7 +395,7 @@ describe('exam application commands', () => {
       contentKey: 'local-speaking-v1',
       responses: [{
         recordingId: 'recording-0',
-        promptId: 1,
+        status: 'answered' as const, promptId: 1,
         partLabel: 'Part 1',
         sequence: 0,
         promptText: 'Where do you live?',
@@ -455,7 +455,7 @@ describe('exam application commands', () => {
       contentKey: 'agent-speaking-interview-v1',
       startedAt: '2026-08-31T09:58:00.000Z',
       recordings: [{
-        promptId: 1,
+        status: 'answered' as const, promptId: 1,
         partLabel: 'Part 1',
         sequence: 0,
         promptText: 'Where do you live?',

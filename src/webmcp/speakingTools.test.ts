@@ -1,3 +1,4 @@
+import { defaultSpeakingPlan } from '@/domain/speakingPlan';
 import { ApplicationError } from "@/domain/errors";
 import { describe, expect, it, vi } from "vitest";
 import type { SpeakingEvaluation, SpeakingSubmission } from "@/domain/types";
@@ -14,7 +15,7 @@ const submission: SpeakingSubmission = {
   responses: [
     {
       recordingId: "recording-1",
-      promptId: 1,
+      status: 'answered' as const, promptId: 1,
       partLabel: "Part 1",
       sequence: 0,
       promptText: "Tell me about your hometown.",
@@ -66,7 +67,7 @@ describe("Speaking WebMCP tools", () => {
     };
     expect(
       createSpeakingInterviewToolDefinition(vi.fn()).name,
-    ).toBe("conduct_ielts_speaking_turn");
+    ).toBe("set_ielts_speaking_interview");
     expect(createSpeakingToolDefinitions(dependencies, "results").map((tool) => tool.name)).toEqual(
       ["get_ielts_speaking_submission"],
     );
@@ -76,36 +77,17 @@ describe("Speaking WebMCP tools", () => {
     expect(createSpeakingToolDefinitions(dependencies, "none")).toEqual([]);
   });
 
-  it("conducts one question and returns the learner-approved transcript", async () => {
-    const tool = createSpeakingInterviewToolDefinition(async (input) => {
-      if (input.finishInterview) return { status: "interview_completed", submission };
-      return {
-        status: "answer_received",
-        turnNumber: 1,
-        part: input.part,
-        transcript: "My hometown is a busy coastal city.",
-        durationMs: 21_000,
-      };
+  it("installs all questions at once without starting the microphone", async () => {
+    const configure = vi.fn(() => ({ status: 'ready' }));
+    const tool = createSpeakingInterviewToolDefinition(configure);
+    await expect(tool.execute(defaultSpeakingPlan, toolOptions())).resolves.toMatchObject({
+      ok: true, data: { status: 'ready' }, sideEffect: { visibleView: 'speaking_setup' },
     });
-
-    await expect(
-      tool.execute(
-        {
-          examinerText: "Tell me about your hometown.",
-          part: 1,
-          responseTimeSeconds: 45,
-          finishInterview: false,
-        },
-        toolOptions(),
-      ),
-    ).resolves.toMatchObject({
-      ok: true,
-      data: {
-        status: "answer_received",
-        transcript: "My hometown is a busy coastal city.",
-      },
-      sideEffect: { visibleView: "agent_speaking_interview" },
+    expect(configure).toHaveBeenCalledWith(defaultSpeakingPlan);
+    await expect(tool.execute({ ...defaultSpeakingPlan, questions: [] }, toolOptions())).resolves.toMatchObject({
+      ok: false, error: { code: 'INVALID_SPEAKING_PLAN' },
     });
+    expect(configure).toHaveBeenCalledOnce();
   });
 
   it("returns transcript evidence without exposing local audio", async () => {

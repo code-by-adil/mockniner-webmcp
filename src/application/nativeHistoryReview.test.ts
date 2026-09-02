@@ -41,6 +41,27 @@ afterEach(async () => {
 })
 
 describe('database-backed native history review', () => {
+  it('reopens a persisted Speaking interview from home without replacing an unrelated draft', async () => {
+    const repository = createIeltsRepository(database)
+    const submission = await repository.saveSpeakingAttempt({
+      attemptId: crypto.randomUUID(), contentKey: 'speaking-history',
+      startedAt: '2026-09-03T10:00:00.000Z', submittedAt: '2026-09-03T10:01:00.000Z',
+      recordings: [{ status: 'answered' as const, promptId: 1, partLabel: 'Part 1', sequence: 0, promptText: 'Where do you live?',
+        timeLimitSeconds: 30, durationMs: 3000, audio: new Blob(['audio']), transcript: 'I live near the sea.' }],
+    })
+    await repository.saveSpeakingEvaluation({ attemptId: submission.attemptId, overallBand: 6, fluencyCoherence: 6,
+      lexicalResource: 6, grammaticalRangeAccuracy: 6, summary: 'Test evaluation', strengths: ['Clear.'], improvements: ['More detail.'], evaluatedAt: '2026-09-03T10:02:00.000Z' })
+    let state: IeltsSession = { ...initialSession, writingDrafts: { 1: 'Unrelated draft', 2: '' } }
+    const commands = createIeltsCommands({ getState: () => state,
+      dispatch: action => { state = sessionReducer(state, action) },
+      getContent: () => ({ listening: listeningDocument, reading: readingDocument, writing: writingDocument }),
+      setContent: vi.fn(), getContentStore: async () => createContentStore(database), getRepository: async () => repository,
+    })
+    await commands.openAttempt(submission.attemptId, 'speaking')
+    expect(state).toMatchObject({ view: 'review', review: { kind: 'speaking', returnTo: 'home', submission: { attemptId: submission.attemptId } },
+      writingDrafts: { 1: 'Unrelated draft' } })
+    commands.closeReview(); expect(state.view).toBe('home')
+  })
   it('opens the selected rehydrated Reading attempt with its persisted content', async () => {
     const olderDocument = {
       ...readingDocument,

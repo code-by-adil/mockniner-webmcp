@@ -1,5 +1,7 @@
 import { KokoroTTS } from 'kokoro-js'
+import { RawAudio } from '@huggingface/transformers'
 import { KOKORO_RUNTIME } from './kokoroConfig'
+import { splitKokoroSpeech } from './kokoroScript'
 
 export type KokoroSpeakingWorkerRequest = {
   id: string
@@ -58,10 +60,14 @@ port.addEventListener('message', (event) => {
   const request = event.data
   void (async () => {
     const tts = await getModel()
-    const audio = await tts.generate(request.text, {
-      voice: 'bm_george',
-      speed: KOKORO_RUNTIME.speed,
-    })
+    const chunks = await splitKokoroSpeech(request.text, 'bm_george')
+    if (!chunks.length) throw new Error('The examiner question is empty.')
+    const audioChunks = []
+    for (const text of chunks) audioChunks.push(await tts.generate(text, { voice: 'bm_george', speed: KOKORO_RUNTIME.speed }))
+    const samples = new Float32Array(audioChunks.reduce((size, chunk) => size + chunk.audio.length, 0))
+    let offset = 0
+    for (const chunk of audioChunks) { samples.set(chunk.audio, offset); offset += chunk.audio.length }
+    const audio = new RawAudio(samples, audioChunks[0]!.sampling_rate)
     port.postMessage({ id: request.id, type: 'audio', audio: audio.toBlob() })
   })().catch((error) => {
     port.postMessage({

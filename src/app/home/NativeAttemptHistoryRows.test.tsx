@@ -48,6 +48,18 @@ const summary: LearningSummary = {
 }
 
 describe('native attempt history rows', () => {
+  it('shows saved Speaking attempts and a review button for evaluated interviews', () => {
+    const html = renderToStaticMarkup(<NativeAttemptHistoryRows summary={{ ...summary, sections: {
+      ...summary.sections, speaking: { attemptCount: 2, recent: [
+        { attemptId: 'speaking-qa', submittedAt: '2026-09-03T10:00:00.000Z', overallBand: 6 },
+        { attemptId: 'speaking-pending', submittedAt: '2026-09-02T10:00:00.000Z' },
+      ] },
+    } }} onReview={async () => undefined} />)
+    expect(html).toContain('data-attempt-id="speaking-qa" data-section="speaking"')
+    expect(html).toContain('Speaking Practice')
+    expect(html.match(/>Review<\/button>/g)).toHaveLength(3)
+    expect(html).toContain('speaking-pending')
+  })
   it('renders distinct row identities for two attempts in the same section', () => {
     const html = renderToStaticMarkup(
       <NativeAttemptHistoryRows summary={summary} onReview={async () => undefined} />,

@@ -33,6 +33,9 @@ export class KokoroSpeakingPlayer {
   private cancelGeneration: ((error: Error) => void) | null = null
   private speaking = false
   private disposed = false
+  private lifetime = new AbortController()
+  private audio = new Map<string, Promise<AudioBuffer>>()
+  private generationQueue: Promise<unknown> = Promise.resolve()
 
   constructor() {
     this.worker = this.createWorker()
@@ -62,7 +65,40 @@ export class KokoroSpeakingPlayer {
     if (this.context.state === 'suspended') await this.context.resume()
   }
 
-  async speak(text: string, signal: AbortSignal): Promise<void> {
+  // Queue in interview order. Inference stays serial while playback/recording
+  // continue independently. Failed buffers can be retried without losing others.
+  preload(texts: string[]): void {
+    for (const text of texts) void this.prepareAudio(text).catch(() => undefined)
+  }
+
+  prepareAudio(text: string): Promise<AudioBuffer> {
+    const cached = this.audio.get(text)
+    if (cached) return cached
+    const pending = this.generationQueue.then(async () => {
+      throwIfAborted(this.lifetime.signal)
+      await this.prepare()
+      const blob = await this.generate(text, this.lifetime.signal)
+      const buffer = await this.context!.decodeAudioData(await blob.arrayBuffer())
+      throwIfAborted(this.lifetime.signal)
+      return buffer
+    })
+    this.audio.set(text, pending)
+    this.generationQueue = pending.catch(() => {
+      if (this.audio.get(text) === pending) this.audio.delete(text)
+    })
+    return pending
+  }
+
+  private waitForAudio(text: string, signal: AbortSignal): Promise<AudioBuffer> {
+    throwIfAborted(signal)
+    return new Promise((resolve, reject) => {
+      const abort = () => reject(abortError())
+      signal.addEventListener('abort', abort, { once: true })
+      void this.prepareAudio(text).then(resolve, reject).finally(() => signal.removeEventListener('abort', abort))
+    })
+  }
+
+  async speak(text: string, signal: AbortSignal, onPlayback?: () => void): Promise<void> {
     if (this.speaking) throw new Error('The examiner is already speaking.')
     this.speaking = true
     try {
@@ -72,12 +108,9 @@ export class KokoroSpeakingPlayer {
       const context = this.context
       if (!context) throw new Error('Audio playback was not prepared.')
 
-      const blob = await this.generate(text, signal)
+      const buffer = await this.waitForAudio(text, signal)
       throwIfAborted(signal)
-      const encodedAudio = await blob.arrayBuffer()
-      throwIfAborted(signal)
-      const buffer = await context.decodeAudioData(encodedAudio)
-      throwIfAborted(signal)
+      onPlayback?.()
       await this.play(context, buffer, signal)
     } finally {
       this.speaking = false
@@ -92,6 +125,7 @@ export class KokoroSpeakingPlayer {
     return new Promise<Blob>((resolve, reject) => {
       let settled = false
       const cleanup = () => {
+        clearTimeout(timeout)
         signal.removeEventListener('abort', handleAbort)
         worker.removeEventListener('message', handleMessage)
         worker.removeEventListener('error', handleWorkerError)
@@ -125,6 +159,7 @@ export class KokoroSpeakingPlayer {
       }
 
       this.cancelGeneration = cancel
+      const timeout = setTimeout(() => cancel(new Error('Examiner audio preparation timed out. Retry this question.')), 180_000)
       signal.addEventListener('abort', handleAbort, { once: true })
       worker.addEventListener('message', handleMessage)
       worker.addEventListener('error', handleWorkerError)
@@ -181,6 +216,8 @@ export class KokoroSpeakingPlayer {
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
+    this.lifetime.abort()
+    this.audio.clear()
     this.cancelGeneration?.(abortError())
     this.cancelGeneration = null
     this.activePlayback?.cancel(abortError())

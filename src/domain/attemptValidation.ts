@@ -86,6 +86,7 @@ export const speakingSubmissionSchema: z.ZodType<SpeakingSubmission> =
       attemptId: z.uuid(),
       contentKey: z.string().min(1),
       responses: z.array(z.strictObject({
+        status: z.enum(['answered', 'skipped']),
         recordingId: z.string().min(1),
         promptId: z.number().int().positive(),
         partLabel: z.string().min(1),
@@ -93,8 +94,10 @@ export const speakingSubmissionSchema: z.ZodType<SpeakingSubmission> =
         promptText: z.string().min(1),
         timeLimitSeconds: z.number().int().positive(),
         durationMs: z.number().nonnegative(),
-        transcript: z.string().trim().min(1),
-      })).min(1),
+        transcript: z.string().trim(),
+      }).refine(response => response.status === 'skipped'
+        ? response.transcript === '' && response.durationMs === 0
+        : response.transcript.length > 0, 'Answered responses need a transcript; skipped responses have no transcript or duration.')).min(1),
       startedAt: timestampSchema,
       submittedAt: timestampSchema,
     })

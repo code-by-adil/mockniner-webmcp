@@ -21,6 +21,7 @@ import {
   parseStoredObjectiveResult,
   parseStoredWritingEvaluation,
   parseStoredWritingSubmission,
+  parseStoredSpeakingEvaluation,
 } from "@/domain/attemptValidation";
 
 type AttemptRow = {
@@ -173,7 +174,7 @@ export async function readLearningSummary(
   const count = (section: AttemptRow["section"]) =>
     statusCount(section, "submitted") + statusCount(section, "evaluated");
 
-  const [listening, reading, writingRows] = await Promise.all([
+  const [listening, reading, writingRows, speakingRows] = await Promise.all([
     readObjectiveLearningSummary(
       database,
       "listening",
@@ -199,6 +200,13 @@ export async function readLearningSummary(
       WHERE attempts.section = 'writing'
       ORDER BY attempts.submitted_at DESC
       LIMIT ${recentLimit}
+    `,
+    database.sql<{ id: string; submittedAt: string; evaluationJson: string | null }>`
+      SELECT attempts.id, attempts.submitted_at AS submittedAt,
+        speaking_evaluations.evaluation_json AS evaluationJson
+      FROM attempts LEFT JOIN speaking_evaluations ON speaking_evaluations.attempt_id = attempts.id
+      WHERE attempts.section = 'speaking'
+      ORDER BY attempts.submitted_at DESC LIMIT ${recentLimit}
     `,
   ]);
 
@@ -245,7 +253,11 @@ export async function readLearningSummary(
       listening,
       reading,
       writing,
-      speaking: { attemptCount: count("speaking") },
+      speaking: { attemptCount: count("speaking"), recent: speakingRows.map((row) => {
+        const evaluation = row.evaluationJson ? parseStoredSpeakingEvaluation(row.evaluationJson) : null;
+        if (evaluation && evaluation.attemptId !== row.id) throw new Error('The stored Speaking evaluation does not match its attempt.');
+        return { attemptId: row.id, submittedAt: row.submittedAt, ...(evaluation ? { overallBand: evaluation.overallBand } : {}) };
+      }) },
     },
   };
 }

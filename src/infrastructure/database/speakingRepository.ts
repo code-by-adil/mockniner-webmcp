@@ -15,6 +15,7 @@ type StoredSpeakingAttemptRow = {
 };
 
 type StoredSpeakingResponseRow = {
+  status: "answered" | "skipped";
   id: string;
   promptId: number;
   partLabel: string;
@@ -38,16 +39,18 @@ function validateRecordings(recordings: SpeakingRecordingInput[]): void {
   const sequences = new Set<number>();
 
   for (const recording of recordings) {
-    if (recording.audio.size === 0) {
+    if (recording.status === 'answered' && (!recording.audio || recording.audio.size === 0)) {
       throw new Error(
         `The recording for prompt ${recording.promptId} is empty.`,
       );
     }
-    if (!recording.transcript.trim()) {
+    if (recording.status === 'answered' && !recording.transcript.trim()) {
       throw new Error(
         `The transcript for prompt ${recording.promptId} is empty.`,
       );
     }
+    if (recording.status === 'skipped' && (recording.audio !== null || recording.transcript !== '' || recording.durationMs !== 0)) throw new Error('Skipped responses cannot contain audio, transcript or duration.');
+    if (recording.status !== 'answered' && recording.status !== 'skipped') throw new Error('Invalid Speaking response status.');
     if (promptIds.has(recording.promptId)) {
       throw new Error(
         `Prompt ${recording.promptId} has more than one recording.`,
@@ -75,9 +78,9 @@ export async function saveSpeakingAttempt(
     input.recordings.map(async (recording) => ({
       ...recording,
       id: crypto.randomUUID(),
-      mimeType: recording.audio.type || "audio/webm",
-      byteLength: recording.audio.size,
-      audioBytes: new Uint8Array(await recording.audio.arrayBuffer()),
+      mimeType: recording.audio?.type || null,
+      byteLength: recording.audio?.size ?? 0,
+      audioBytes: recording.audio ? new Uint8Array(await recording.audio.arrayBuffer()) : null,
     })),
   );
 
@@ -103,7 +106,8 @@ export async function saveSpeakingAttempt(
         mime_type,
         byte_length,
         audio,
-        transcript
+        transcript,
+        response_status
       ) VALUES (
         ${recording.id},
         ${attemptId},
@@ -116,7 +120,8 @@ export async function saveSpeakingAttempt(
         ${recording.mimeType},
         ${recording.byteLength},
         ${recording.audioBytes},
-        ${recording.transcript.trim()}
+        ${recording.transcript.trim()},
+        ${recording.status}
       )`,
       ),
     ]);
@@ -125,6 +130,7 @@ export async function saveSpeakingAttempt(
       attemptId,
       contentKey: input.contentKey,
       responses: preparedRecordings.map((recording) => ({
+        status: recording.status,
         recordingId: recording.id,
         promptId: recording.promptId,
         partLabel: recording.partLabel,
@@ -180,7 +186,8 @@ export async function readSpeakingAttempt(
       prompt_text AS promptText,
       time_limit_seconds AS timeLimitSeconds,
       duration_ms AS durationMs,
-      transcript
+      transcript,
+      response_status AS status
     FROM speaking_responses
     WHERE attempt_id = ${attempt.id}
     ORDER BY sequence
@@ -196,6 +203,7 @@ export async function readSpeakingAttempt(
     attemptId: attempt.id,
     contentKey: attempt.contentKey,
     responses: responses.map((response) => ({
+      status: response.status,
       recordingId: response.id,
       promptId: response.promptId,
       partLabel: response.partLabel,
