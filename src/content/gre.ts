@@ -3,7 +3,7 @@ import { parseAssessmentPackage } from "@/domain/assessment";
 export const greStyleAssessment = parseAssessmentPackage({
   schemaVersion: 3,
   packageId: "example-gre-style-diagnostic",
-  revision: 1,
+  revision: 2,
   title: "GRE-Style Diagnostic",
   description: "An original mixed diagnostic for verbal reasoning, quantitative reasoning, and analytical writing.",
   source: "built-in",
@@ -16,7 +16,27 @@ export const greStyleAssessment = parseAssessmentPackage({
       "Independent GRE-style practice. GRE is a registered trademark of ETS, which is not affiliated with or endorsing this application. Results are practice feedback, not an ETS score or percentile.",
   },
   presentation: { accent: "violet", density: "comfortable" },
-  resources: [],
+  resources: [
+    {
+      id: "quantitative-reference",
+      type: "document",
+      title: "Quantitative reference",
+      description: "General formulas available during the quantitative part.",
+      content: [
+        {
+          type: "table",
+          caption: "Common formulas",
+          columns: ["Topic", "Formula"],
+          rows: [
+            ["Circle", "Area = pi x radius squared"],
+            ["Rectangle", "Area = length x width"],
+            ["Triangle", "Area = one half x base x height"],
+            ["Average", "Sum of values divided by number of values"],
+          ],
+        },
+      ],
+    },
+  ],
   review: { mode: "answers" },
   rubrics: [
     {
@@ -159,7 +179,11 @@ export const greStyleAssessment = parseAssessmentPackage({
       durationSeconds: 14 * 60,
       navigation: "free",
       defaultLayout: "single",
-      tools: [{ type: "mark_for_review" }, { type: "calculator" }],
+      tools: [
+        { type: "mark_for_review" },
+        { type: "calculator" },
+        { type: "reference_document", resourceId: "quantitative-reference" },
+      ],
       items: [
         {
           id: "quant-comparison",

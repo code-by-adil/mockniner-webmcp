@@ -141,6 +141,14 @@ describe("assessment domain", () => {
       totalItems: 8,
       awaitingEvaluationCount: 1,
     });
+    expect(greStyleAssessment.parts[0]!.tools).not.toContainEqual(
+      expect.objectContaining({ type: "calculator" }),
+    );
+    expect(greStyleAssessment.parts[1]!.tools).toEqual(expect.arrayContaining([
+      { type: "calculator" },
+      { type: "reference_document", resourceId: "quantitative-reference" },
+    ]));
+    expect(greStyleAssessment.parts[2]!.tools).toEqual([]);
   });
 
   it("rejects duplicate item IDs and invalid references", () => {
@@ -315,5 +323,35 @@ describe("assessment domain", () => {
       ...evaluation,
       criteria: [{ ...evaluation.criteria[0]!, evidence: [] }],
     })).toThrow(/must include evidence/);
+    expect(() => validateAssessmentEvaluation(submission, {
+      ...evaluation,
+      rubricId: "missing-rubric",
+    })).toThrow(/must use rubric argument/);
+    expect(() => validateAssessmentEvaluation(submission, {
+      ...evaluation,
+      overallScore: 5,
+    })).toThrow(/outside the rubric scale or step/);
+    expect(() => validateAssessmentEvaluation(submission, {
+      ...evaluation,
+      criteria: [{ ...evaluation.criteria[0]!, criterionId: "missing-criterion" }],
+    })).toThrow(/match the rubric exactly/);
+    expect(() => validateAssessmentEvaluation(submission, {
+      ...evaluation,
+      criteria: [{ ...evaluation.criteria[0]!, evidence: ["not in the response"] }],
+    })).toThrow(/was not found in the submitted responses/);
+    expect(() => validateAssessmentEvaluation(submission, {
+      ...evaluation,
+      annotations: [{
+        ...evaluation.annotations[0]!,
+        itemId: "missing-item",
+      }],
+    })).toThrow(/is not an answered agent-evaluated response/);
+    expect(() => validateAssessmentEvaluation(submission, {
+      ...evaluation,
+      annotations: [{
+        ...evaluation.annotations[0]!,
+        originalText: "text that was never submitted",
+      }],
+    })).toThrow(/was not found in response essay-1/);
   });
 });

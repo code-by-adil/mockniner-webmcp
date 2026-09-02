@@ -1,8 +1,19 @@
 import type {
+  AssessmentEvaluation,
   AssessmentEvaluationInput,
+  AssessmentEvaluationStatus,
+  AssessmentResult,
   AssessmentSubmission,
 } from "./assessmentContract";
 import { hasAssessmentResponse } from "./assessmentScoring";
+
+export function getAssessmentEvaluationStatus(
+  result: AssessmentResult,
+  evaluation?: AssessmentEvaluation | null,
+): AssessmentEvaluationStatus {
+  if (evaluation) return "evaluated";
+  return result.awaitingEvaluationCount > 0 ? "awaiting_evaluation" : "not_required";
+}
 
 export function validateAssessmentEvaluation(
   submission: AssessmentSubmission,

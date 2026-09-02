@@ -4,6 +4,7 @@ import { satPracticeAssessment } from "@/content/sat";
 import { gradeAssessment } from "@/domain/assessment";
 import { migrateDatabase } from "./migrations";
 import {
+  deleteAssessmentPackage,
   loadAssessmentPackages,
   readAssessmentAttempt,
   readAssessmentHistory,
@@ -95,6 +96,38 @@ describe("universal assessment repository", () => {
         attemptId: submission.attemptId,
         rawScore: 2,
         maximumScore: 12,
+      }),
+    ]);
+  });
+
+  it("removes an installed package without removing its submitted history", async () => {
+    const assessment = {
+      ...satPracticeAssessment,
+      packageId: "deletable-package",
+      source: "agent" as const,
+    };
+    await saveAssessmentPackage(database, assessment);
+    const submission = await saveAssessmentAttempt(database, {
+      attemptId: "77777777-7777-4777-8777-777777777777",
+      assessment,
+      responses: { "rw-1": "b" },
+      result: gradeAssessment(assessment, { "rw-1": "b" }),
+      startedAt: "2026-09-02T10:00:00.000Z",
+      submittedAt: "2026-09-02T10:20:00.000Z",
+    });
+
+    await deleteAssessmentPackage(database, assessment.packageId);
+
+    await expect(loadAssessmentPackages(database)).resolves.toEqual([]);
+    await expect(readAssessmentAttempt(database, submission.attemptId)).resolves.toEqual({
+      submission,
+      evaluation: null,
+    });
+    await expect(readAssessmentHistory(database)).resolves.toEqual([
+      expect.objectContaining({
+        attemptId: submission.attemptId,
+        packageId: assessment.packageId,
+        title: assessment.title,
       }),
     ]);
   });

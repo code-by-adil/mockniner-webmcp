@@ -68,6 +68,12 @@ export const initialAssessmentSession: AssessmentSession = {
 };
 export const ASSESSMENT_SESSION_STORAGE_KEY = "assessment-runtime-session-v3";
 
+export function getDraftAssessmentPackageId(session: AssessmentSession): string | null {
+  return session.attemptId && session.packageId && !session.submission
+    ? session.packageId
+    : null;
+}
+
 function timerForPart(durationSeconds: number | undefined, nowMs: number) {
   return durationSeconds === undefined
     ? { secondsRemaining: null, deadlineAt: null }

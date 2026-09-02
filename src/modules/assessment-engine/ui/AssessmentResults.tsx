@@ -52,7 +52,7 @@ export function AssessmentResults({
           <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
             <div className="text-xs font-bold uppercase tracking-wider text-neutral-400">Evaluation</div>
             <div className="mt-2 text-2xl font-extrabold">{evaluation ? `${evaluation.overallScore}${evaluationRubric ? `/${evaluationRubric.scale.maximum}` : ""}` : result.awaitingEvaluationCount ? "Pending" : "Not needed"}</div>
-            <div className="mt-1 text-xs text-neutral-500">{result.awaitingEvaluationCount ? `${result.awaitingEvaluationCount} subjective response${result.awaitingEvaluationCount === 1 ? "" : "s"}` : "All items scored locally"}</div>
+            <div className="mt-1 text-xs text-neutral-500">{evaluation ? "Structured feedback attached" : result.awaitingEvaluationCount ? `${result.awaitingEvaluationCount} subjective response${result.awaitingEvaluationCount === 1 ? "" : "s"}` : "All items scored locally"}</div>
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import {
   assessmentEvaluationSchema,
   assessmentResponseMapSchema,
   assessmentResultSchema,
+  getAssessmentEvaluationStatus,
   parseAssessmentPackage,
   type AssessmentEvaluation,
   type AssessmentHistoryEntry,
@@ -114,6 +115,16 @@ export async function saveAssessmentPackage(
         installed_at = excluded.installed_at
     `;
   });
+}
+
+export async function deleteAssessmentPackage(
+  database: SQLocal,
+  packageId: string,
+): Promise<void> {
+  await database.sql`
+    DELETE FROM assessment_packages
+    WHERE package_id = ${packageId}
+  `;
 }
 
 export async function saveAssessmentAttempt(
@@ -262,14 +273,14 @@ export async function readAssessmentHistory(
   `;
   return rows.flatMap((row) => {
     try {
-      const { submission } = parseAttemptRow(row);
+      const { submission, evaluation } = parseAttemptRow(row);
       return [{
         attemptId: submission.attemptId,
         packageId: submission.packageId,
         title: submission.package.title,
         rawScore: submission.result.rawScore,
         maximumScore: submission.result.maximumScore,
-        awaitingEvaluationCount: submission.result.awaitingEvaluationCount,
+        evaluationStatus: getAssessmentEvaluationStatus(submission.result, evaluation),
         submittedAt: submission.submittedAt,
       }];
     } catch (error) {

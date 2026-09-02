@@ -99,6 +99,35 @@ describe("universal assessment WebMCP tools", () => {
     );
   });
 
+  it("tells the agent how to resolve an active-attempt install conflict", async () => {
+    const installAssessment = vi.fn(async () => {
+      throw new Error(
+        "Assessment gre-diagnostic cannot be replaced while its attempt is in progress. " +
+        "Finish or discard the current attempt, then install the package again.",
+      );
+    });
+    const tool = createAssessmentToolDefinitions({
+      installAssessment,
+      readAssessmentAttempt: vi.fn(),
+      attachEvaluation: vi.fn(),
+      getCurrentAttemptId: () => undefined,
+    }).find((candidate) => candidate.name === "install_assessment")!;
+
+    const result = await tool.execute(
+      getAssessmentAuthoringKit("gre-style").examplePackage,
+      options(),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: "ASSESSMENT_INSTALL_CONFLICT",
+        retryable: true,
+        message: expect.stringContaining("Finish or discard the current attempt"),
+      },
+    });
+  });
+
   it("never returns answer keys with a submission", async () => {
     const tool = createAssessmentToolDefinitions({
       installAssessment: vi.fn(),

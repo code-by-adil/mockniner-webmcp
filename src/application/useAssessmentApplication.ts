@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { satPracticeAssessment } from "@/content/sat";
 import {
   assessmentEvaluationInputSchema,
   compileAssessment,
+  getAssessmentEvaluationStatus,
   gradeAssessment,
   parseAssessmentAuthoringPackage,
   validateAssessmentEvaluation,
@@ -16,6 +17,7 @@ import {
 } from "@/domain/assessment";
 import {
   assessmentSessionReducer,
+  getDraftAssessmentPackageId,
   loadAssessmentSession,
   saveAssessmentSession,
   type AssessmentSession,
@@ -26,6 +28,9 @@ export type AssessmentApplicationCommands = {
   installAssessment: (input: unknown) => Promise<AssessmentPackage>;
   start: (packageId: string) => void;
   resume: () => void;
+  restart: () => void;
+  discard: () => void;
+  deleteAssessment: (packageId: string) => Promise<void>;
   goHome: () => void;
   setResponse: (itemId: string, response: AssessmentResponse) => void;
   toggleMark: (itemId: string) => void;
@@ -39,7 +44,6 @@ export type AssessmentApplicationCommands = {
   submit: () => Promise<AssessmentSubmission>;
   openAttempt: (attemptId: string) => Promise<void>;
   attachEvaluation: (input: AssessmentEvaluationInput) => Promise<AssessmentEvaluation>;
-  reset: () => void;
 };
 
 function mergePackages(installed: AssessmentPackage[]): AssessmentPackage[] {
@@ -101,6 +105,28 @@ export function useAssessmentApplication(): {
     () => currentAssessment ? compileAssessment(currentAssessment) : null,
     [currentAssessment],
   );
+  const draftPackageId = getDraftAssessmentPackageId(state);
+
+  useEffect(() => {
+    if (
+      assessmentReady &&
+      draftPackageId &&
+      !assessments.some((assessment) => assessment.packageId === draftPackageId)
+    ) {
+      dispatch({ type: "RESET" });
+    }
+  }, [assessmentReady, assessments, draftPackageId]);
+
+  const startAssessment = useCallback((assessment: AssessmentPackage) => {
+    const now = new Date();
+    dispatch({
+      type: "START",
+      plan: compileAssessment(assessment),
+      attemptId: crypto.randomUUID(),
+      startedAt: now.toISOString(),
+      nowMs: now.getTime(),
+    });
+  }, []);
 
   const commands = useMemo<AssessmentApplicationCommands>(() => ({
     async installAssessment(input) {
@@ -109,8 +135,11 @@ export function useAssessmentApplication(): {
       if (assessment.packageId === satPracticeAssessment.packageId) {
         throw new Error(`Assessment package ID ${assessment.packageId} is reserved for built-in content.`);
       }
-      if (state.packageId === assessment.packageId && !state.submission) {
-        throw new Error(`Assessment ${assessment.packageId} cannot be replaced while its attempt is in progress.`);
+      if (draftPackageId === assessment.packageId) {
+        throw new Error(
+          `Assessment ${assessment.packageId} cannot be replaced while its attempt is in progress. ` +
+          "Finish or discard the current attempt, then install the package again.",
+        );
       }
       const { database, repository } = await openAssessmentPersistence();
       await repository.saveAssessmentPackage(database, assessment);
@@ -123,18 +152,40 @@ export function useAssessmentApplication(): {
     start(packageId) {
       const assessment = assessments.find((candidate) => candidate.packageId === packageId);
       if (!assessment) throw new Error(`Assessment ${packageId} is not installed.`);
-      const now = new Date();
-      dispatch({
-        type: "START",
-        plan: compileAssessment(assessment),
-        attemptId: crypto.randomUUID(),
-        startedAt: now.toISOString(),
-        nowMs: now.getTime(),
-      });
+      if (draftPackageId) {
+        throw new Error(
+          `An unfinished attempt for ${draftPackageId} is in progress. ` +
+          "Resume, restart, or discard it before starting another assessment.",
+        );
+      }
+      startAssessment(assessment);
     },
     resume() {
       if (!currentPlan) throw new Error("The resumable assessment is not installed.");
       dispatch({ type: "RESUME", plan: currentPlan, nowMs: Date.now() });
+    },
+    restart() {
+      if (!draftPackageId || !currentAssessment) {
+        throw new Error("No unfinished assessment attempt is available to restart.");
+      }
+      startAssessment(currentAssessment);
+    },
+    discard() {
+      if (!draftPackageId) {
+        throw new Error("No unfinished assessment attempt is available to discard.");
+      }
+      dispatch({ type: "RESET" });
+    },
+    async deleteAssessment(packageId) {
+      const assessment = assessments.find((candidate) => candidate.packageId === packageId);
+      if (!assessment) throw new Error(`Assessment ${packageId} is not installed.`);
+      if (assessment.source !== "agent") {
+        throw new Error(`Built-in assessment ${packageId} cannot be deleted.`);
+      }
+      const { database, repository } = await openAssessmentPersistence();
+      await repository.deleteAssessmentPackage(database, packageId);
+      setAssessments((current) => current.filter((candidate) => candidate.packageId !== packageId));
+      if (state.packageId === packageId) dispatch({ type: "RESET" });
     },
     goHome() { dispatch({ type: "GO_HOME" }); },
     setResponse(itemId, response) { dispatch({ type: "SET_RESPONSE", itemId, response }); },
@@ -190,7 +241,7 @@ export function useAssessmentApplication(): {
           title: submission.package.title,
           rawScore: submission.result.rawScore,
           maximumScore: submission.result.maximumScore,
-          awaitingEvaluationCount: submission.result.awaitingEvaluationCount,
+          evaluationStatus: getAssessmentEvaluationStatus(submission.result),
           submittedAt: submission.submittedAt,
         }, ...current.filter((attempt) => attempt.attemptId !== submission.attemptId)].slice(0, 10));
         dispatch({ type: "COMPLETE", submission });
@@ -221,14 +272,20 @@ export function useAssessmentApplication(): {
       validateAssessmentEvaluation(stored.submission, parsed);
       const evaluation: AssessmentEvaluation = { ...parsed, evaluatedAt: new Date().toISOString() };
       await repository.saveAssessmentEvaluation(database, evaluation);
+      setHistory((current) => current.map((attempt) =>
+        attempt.attemptId === evaluation.attemptId
+          ? { ...attempt, evaluationStatus: "evaluated" }
+          : attempt
+      ));
       dispatch({ type: "ATTACH_EVALUATION", evaluation });
       return evaluation;
     },
-    reset() { dispatch({ type: "RESET" }); },
   }), [
     assessments,
     currentAssessment,
     currentPlan,
+    draftPackageId,
+    startAssessment,
     state.attemptId,
     state.packageId,
     state.responses,

@@ -4,6 +4,7 @@ import { greStyleAssessment } from "@/content/gre";
 import { compileAssessment, gradeAssessment, parseAssessmentPackage, type AssessmentSubmission } from "./assessment";
 import {
   assessmentSessionReducer,
+  getDraftAssessmentPackageId,
   initialAssessmentSession,
   isFinalPart,
   isLastItemInPart,
@@ -24,6 +25,37 @@ function start() {
 }
 
 describe("assessment session", () => {
+  it("identifies only unfinished attempts as drafts", () => {
+    const active = start();
+    expect(getDraftAssessmentPackageId(active)).toBe(satPracticeAssessment.packageId);
+    expect(getDraftAssessmentPackageId(initialAssessmentSession)).toBeNull();
+    expect(getDraftAssessmentPackageId({
+      ...active,
+      submission: {
+        attemptId,
+        packageId: satPracticeAssessment.packageId,
+        package: satPracticeAssessment,
+        responses: {},
+        result: gradeAssessment(satPracticeAssessment, {}),
+        startedAt: new Date(nowMs).toISOString(),
+        submittedAt: new Date(nowMs + 1_000).toISOString(),
+      },
+    })).toBeNull();
+  });
+
+  it("discards every piece of draft state without touching package storage", () => {
+    let active = start();
+    active = assessmentSessionReducer(active, {
+      type: "SET_RESPONSE",
+      itemId: "rw-1",
+      response: "b",
+    });
+
+    expect(assessmentSessionReducer(active, { type: "RESET" })).toEqual(
+      initialAssessmentSession,
+    );
+  });
+
   it("uses stable IDs and makes part completion an explicit locking boundary", () => {
     let state = start();
     state = assessmentSessionReducer(state, { type: "SET_RESPONSE", itemId: "rw-1", response: "b" });

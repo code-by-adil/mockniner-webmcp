@@ -5,6 +5,7 @@ import {
   assessmentEvaluationInputSchema,
   ASSESSMENT_AUTHORING_TEMPLATE_IDS,
   getAssessmentEvaluationJsonSchema,
+  getAssessmentEvaluationStatus,
   getAssessmentItemCount,
   getAssessmentPackageJsonSchema,
   stripAssessmentAnswers,
@@ -155,8 +156,10 @@ export function createAssessmentToolDefinitions({
             startedAt: stored.submission.startedAt,
             submittedAt: stored.submission.submittedAt,
           },
-          evaluationStatus: stored.evaluation ? "evaluated" :
-            stored.submission.result.awaitingEvaluationCount ? "awaiting_evaluation" : "not_required",
+          evaluationStatus: getAssessmentEvaluationStatus(
+            stored.submission.result,
+            stored.evaluation,
+          ),
           canAttachEvaluation:
             !stored.evaluation &&
             stored.submission.result.awaitingEvaluationCount > 0 &&

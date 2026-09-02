@@ -92,6 +92,9 @@ export function Home({
   assessmentHistory,
   onStartAssessment,
   onResumeAssessment,
+  onRestartAssessment,
+  onDiscardAssessment,
+  onDeleteAssessment,
   onReviewAssessment,
 }: HomeProps): React.ReactElement {
   const [learningSummary, setLearningSummary] = useState<LearningSummary | null>(null);
@@ -235,6 +238,9 @@ export function Home({
           assessmentSession={assessmentSession}
           onStartAssessment={onStartAssessment}
           onResumeAssessment={onResumeAssessment}
+          onRestartAssessment={onRestartAssessment}
+          onDiscardAssessment={onDiscardAssessment}
+          onDeleteAssessment={onDeleteAssessment}
         />
 
         {/* Modular Section Practice List */}

@@ -200,8 +200,9 @@ Use split layout only when an item has stimulus content. Labels such as
 The `gre-style` authoring kit contains original questions for reading
 comprehension, multi-blank text completion, sentence equivalence, quantitative
 comparison, multiple selection, numeric entry, data interpretation, and
-analytical writing. It also demonstrates a calculator, timed parts, answer
-review, and post-submission rubric evaluation.
+analytical writing. It also demonstrates a quantitative reference document, a
+calculator limited to the quantitative part, timed parts, answer review, and
+post-submission rubric evaluation.
 
 The kit reports these limits to the agent:
 
@@ -256,7 +257,18 @@ the agent can call `get_assessment_submission` to read the immutable submission
 without objective answer keys. If evaluation is needed, the page also registers
 `attach_assessment_evaluation`. That tool checks the rubric, scale, criteria,
 evidence, annotations, item IDs, and quoted response text before it saves the
-evaluation.
+evaluation. An attempt accepts one evaluation. A second attachment is rejected
+instead of silently replacing the saved feedback.
+
+Submission history records one explicit evaluation state:
+
+- `not_required` when every answered item was scored locally
+- `awaiting_evaluation` when an answered subjective item still needs feedback
+- `evaluated` after structured feedback has been saved
+
+The saved evaluation state is derived from the immutable objective result and
+the presence of an evaluation. Reloading the application cannot turn an
+evaluated attempt back into a pending one.
 
 The application owns the result interface. Package data may supply domain names,
 rubrics, review policy, an accent, and a disclaimer. It cannot supply HTML or an
@@ -310,6 +322,19 @@ and result accuracy. Deterministic unit tests cannot prove that a model will
 choose the right tool from natural language.
 
 ## Persistence
+
+### Package and draft lifecycle
+
+The application keeps at most one unfinished universal attempt. While that
+draft exists, another package cannot be started and that package cannot be
+replaced through `install_assessment`. The learner can resume it, restart it
+from an empty response state, or discard it from the assessment library.
+
+Only agent-installed packages can be deleted. Deleting one also discards its
+unfinished draft, if present, but never deletes submitted attempts. History and
+result review continue to work because every submission owns an immutable
+package, response, and result snapshot. These lifecycle actions belong to the
+human interface; they are not button-shaped WebMCP tools.
 
 The universal lane uses three tables in the same local database as native IELTS:
 

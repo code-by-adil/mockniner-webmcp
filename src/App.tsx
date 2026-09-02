@@ -330,6 +330,9 @@ export default function App() {
         assessmentHistory={assessmentApplication.history}
         onStartAssessment={assessmentApplication.commands.start}
         onResumeAssessment={assessmentApplication.commands.resume}
+        onRestartAssessment={assessmentApplication.commands.restart}
+        onDiscardAssessment={assessmentApplication.commands.discard}
+        onDeleteAssessment={assessmentApplication.commands.deleteAssessment}
         onReviewAssessment={assessmentApplication.commands.openAttempt}
       />
     );

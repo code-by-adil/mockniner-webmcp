@@ -521,13 +521,17 @@ export type AssessmentSubmission = {
   startedAt: string;
   submittedAt: string;
 };
+export type AssessmentEvaluationStatus =
+  | "not_required"
+  | "awaiting_evaluation"
+  | "evaluated";
 export type AssessmentHistoryEntry = {
   attemptId: string;
   packageId: string;
   title: string;
   rawScore: number;
   maximumScore: number;
-  awaitingEvaluationCount: number;
+  evaluationStatus: AssessmentEvaluationStatus;
   submittedAt: string;
 };
 
