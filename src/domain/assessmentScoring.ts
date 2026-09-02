@@ -1,12 +1,54 @@
+import { z } from "zod";
 import type {
   AssessmentItem,
-  AssessmentItemResult,
   AssessmentPackage,
-  AssessmentResponse,
-  AssessmentResponseMap,
-  AssessmentResult,
   CandidateAssessmentPackage,
 } from "./assessmentContract";
+
+export type AssessmentResponse = string | string[] | Record<string, string>;
+export type AssessmentResponseMap = Record<string, AssessmentResponse>;
+
+const assessmentResponseSchema = z.union([
+  z.string(), z.array(z.string()), z.record(z.string(), z.string()),
+]);
+export const assessmentResponseMapSchema: z.ZodType<AssessmentResponseMap> =
+  z.record(z.string(), assessmentResponseSchema);
+
+type AssessmentItemResult = {
+  itemId: string;
+  partId: string;
+  domain?: string;
+  answered: boolean;
+  correct: boolean | null;
+};
+export type AssessmentResult = {
+  rawScore: number;
+  maximumScore: number;
+  answeredCount: number;
+  totalItems: number;
+  awaitingEvaluationCount: number;
+  itemResults: AssessmentItemResult[];
+  domains: Array<{ domain: string; correct: number; total: number }>;
+};
+
+export const assessmentResultSchema: z.ZodType<AssessmentResult> = z.strictObject({
+  rawScore: z.number().int().nonnegative(),
+  maximumScore: z.number().int().nonnegative(),
+  answeredCount: z.number().int().nonnegative(),
+  totalItems: z.number().int().nonnegative(),
+  awaitingEvaluationCount: z.number().int().nonnegative(),
+  itemResults: z.array(z.strictObject({
+    itemId: z.string().trim().min(1).max(100).regex(/^[a-z0-9][a-z0-9._-]*$/),
+    partId: z.string().trim().min(1).max(100).regex(/^[a-z0-9][a-z0-9._-]*$/),
+    domain: z.string().optional(),
+    answered: z.boolean(),
+    correct: z.boolean().nullable(),
+  })),
+  domains: z.array(z.strictObject({
+    domain: z.string().min(1), correct: z.number().int().nonnegative(),
+    total: z.number().int().nonnegative(),
+  })),
+});
 
 function normalizeText(value: string, ignorePunctuation = false): string {
   const normalized = value.trim().toLocaleLowerCase().replace(/\s+/g, " ");

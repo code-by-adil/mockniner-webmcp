@@ -1,13 +1,11 @@
 import { z } from "zod";
 import {
-  objectiveContentDocumentSchema,
   parseObjectiveContentDocument,
   type ListeningContentDocument,
   type ObjectiveContentDocument,
   type ReadingContentDocument,
 } from "./objectiveContent";
 import {
-  writingContentDocumentSchema,
   parseWritingContentDocument,
   type WritingContentDocument,
 } from "./writingContent";
@@ -23,11 +21,6 @@ export type ActiveContentDocuments = {
   writing: WritingContentDocument;
 };
 
-const practiceContentDocumentSchema = z.union([
-  objectiveContentDocumentSchema,
-  writingContentDocumentSchema,
-]);
-
 const contentSectionSchema = z.object({
   section: z.enum(["listening", "reading", "writing"]),
 });
@@ -39,10 +32,6 @@ export function parsePracticeContentDocument(
   return section === "writing"
     ? parseWritingContentDocument(input)
     : parseObjectiveContentDocument(input);
-}
-
-export function getPracticeContentJsonSchema() {
-  return z.toJSONSchema(practiceContentDocumentSchema, { target: "draft-07" });
 }
 
 export function replaceActiveContent(

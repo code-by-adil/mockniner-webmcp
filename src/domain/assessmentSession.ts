@@ -1,18 +1,24 @@
 import { z } from "zod";
 import {
-  assessmentResponseMapSchema,
+  type AssessmentPackage,
+} from "./assessmentContract";
+import type {
+  AssessmentEvaluation,
+} from "./assessmentEvaluation";
+import {
   assessmentPartHasTool,
   findAssessmentItem,
   findAssessmentPart,
-  type AssessmentEvaluation,
-  type AssessmentPackage,
+} from "./assessmentSelectors";
+import {
+  assessmentResponseMapSchema,
   type AssessmentResponse,
   type AssessmentResponseMap,
-  type AssessmentSubmission,
-} from "./assessment";
+} from "./assessmentScoring";
+import type { AssessmentSubmission } from "./assessmentSubmission";
 
-export type AssessmentSessionView = "home" | "assessment" | "result";
-export type AssessmentWorkspace = {
+type AssessmentSessionView = "home" | "assessment" | "result";
+type AssessmentWorkspace = {
   markedItemIds: string[];
   eliminatedOptionIds: Record<string, string[]>;
   timerHidden: boolean;

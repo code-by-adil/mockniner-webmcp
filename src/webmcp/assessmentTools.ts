@@ -4,14 +4,16 @@ import { getAssessmentAuthoringKit } from "@/content/assessmentExamples";
 import {
   assessmentEvaluationInputSchema,
   ASSESSMENT_AUTHORING_TEMPLATE_IDS,
-  getAssessmentEvaluationJsonSchema,
   getAssessmentEvaluationStatus,
   getAssessmentItemCount,
-  getAssessmentPackageJsonSchema,
   stripAssessmentAnswers,
   type AssessmentEvaluation,
   type AssessmentSubmission,
 } from "@/domain/assessment";
+import {
+  getAssessmentEvaluationJsonSchema,
+  getAssessmentPackageJsonSchema,
+} from "./assessmentSchemas";
 import {
   getToolExecutionSignal,
   throwIfCancelled,

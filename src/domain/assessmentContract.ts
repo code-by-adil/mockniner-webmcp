@@ -16,7 +16,7 @@ const groupedChoiceGroupSchema = z.strictObject({
   .describe("One labeled choice group with its own answer options.")
   .meta({ id: "GroupedChoiceGroup" });
 
-export const assessmentContentBlockSchema = z.discriminatedUnion("type", [
+const assessmentContentBlockSchema = z.discriminatedUnion("type", [
   z.strictObject({
     type: z.literal("text"), text: bodyTextSchema,
     variant: z.enum(["title", "subtitle", "body", "muted"]).optional(),
@@ -43,7 +43,7 @@ export const assessmentContentBlockSchema = z.discriminatedUnion("type", [
   .describe("Trusted content rendered by the application. It cannot contain HTML or executable code.")
   .meta({ id: "AssessmentContentBlock" });
 
-export const assessmentInteractionSchema = z.discriminatedUnion("type", [
+const assessmentInteractionSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("single_choice"), options: z.array(optionSchema).min(2).max(12) }),
   z.strictObject({
     type: z.literal("multiple_choice"), options: z.array(optionSchema).min(2).max(20),
@@ -94,7 +94,7 @@ const rubricCriterionSchema = z.strictObject({
   id: identifierSchema, label: shortTextSchema, description: bodyTextSchema,
   weight: z.number().positive().max(1).optional(),
 });
-export const assessmentRubricSchema = z.strictObject({
+const assessmentRubricSchema = z.strictObject({
   id: identifierSchema, title: shortTextSchema,
   scale: z.strictObject({
     minimum: z.number().finite(), maximum: z.number().finite(), step: z.number().positive().finite(),
@@ -106,7 +106,7 @@ export const assessmentRubricSchema = z.strictObject({
   .describe("The scale and criteria used to evaluate every agent-scored item in the package.")
   .meta({ id: "AssessmentRubric" });
 
-export const assessmentItemSchema = z.strictObject({
+const assessmentItemSchema = z.strictObject({
   id: identifierSchema,
   domain: shortTextSchema.optional(),
   skill: shortTextSchema.optional(),
@@ -181,7 +181,7 @@ const assessmentPackageContentSchema = z.strictObject(assessmentPackageFields)
   .describe("One complete universal assessment package. The application adds source after validation.");
 export const assessmentAuthoringPackageSchema = assessmentPackageContentSchema
   .superRefine(validateAssessmentPackage);
-export const assessmentPackageSchema = z.strictObject({
+const assessmentPackageSchema = z.strictObject({
   ...assessmentPackageFields,
   source: z.enum(["built-in", "agent"]),
 }).superRefine(validateAssessmentPackage);
@@ -487,135 +487,10 @@ export type CandidateAssessmentPackage = Omit<AssessmentPackage, "parts"> & {
 export type AssessmentContentBlock = z.infer<typeof assessmentContentBlockSchema>;
 export type AssessmentInteraction = z.infer<typeof assessmentInteractionSchema>;
 export type AssessmentRubric = z.infer<typeof assessmentRubricSchema>;
-export type AssessmentResponse = string | string[] | Record<string, string>;
-export type AssessmentResponseMap = Record<string, AssessmentResponse>;
-
-export const assessmentResponseSchema = z.union([
-  z.string(), z.array(z.string()), z.record(z.string(), z.string()),
-]);
-export const assessmentResponseMapSchema: z.ZodType<AssessmentResponseMap> =
-  z.record(z.string(), assessmentResponseSchema);
-
-export type AssessmentItemResult = {
-  itemId: string;
-  partId: string;
-  domain?: string;
-  answered: boolean;
-  correct: boolean | null;
-};
-export type AssessmentResult = {
-  rawScore: number;
-  maximumScore: number;
-  answeredCount: number;
-  totalItems: number;
-  awaitingEvaluationCount: number;
-  itemResults: AssessmentItemResult[];
-  domains: Array<{ domain: string; correct: number; total: number }>;
-};
-export type AssessmentSubmission = {
-  attemptId: string;
-  packageId: string;
-  package: AssessmentPackage;
-  responses: AssessmentResponseMap;
-  result: AssessmentResult;
-  startedAt: string;
-  submittedAt: string;
-};
-export type AssessmentEvaluationStatus =
-  | "not_required"
-  | "awaiting_evaluation"
-  | "evaluated";
-export type AssessmentHistoryEntry = {
-  attemptId: string;
-  packageId: string;
-  title: string;
-  rawScore: number;
-  maximumScore: number;
-  evaluationStatus: AssessmentEvaluationStatus;
-  submittedAt: string;
-};
-
-export const assessmentResultSchema: z.ZodType<AssessmentResult> = z.strictObject({
-  rawScore: z.number().int().nonnegative(),
-  maximumScore: z.number().int().nonnegative(),
-  answeredCount: z.number().int().nonnegative(),
-  totalItems: z.number().int().nonnegative(),
-  awaitingEvaluationCount: z.number().int().nonnegative(),
-  itemResults: z.array(z.strictObject({
-    itemId: identifierSchema,
-    partId: identifierSchema,
-    domain: z.string().optional(),
-    answered: z.boolean(),
-    correct: z.boolean().nullable(),
-  })),
-  domains: z.array(z.strictObject({
-    domain: z.string().min(1), correct: z.number().int().nonnegative(),
-    total: z.number().int().nonnegative(),
-  })),
-});
-
-const evaluationScoreSchema = z.strictObject({
-  criterionId: identifierSchema, score: z.number().finite(), feedback: bodyTextSchema,
-  evidence: z.array(bodyTextSchema).max(20).default([]),
-});
-export const assessmentEvaluationInputSchema = z.strictObject({
-  attemptId: z.uuid(),
-  rubricId: identifierSchema,
-  overallScore: z.number().finite(),
-  criteria: z.array(evaluationScoreSchema).min(1).max(20),
-  summary: bodyTextSchema,
-  strengths: z.array(shortTextSchema).min(1).max(10),
-  improvements: z.array(shortTextSchema).min(1).max(10),
-  annotations: z.array(z.strictObject({
-    itemId: identifierSchema, originalText: bodyTextSchema,
-    suggestion: bodyTextSchema, explanation: bodyTextSchema,
-  })).max(100).default([]),
-});
-export const assessmentEvaluationSchema = assessmentEvaluationInputSchema.extend({
-  evaluatedAt: z.iso.datetime({ offset: true }),
-});
-export type AssessmentEvaluationInput = z.infer<typeof assessmentEvaluationInputSchema>;
-export type AssessmentEvaluation = z.infer<typeof assessmentEvaluationSchema>;
 
 export function parseAssessmentPackage(input: unknown): AssessmentPackage {
   return assessmentPackageSchema.parse(input);
 }
 export function parseAssessmentAuthoringPackage(input: unknown): AssessmentAuthoringPackage {
   return assessmentAuthoringPackageSchema.parse(input);
-}
-
-// The registered schema teaches the package shape. The Zod parser below remains
-// the authority for detailed bounds and returns repairable validation paths.
-const agentSchemaOmittedKeywords = new Set([
-  "default",
-  "exclusiveMinimum",
-  "maxItems",
-  "maxLength",
-  "maximum",
-  "minItems",
-  "minLength",
-  "minimum",
-  "pattern",
-]);
-
-function compactAgentSchema(value: unknown, parentKey?: string): unknown {
-  if (Array.isArray(value)) return value.map((entry) => compactAgentSchema(entry, parentKey));
-  if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([key]) =>
-        parentKey === "properties" || parentKey === "definitions" || !agentSchemaOmittedKeywords.has(key))
-      .map(([key, entry]) => [key, compactAgentSchema(entry, key)]),
-  );
-}
-
-export function getAssessmentPackageJsonSchema() {
-  const schema = z.toJSONSchema(assessmentAuthoringPackageSchema, {
-    target: "draft-07",
-    io: "input",
-  });
-  return compactAgentSchema(schema) as typeof schema;
-}
-export function getAssessmentEvaluationJsonSchema() {
-  return z.toJSONSchema(assessmentEvaluationInputSchema, { target: "draft-07" });
 }

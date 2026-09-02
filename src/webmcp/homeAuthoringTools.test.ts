@@ -1,11 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { getAssessmentAuthoringKit } from "@/content/assessmentExamples";
-import { getPracticeContentJsonSchema } from "@/domain/contentDocument";
+import { objectiveContentDocumentSchema } from "@/domain/objectiveContent";
+import { writingContentDocumentSchema } from "@/domain/writingContent";
 import {
   ASSESSMENT_AUTHORING_TEMPLATE_IDS,
   parseAssessmentAuthoringPackage,
 } from "@/domain/assessment";
-import { getIeltsAuthoringKit, IELTS_AUTHORING_SECTIONS } from "./ieltsAuthoring";
+import {
+  getIeltsAuthoringKit,
+  IELTS_AUTHORING_SECTIONS,
+} from "./ieltsAuthoring";
 import { createHomeAuthoringToolDefinitions } from "./homeAuthoringTools";
 
 function homeTools() {
@@ -34,7 +39,10 @@ describe("home authoring WebMCP contracts", () => {
       (tool) => tool.name === "install_ielts_practice_set",
     );
     const compactSchemaSize = JSON.stringify(installTool?.inputSchema).length;
-    const fullSchemaSize = JSON.stringify(getPracticeContentJsonSchema()).length;
+    const fullSchemaSize = JSON.stringify(z.toJSONSchema(z.union([
+      objectiveContentDocumentSchema,
+      writingContentDocumentSchema,
+    ]), { target: "draft-07" })).length;
 
     expect(compactSchemaSize).toBeLessThan(fullSchemaSize * 0.1);
   });
@@ -45,6 +53,15 @@ describe("home authoring WebMCP contracts", () => {
       expect(kit.section).toBe(section);
       expect(kit.documentSchema.properties?.section).toMatchObject({ const: section });
     }
+
+    const listeningSchema = JSON.stringify(
+      getIeltsAuthoringKit("listening").documentSchema,
+    );
+    expect(listeningSchema).toContain('"audio"');
+    expect(listeningSchema).toContain('"kokoro"');
+    expect(listeningSchema).toContain('"parts"');
+    expect(listeningSchema).toContain('"contentKey"');
+    expect(listeningSchema).toContain('"local-original"');
   });
 
   it("keeps every universal example valid and the GRE limits explicit", () => {

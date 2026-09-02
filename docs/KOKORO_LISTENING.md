@@ -77,8 +77,10 @@ characters across the complete test, and 30 minutes of explicit silence. These
 limits reject accidentally unbounded generation without making the agent
 manually optimize audio chunks.
 
-The authoritative executable contract is the Zod schema in
-`src/domain/objectiveContent.ts`. Call `get_ielts_authoring_kit` with
+The authoritative executable contract is the Zod schema exported through
+`src/domain/objectiveContent.ts`. Its implementation separates core objective
+blocks, Listening audio, map data, and whole-document validation. Call
+`get_ielts_authoring_kit` with
 `section: "listening"` to load that section's schema, then pass the complete
 document to `install_ielts_practice_set`. Installation invokes the existing
 `installContent` command.

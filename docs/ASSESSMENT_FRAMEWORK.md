@@ -44,6 +44,14 @@ custom assessments use the same package contract. A named authoring template is
 an example for the agent. It does not add an exam-specific branch to the
 runtime.
 
+The domain modules own the executable contract. `assessmentContract.ts`
+defines and validates packages, `assessmentScoring.ts` owns response and result
+records, `assessmentEvaluation.ts` owns rubric evaluation payloads, and
+`assessmentSubmission.ts` owns immutable submission and history records.
+`assessmentSession.ts` owns the live runner state. WebMCP
+converts those authoritative Zod schemas into the compact JSON Schema shown to
+agents. That teaching schema is not a second validation contract.
+
 ## Instructions for agents
 
 Use `get_ielts_authoring_kit` followed by `install_ielts_practice_set` for

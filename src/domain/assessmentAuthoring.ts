@@ -1,5 +1,5 @@
-export const ASSESSMENT_CONTENT_BLOCKS = ["text", "passage", "math", "table", "bar_chart"] as const;
-export const ASSESSMENT_INTERACTIONS = [
+const ASSESSMENT_CONTENT_BLOCKS = ["text", "passage", "math", "table", "bar_chart"] as const;
+const ASSESSMENT_INTERACTIONS = [
   "single_choice",
   "multiple_choice",
   "text_entry",
@@ -8,8 +8,8 @@ export const ASSESSMENT_INTERACTIONS = [
   "matching",
   "grouped_choice",
 ] as const;
-export const ASSESSMENT_SCORING_RULES = ["exact", "aliases", "set", "numeric", "mapping", "agent"] as const;
-export const ASSESSMENT_TOOLS = [
+const ASSESSMENT_SCORING_RULES = ["exact", "aliases", "set", "numeric", "mapping", "agent"] as const;
+const ASSESSMENT_TOOLS = [
   "mark_for_review", "option_eliminator", "calculator", "reference_document",
 ] as const;
 
@@ -21,20 +21,20 @@ export const ASSESSMENT_AUTHORING_TEMPLATE_IDS = [
 ] as const;
 export type AssessmentAuthoringTemplateId = typeof ASSESSMENT_AUTHORING_TEMPLATE_IDS[number];
 
-export type AssessmentCoverage = {
+type AssessmentCoverage = {
   supported: string[];
   limited: Array<{ capability: string; note: string }>;
   unsupported: Array<{ capability: string; note: string }>;
 };
 
-export type AssessmentAuthoringTemplate = {
+type AssessmentAuthoringTemplate = {
   id: AssessmentAuthoringTemplateId;
   title: string;
   useWhen: string;
   coverage: AssessmentCoverage;
 };
 
-export const ASSESSMENT_AUTHORING_TEMPLATES: readonly AssessmentAuthoringTemplate[] = [
+const ASSESSMENT_AUTHORING_TEMPLATES: readonly AssessmentAuthoringTemplate[] = [
   {
     id: "minimal-objective",
     title: "Minimal objective assessment",

@@ -7,7 +7,6 @@ import {
   assessmentEvaluationInputSchema,
   getAssessmentItemLayout,
   getAssessmentPartResources,
-  getAssessmentPackageJsonSchema,
   getAssessmentResponseGuidance,
   gradeAssessment,
   parseAssessmentAuthoringPackage,
@@ -93,8 +92,6 @@ describe("assessment domain", () => {
     expect(parseAssessmentAuthoringPackage(authorable).packageId).toBe(authorable.packageId);
     expect(() => parseAssessmentAuthoringPackage(satPracticeAssessment)).toThrow(/Unrecognized key/);
 
-    const schema = getAssessmentPackageJsonSchema() as { properties?: Record<string, unknown> };
-    expect(schema.properties).not.toHaveProperty("source");
   });
 
   it("derives runtime resources and layouts directly from the validated package", () => {
@@ -243,21 +240,6 @@ describe("assessment domain", () => {
       expect(kit.examplePackage).not.toHaveProperty("source");
       expect(kit.nextAction).toContain("install_assessment");
     });
-  });
-
-  it("uses references to keep the registered authoring schema compact", () => {
-    const schema = getAssessmentPackageJsonSchema() as {
-      definitions?: Record<string, unknown>;
-      properties?: Record<string, unknown>;
-    };
-    const serialized = JSON.stringify(schema);
-    expect(schema.definitions).toHaveProperty("AssessmentInteraction");
-    expect(schema.definitions).toHaveProperty("AssessmentContentBlock");
-    expect(schema.definitions).toHaveProperty("AssessmentRubric.properties.scale.properties.minimum");
-    expect(schema.definitions).toHaveProperty("AssessmentRubric.properties.scale.properties.maximum");
-    expect(serialized).toContain('"$ref"');
-    expect(serialized.length).toBeLessThan(11_000);
-    expect(schema.properties).not.toHaveProperty("source");
   });
 
   it("removes answer keys from candidate-visible packages", () => {

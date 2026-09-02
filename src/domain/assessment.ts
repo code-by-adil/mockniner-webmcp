@@ -3,3 +3,7 @@ export * from "./assessmentAuthoring";
 export * from "./assessmentEvaluation";
 export * from "./assessmentSelectors";
 export * from "./assessmentScoring";
+export type {
+  AssessmentHistoryEntry,
+  AssessmentSubmission,
+} from "./assessmentSubmission";

@@ -1,12 +1,40 @@
+import { z } from "zod";
 import type {
-  AssessmentEvaluation,
-  AssessmentEvaluationInput,
   AssessmentEvaluationStatus,
-  AssessmentResult,
   AssessmentSubmission,
-} from "./assessmentContract";
-import { hasAssessmentResponse } from "./assessmentScoring";
+} from "./assessmentSubmission";
+import {
+  hasAssessmentResponse,
+  type AssessmentResult,
+} from "./assessmentScoring";
 
+const identifierSchema = z.string().trim().min(1).max(100)
+  .regex(/^[a-z0-9][a-z0-9._-]*$/);
+const shortTextSchema = z.string().trim().min(1).max(500);
+const bodyTextSchema = z.string().trim().min(1).max(20_000);
+const evaluationScoreSchema = z.strictObject({
+  criterionId: identifierSchema, score: z.number().finite(), feedback: bodyTextSchema,
+  evidence: z.array(bodyTextSchema).max(20).default([]),
+});
+
+export const assessmentEvaluationInputSchema = z.strictObject({
+  attemptId: z.uuid(),
+  rubricId: identifierSchema,
+  overallScore: z.number().finite(),
+  criteria: z.array(evaluationScoreSchema).min(1).max(20),
+  summary: bodyTextSchema,
+  strengths: z.array(shortTextSchema).min(1).max(10),
+  improvements: z.array(shortTextSchema).min(1).max(10),
+  annotations: z.array(z.strictObject({
+    itemId: identifierSchema, originalText: bodyTextSchema,
+    suggestion: bodyTextSchema, explanation: bodyTextSchema,
+  })).max(100).default([]),
+});
+export const assessmentEvaluationSchema = assessmentEvaluationInputSchema.extend({
+  evaluatedAt: z.iso.datetime({ offset: true }),
+});
+export type AssessmentEvaluationInput = z.infer<typeof assessmentEvaluationInputSchema>;
+export type AssessmentEvaluation = z.infer<typeof assessmentEvaluationSchema>;
 export function getAssessmentEvaluationStatus(
   result: AssessmentResult,
   evaluation?: AssessmentEvaluation | null,
