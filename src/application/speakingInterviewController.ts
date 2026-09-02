@@ -2,11 +2,15 @@ import { ApplicationError } from '@/domain/errors'
 import { speakingPlanSchema, type SpeakingPlan } from '@/domain/speakingPlan'
 
 export type SpeakingProgress = {
+  contentKey?: string
+  title?: string
   phase: string
   currentQuestion: number
   totalQuestions: number
   recordedAnswers: number
   skippedAnswers: number
+  part?: number
+  secondsRemaining?: number | null
 }
 export type SpeakingInterviewBinding = {
   configure: (plan: SpeakingPlan) => void
@@ -14,7 +18,8 @@ export type SpeakingInterviewBinding = {
 }
 export type BindSpeakingInterview = (binding: SpeakingInterviewBinding) => () => void
 
-// The visible runner owns the plan and lifecycle. WebMCP shares those commands;
+// The visible runner owns the lifecycle and persists plans through app commands.
+// WebMCP shares those commands;
 // there is no agent-only question queue or long-lived per-question tool call.
 export function createSpeakingInterviewController() {
   let binding: SpeakingInterviewBinding | null = null
@@ -24,6 +29,11 @@ export function createSpeakingInterviewController() {
   }
   return {
     bind,
+    canLeave() {
+      if (!binding) return false
+      const progress = binding.read()
+      return progress.phase === 'setup' && progress.recordedAnswers === 0 && progress.skippedAnswers === 0
+    },
     configure(input: SpeakingPlan) {
       if (!binding) throw new ApplicationError('SPEAKING_NOT_OPEN', 'Open Speaking practice before installing an interview.', true)
       const plan = speakingPlanSchema.parse(input)

@@ -3,6 +3,21 @@ import { createSpeakingInterviewController } from './speakingInterviewController
 import { defaultSpeakingPlan } from '@/domain/speakingPlan'
 
 describe('Speaking plan command bridge', () => {
+  it.each(['preparing', 'buffering', 'speaking', 'thinking', 'ready', 'starting', 'recording', 'stopping', 'saving', 'error', 'save-error'])(
+    'protects the %s lifecycle from agent navigation', phase => {
+      const controller = createSpeakingInterviewController();
+      controller.bind({ configure: vi.fn(), read: () => ({ phase, currentQuestion: 1, totalQuestions: 10, recordedAnswers: 0, skippedAnswers: 0 }) });
+      expect(controller.canLeave()).toBe(false);
+    },
+  );
+  it('only leaves setup if it has no unsaved response records', () => {
+    const controller = createSpeakingInterviewController();
+    const progress = { phase: 'setup', currentQuestion: 1, totalQuestions: 10, recordedAnswers: 0, skippedAnswers: 0 };
+    controller.bind({ configure: vi.fn(), read: () => progress });
+    expect(controller.canLeave()).toBe(true);
+    progress.skippedAnswers = 1;
+    expect(controller.canLeave()).toBe(false);
+  });
   it('uses the visible runner and exposes no live transcripts', () => {
     const controller = createSpeakingInterviewController()
     expect(() => controller.configure(defaultSpeakingPlan)).toThrow('Open Speaking')

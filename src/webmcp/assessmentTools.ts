@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assessmentSubmissionForAgent } from '@/domain/assessmentReview';
 import { readSelectedSubmission, submissionSelectionSchema } from './submissionSelection';
 import type { AssessmentApplicationCommands } from "@/application/assessmentCommands";
 import { getAssessmentAuthoringKit } from "@/content/assessmentExamples";
@@ -7,7 +8,6 @@ import {
   ASSESSMENT_AUTHORING_TEMPLATE_IDS,
   getAssessmentEvaluationStatus,
   getAssessmentItemCount,
-  stripAssessmentAnswers,
   type AssessmentEvaluation,
   type AssessmentSubmission,
 } from "@/domain/assessment";
@@ -128,7 +128,7 @@ export function createAssessmentToolDefinitions({
     name: "get_assessment_submission",
     title: "Read assessment submission",
     description:
-      "Read the visible universal assessment submission, responses, objective result, rubrics and attached evaluation, without answer keys. No parameters means the submission on screen. Use latest: true for the newest saved attempt, or attemptId for an exact historical attempt. Reading never changes the visible page.",
+      "Read a submitted assessment. Review policy: answers includes keys and correctness; responses omits both; none hides objective item details. Rubric-scored responses remain available for evaluation. No parameters means the visible submission; use latest: true or attemptId for history. Never reads drafts or navigates.",
     inputSchema: submissionSelectionSchema,
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     execute: async (input, options) => {
@@ -151,15 +151,7 @@ export function createAssessmentToolDefinitions({
         data: {
           selection,
           evaluation: stored.evaluation,
-          submission: {
-            attemptId: stored.submission.attemptId,
-            packageId: stored.submission.packageId,
-            package: stripAssessmentAnswers(stored.submission.package),
-            responses: stored.submission.responses,
-            result: stored.submission.result,
-            startedAt: stored.submission.startedAt,
-            submittedAt: stored.submission.submittedAt,
-          },
+          submission: assessmentSubmissionForAgent(stored.submission),
           evaluationStatus: getAssessmentEvaluationStatus(
             stored.submission.result,
             stored.evaluation,

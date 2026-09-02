@@ -10,16 +10,33 @@ const bandScoreSchema = z
 
 const feedbackPointSchema = z.string().trim().min(1).max(500)
 
-export const speakingEvaluationInputSchema = z.strictObject({
+const feedbackFields = {
   attemptId: z.uuid(),
+  summary: z.string().trim().min(1).max(2_000),
+  strengths: z.array(feedbackPointSchema).max(6),
+  improvements: z.array(feedbackPointSchema).min(1).max(6),
+}
+
+export const scoredSpeakingEvaluationSchema = z.strictObject({
+  ...feedbackFields,
+  // Omitted on older saved evaluations and existing agent payloads.
+  status: z.literal('scored').optional(),
   overallBand: bandScoreSchema,
   fluencyCoherence: bandScoreSchema,
   lexicalResource: bandScoreSchema,
   grammaticalRangeAccuracy: bandScoreSchema,
-  summary: z.string().trim().min(1).max(2_000),
   strengths: z.array(feedbackPointSchema).min(1).max(6),
-  improvements: z.array(feedbackPointSchema).min(1).max(6),
 })
+
+export const unscoredSpeakingEvaluationSchema = z.strictObject({
+  ...feedbackFields,
+  status: z.literal('insufficient_evidence'),
+  reason: z.string().trim().min(1).max(2_000),
+})
+
+export const speakingEvaluationInputSchema = z.union([
+  scoredSpeakingEvaluationSchema, unscoredSpeakingEvaluationSchema,
+])
 
 export type SpeakingEvaluationInput = z.infer<
   typeof speakingEvaluationInputSchema

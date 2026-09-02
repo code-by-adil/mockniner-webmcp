@@ -27,33 +27,37 @@ export function SpeakingAttemptReview({ submission, evaluation, onExit, backLabe
           </button>
           <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
             <section className="rounded-xl border border-[var(--exam-border-muted)] bg-[var(--exam-surface)] p-6 shadow-sm">
-              <div className="text-xs font-bold uppercase tracking-widest text-[var(--exam-text-muted)]">Transcript-based estimate</div>
-              <div className="mt-3 flex items-end gap-3">
+              <div className="text-xs font-bold uppercase tracking-widest text-[var(--exam-text-muted)]">Transcript-based feedback</div>
+              {evaluation.status === 'insufficient_evidence' ? <div className="mt-3">
+                <h1 className="text-2xl font-bold">Insufficient evidence to score</h1>
+                <p className="mt-3 text-sm leading-6">{evaluation.reason}</p>
+                <p className="mt-2 text-sm font-semibold">No band assigned.</p>
+              </div> : <div className="mt-3 flex items-end gap-3">
                 <span className="text-6xl font-extrabold text-[var(--exam-accent)]">{evaluation.overallBand}</span>
                 <span className="pb-2 text-sm font-bold text-[var(--exam-text-muted)]">Overall band</span>
-              </div>
+              </div>}
               <p className="mt-5 leading-7 text-[var(--exam-text-muted)]">{evaluation.summary}</p>
               <div className="mt-7 grid gap-3">
-                {criteria.map(([label, key]) => (
+                {evaluation.status !== 'insufficient_evidence' ? criteria.map(([label, key]) => (
                   <div key={key} className="flex items-center justify-between rounded border border-[var(--exam-border-muted)] px-4 py-3">
                     <span className="text-sm font-semibold">{label}</span>
                     <span className="text-lg font-extrabold text-[var(--exam-accent)]">{evaluation[key]}</span>
                   </div>
-                ))}
+                )) : null}
                 <div className="rounded border border-[var(--exam-border-muted)] bg-[var(--exam-surface-muted)] px-4 py-3">
                   <div className="flex items-center gap-2 text-sm font-semibold"><Volume2 size={16} /> Pronunciation not scored</div>
                   <p className="mt-1 text-xs leading-5 text-[var(--exam-text-muted)]">The agent evaluated the completed interview transcript and did not receive your locally stored audio.</p>
                 </div>
               </div>
 
-              <div className="mt-8">
+              {evaluation.strengths.length > 0 ? <div className="mt-8">
                 <h2 className="font-bold">Strengths</h2>
                 <ul className="mt-3 space-y-2">
                   {evaluation.strengths.map((strength) => (
                     <li key={strength} className="flex gap-2 text-sm leading-6"><CheckCircle2 size={17} className="mt-1 shrink-0 text-emerald-600" />{strength}</li>
                   ))}
                 </ul>
-              </div>
+              </div> : null}
               <div className="mt-7">
                 <h2 className="font-bold">What to improve</h2>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-[var(--exam-text-muted)]">

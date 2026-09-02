@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { writingDocument } from "@/content/writing";
-import { initialSession, type IeltsSession } from "@/domain/session";
+import { initialSession, sessionReducer, getIeltsDrafts, type IeltsSession } from "@/domain/session";
 import { loadSession, saveSession } from "./ieltsSessionStorage";
+import { defaultSpeakingPlan } from '@/domain/speakingPlan';
 import type { WritingSubmission } from "@/domain/types";
 
 const id = "22222222-2222-4222-8222-222222222222";
@@ -48,6 +49,52 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("native session storage", () => {
+  it('retains the exact configured Speaking plan and attempt identity after reload', async () => {
+    const speaking = { ...initialSession, mode: 'section' as const, view: 'exam' as const,
+      currentSection: 'speaking' as const, attemptId: id,
+      speakingPlan: { ...defaultSpeakingPlan, contentKey: 'reload-plan', title: 'Saved custom interview' } };
+    saveSession(speaking);
+    expect(await loadSession(reader)).toMatchObject({ attemptId: id, speakingPlan: speaking.speakingPlan });
+  });
+  it('round trips all five independent slots, plans, answer positions and timers', async () => {
+    let state = initialSession;
+    for (const [index, section] of (['speaking', 'reading', 'writing', 'listening', 'listening'] as const).entries()) {
+      state = sessionReducer(state, { type: 'START', mode: index === 4 ? 'full' : 'section', section, attemptId: crypto.randomUUID(), startedAt: submission.startedAt });
+      if (section === 'speaking') state = sessionReducer(state, { type: 'SET_SPEAKING_PLAN', plan: defaultSpeakingPlan });
+      if (section === 'reading') state = sessionReducer(state, { type: 'SET_ANSWER', section, questionId: 1, value: 'TRUE' });
+      if (section === 'writing') state = sessionReducer(state, { type: 'SET_WRITING', task: 1, value: 'My preserved draft.' });
+      state = sessionReducer(state, { type: 'SET_PART', section, part: 2 });
+      state = sessionReducer(state, { type: 'TICK', section });
+    }
+    saveSession(state);
+    const restored = await loadSession(reader);
+    expect(getIeltsDrafts(restored)).toHaveLength(5);
+    for (const draft of getIeltsDrafts(state)) {
+      const resumed = sessionReducer(sessionReducer(restored, { type: 'GO_HOME' }), { type: 'RESUME', targetAttemptId: draft.attemptId!, attemptId: crypto.randomUUID(), startedAt: submission.startedAt });
+      expect(resumed.speakingPlan).toEqual(draft.speakingPlan);
+      expect(resumed).toMatchObject({ attemptId: draft.attemptId, answers: draft.answers,
+        writingDrafts: draft.writingDrafts, partBySection: draft.partBySection, secondsRemaining: draft.secondsRemaining });
+      expect(getIeltsDrafts(resumed)).toHaveLength(5);
+    }
+  });
+  it('migrates version-one snapshots without losing a draft and preserves invalid plans for recovery', async () => {
+    saveSession({ ...session, speakingPlan: defaultSpeakingPlan });
+    const old = JSON.parse(values.get('ielts-practice-session-v4')!);
+    old.version = 1; delete old.pausedDrafts; delete old.draft.speakingPlan;
+    values.set('ielts-practice-session-v4', JSON.stringify(old));
+    expect(await loadSession(reader)).toMatchObject({ attemptId: id, pausedDrafts: [] });
+    old.draft.speakingPlan = { ...defaultSpeakingPlan, questions: [] };
+    const malformed = JSON.stringify(old);
+    values.set('ielts-practice-session-v4', malformed);
+    await expect(loadSession(reader)).rejects.toThrow('session metadata is invalid');
+    expect(values.get('ielts-practice-session-v4')).toBe(malformed);
+  });
+  it('keeps parked drafts when the current slot is reset', async () => {
+    let state = sessionReducer(initialSession, { type: 'START', mode: 'section', section: 'speaking', attemptId: id, startedAt: submission.startedAt });
+    state = sessionReducer(state, { type: 'START', mode: 'section', section: 'reading', attemptId: crypto.randomUUID(), startedAt: submission.startedAt });
+    saveSession(sessionReducer(state, { type: 'RESET' }));
+    expect(getIeltsDrafts(await loadSession(reader))).toMatchObject([{ attemptId: id, currentSection: 'speaking' }]);
+  });
   it("stores only drafts and IDs, then restores submitted work from its repository", async () => {
     saveSession(session);
     const stored = [...values.values()][0];

@@ -27,7 +27,7 @@ export function createIeltsRepository(
 ): AttemptReader & AttemptWriter {
   return {
     readLearningSummary: (limit) => readLearningSummary(database, limit),
-    readObjectiveAttempt: (id) => readObjectiveAttempt(database, id),
+    readObjectiveAttempt: (id, section) => readObjectiveAttempt(database, id, section),
     readWritingAttempt: (id) => readWritingAttempt(database, id),
     readSpeakingAttempt: (id) => readSpeakingAttempt(database, id),
     saveObjectiveAttempt: (input) => saveObjectiveAttempt(database, input),

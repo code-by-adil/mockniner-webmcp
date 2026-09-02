@@ -4,7 +4,9 @@ import { parsePracticeContentDocument } from '@/domain/contentDocument'
 import { listeningDocument, readingDocument } from '@/content/objective'
 import { writingDocument } from '@/content/writing'
 import { defaultSpeakingPlan } from '@/domain/speakingPlan'
-import { getResumablePractices, type PracticeWorkspace } from '@/application/practiceNavigation'
+import { getResumablePractices, getPracticeStartability, type PracticeWorkspace } from '@/application/practiceNavigation'
+import { getObjectiveBlockQuestionIds } from '@/domain/objectiveContent'
+import { getAssessmentItemCount, getAssessmentDurationSeconds } from '@/domain/assessmentScoring'
 import { SECTION_META } from '@/domain/sections'
 import { parseStoredObjectiveResult, parseStoredSpeakingEvaluation, parseStoredWritingEvaluation } from '@/domain/attemptValidation'
 import { assessmentResultSchema } from '@/domain/assessmentScoring'
@@ -27,12 +29,26 @@ export async function readPracticeLibrary(database: Pick<SQLocal, 'sql'>, worksp
     .map(document => [document.contentKey, document]))
   const items = [
     ...[...documents.values()].map(document => ({ kind: document.section, contentKey: document.contentKey, title: document.name,
+      durationSeconds: SECTION_META[document.section].durationSeconds, durationKind: 'time_limit',
+      itemCount: document.section === 'writing' ? document.tasks.length : document.parts.flatMap(p => p.blocks.flatMap(getObjectiveBlockQuestionIds)).length,
+      partCount: document.section === 'writing' ? 2 : document.parts.length,
+      subject: 'English', difficulty: null,
+      startability: getPracticeStartability(workspace, document.section, document.contentKey),
       active: workspace.content[document.section].contentKey === document.contentKey })),
-    { kind: 'speaking', title: defaultSpeakingPlan.title, active: true },
-    ...workspace.assessments.map(assessment => ({ kind: 'assessment', packageId: assessment.packageId, revision: assessment.revision, title: assessment.title, source: assessment.source })),
+    { kind: 'speaking', title: defaultSpeakingPlan.title, active: true, durationSeconds: SECTION_META.speaking.durationSeconds,
+      durationKind: 'estimate', itemCount: defaultSpeakingPlan.questions.length, partCount: 3, subject: 'English', difficulty: null,
+      startability: getPracticeStartability(workspace, 'speaking') },
+    ...workspace.assessments.map(assessment => ({ kind: 'assessment', packageId: assessment.packageId, revision: assessment.revision,
+      title: assessment.title, source: assessment.source, itemCount: getAssessmentItemCount(assessment), partCount: assessment.parts.length,
+      durationSeconds: assessment.parts.every(part => part.durationSeconds !== undefined) ? getAssessmentDurationSeconds(assessment) : null,
+      durationKind: assessment.parts.every(part => part.durationSeconds !== undefined) ? 'time_limit' : 'untimed_or_partial',
+      subject: assessment.metadata.subject ?? null, difficulty: assessment.metadata.difficulty ?? null,
+      startability: getPracticeStartability(workspace, 'assessment') })),
   ].filter(item => !input.kind || item.kind === input.kind)
   return { ...page(items, input), unavailableContentKeys, resumable: getResumablePractices(workspace), listeningAudio: workspace.listeningAudio,
-    fullIelts: { kind: 'full_ielts', title: 'Full IELTS Simulation' } }
+    fullIelts: { kind: 'full_ielts', title: 'Full IELTS Simulation',
+      durationSeconds: Object.values(SECTION_META).reduce((sum, section) => sum + section.durationSeconds, 0), durationKind: 'estimate',
+      startability: getPracticeStartability(workspace, 'full_ielts') } }
 }
 
 export async function readPracticeHistory(database: Pick<SQLocal, 'sql'>, input: DiscoveryPage) {
@@ -69,7 +85,9 @@ export async function readPracticeHistory(database: Pick<SQLocal, 'sql'>, input:
         ...(evaluation ? { evaluationScore: evaluation.overallScore } : {}) }
     }
     const evaluation = row.evaluationJson ? (row.kind === 'writing' ? parseStoredWritingEvaluation : parseStoredSpeakingEvaluation)(row.evaluationJson) : null
-    return { ...common, evaluationStatus: evaluation ? 'evaluated' : 'awaiting_evaluation', ...(evaluation ? { band: evaluation.overallBand } : {}) }
+    const unscored = evaluation && 'status' in evaluation && evaluation.status === 'insufficient_evidence'
+    return { ...common, evaluationStatus: unscored ? 'insufficient_evidence' : evaluation ? 'evaluated' : 'awaiting_evaluation',
+      ...(evaluation && 'overallBand' in evaluation ? { band: evaluation.overallBand } : {}) }
   })
   return { items, nextOffset: rows.length > input.limit ? input.offset + input.limit : null }
 }

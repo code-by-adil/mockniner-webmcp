@@ -4,12 +4,15 @@ import type { CompleteSpeakingAttemptInput } from '@/application/attemptWriter'
 import type { BindSpeakingInterview } from '@/application/speakingInterviewController'
 import { formatMinutesAndSeconds } from '@/shared/time'
 import { useSpeakingInterview } from '../useSpeakingInterview'
+import type { SpeakingPlan } from '@/domain/speakingPlan'
 
-export function SpeakingInterview({ bindSpeakingInterview, onComplete }: {
+export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPlan, onConfigurePlan }: {
   bindSpeakingInterview: BindSpeakingInterview
   onComplete: (input: CompleteSpeakingAttemptInput) => Promise<unknown>
+  initialPlan?: SpeakingPlan
+  onConfigurePlan: (plan: SpeakingPlan) => void
 }) {
-  const interview = useSpeakingInterview({ bindSpeakingInterview, onComplete })
+  const interview = useSpeakingInterview({ bindSpeakingInterview, onComplete, initialPlan, onConfigurePlan })
   const { phase, plan, index, secondsLeft, error, completeAnswer, startRecording, canvasRef } = interview
   const [notes, setNotes] = useState('')
   const question = plan.questions[index]!

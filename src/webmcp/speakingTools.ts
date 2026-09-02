@@ -27,7 +27,7 @@ export function createSpeakingInterviewToolDefinition(configure: (input: Speakin
   return {
     name: 'set_ielts_speaking_interview',
     title: 'Set the complete Speaking interview',
-    description: 'Install all 10–12 original questions at once in the visible Speaking setup screen. Include Parts 1 and 3 and exactly one Part 2 long turn with 60s preparation, 120s speaking and 3–4 cue points. The learner starts, records and submits each answer; audio and progression run locally without agent calls. Questions lock on start. Retrieve the complete transcript only after submission.',
+    description: 'Save all 10–12 original questions with the visible Speaking draft before reporting success; the plan survives reload and section switching. Include Parts 1 and 3 and one Part 2 long turn with 60s preparation, 120s speaking and 3–4 cue points. Questions lock when the learner starts. Audio and progression run locally. Retrieve transcripts only after submission.',
     inputSchema: z.toJSONSchema(speakingPlanSchema, { target: 'draft-07' }),
     annotations: { readOnlyHint: false, untrustedContentHint: true },
     execute: async (input, options) => {
@@ -45,7 +45,7 @@ export function createSpeakingProgressToolDefinition(readProgress: () => unknown
   return {
     name: 'get_ielts_speaking_progress',
     title: 'Read Speaking interview progress',
-    description: 'Read phase, question position and answered/skipped counts without transcripts. Optional observation only: the complete interview runs locally and never waits for polling or another agent question. After submission use get_ielts_speaking_submission.',
+    description: 'Read the configured title, content key, phase, question position and answered/skipped counts without transcripts. Empty setup can be paused through open_practice. Running interviews stay local and never wait for polling or another agent question. After submission use get_ielts_speaking_submission.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     execute: async (input, options) => {
@@ -103,7 +103,7 @@ export function createSpeakingToolDefinitions(
             excluded: ["pronunciation: audio is not exposed to the agent"],
           },
           evaluationStatus: stored.evaluation
-            ? "evaluated"
+            ? stored.evaluation.status === 'insufficient_evidence' ? 'insufficient_evidence' : 'evaluated'
             : "awaiting_evaluation",
           canAttachEvaluation:
             !stored.evaluation &&
@@ -116,7 +116,7 @@ export function createSpeakingToolDefinitions(
     name: "attach_ielts_speaking_evaluation",
     title: "Attach IELTS Speaking evaluation",
     description:
-      "Attach one structured transcript-based IELTS Speaking evaluation to the current immutable attempt. Use whole or half bands from 0 to 9 for overall, fluency/coherence, lexical resource, and grammatical range/accuracy. Pronunciation stays unscored because the agent receives transcripts, not audio. On success the application opens the Speaking review.",
+      "Attach feedback to the visible submitted Speaking attempt. Use status scored with whole/half bands 0–9 for overall and three criteria, or status insufficient_evidence with reason, summary, strengths (may be empty) and improvements, and omit all bands. Pronunciation is never scored from transcripts. Feedback is saved once and opens the review.",
     inputSchema: z.toJSONSchema(speakingEvaluationInputSchema, {
       target: "draft-07",
     }),
@@ -141,7 +141,8 @@ export function createSpeakingToolDefinitions(
           data: {
             status: "attached",
             attemptId: evaluation.attemptId,
-            overallBand: evaluation.overallBand,
+            evaluationStatus: evaluation.status === 'insufficient_evidence' ? 'insufficient_evidence' : 'evaluated',
+            ...(evaluation.status !== 'insufficient_evidence' ? { overallBand: evaluation.overallBand } : {}),
             evaluatedAt: evaluation.evaluatedAt,
           },
           sideEffect: {

@@ -13,7 +13,7 @@ export function createPracticeTools(deps: {
   return [
     ...(['library', 'history'] as const).map(kind => ({
       name: `get_practice_${kind}`, title: kind === 'library' ? 'List available practice' : 'Read combined practice history',
-      description: kind === 'library' ? 'List installed and built-in practice IDs, active IELTS sets, resumable attempt IDs and Listening readiness. Available on every page. Use kind to filter and nextOffset to continue. Contains no questions or answer keys.'
+      description: kind === 'library' ? 'List practice IDs with duration, item/part counts, declared subject/difficulty, startability and blocking reasons, plus resumable IDs and Listening readiness. Unknown metadata is null; estimates are labeled. Availability is a snapshot, rechecked when starting. Use kind to filter and nextOffset to continue. No questions or keys.'
         : 'List saved IELTS and universal attempts with exact IDs, scores, evaluation status and universal domain results, newest first. Available on every page. Use kind to filter and nextOffset to continue. Contains no essays, transcripts, recordings or answer keys. Open a result or explicitly retrieve a submission for feedback.',
       inputSchema: z.toJSONSchema(pageSchema, { target: 'draft-07', io: 'input' }), annotations: { readOnlyHint: true, untrustedContentHint: true },
       execute: async (input: Record<string, unknown>, options: WebMCP.ToolExecuteCallbackOptions) => {

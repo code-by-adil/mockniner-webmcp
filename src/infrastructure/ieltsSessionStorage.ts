@@ -1,12 +1,14 @@
 import { z } from "zod";
 import type { AttemptReader } from "@/application/attemptReader";
-import { initialSession, type IeltsSession } from "@/domain/session";
+import { initialSession, type IeltsAttemptState, type IeltsSession } from "@/domain/session";
+import { speakingPlanSchema } from '@/domain/speakingPlan';
 import { answerMapSchema } from "@/domain/attemptValidation";
 
 const STORAGE_KEY = "ielts-practice-session-v4";
 const section = z.enum(["listening", "reading", "writing", "speaking"]);
 const timestamp = z.iso.datetime({ offset: true });
 const draftSchema = z.object({
+  speakingPlan: speakingPlanSchema.optional(),
   attemptId: z.uuid().nullable().default(null),
   view: z.enum(["home", "exam", "transition", "result", "review"]),
   mode: z.enum(["full", "section"]).nullable(),
@@ -44,10 +46,13 @@ const resultIdsSchema = z.object({
   writing: z.uuid().optional(),
   speaking: z.uuid().optional(),
 });
-const snapshotSchema = z.object({
-  version: z.literal(1),
+const attemptSnapshotSchema = z.object({
   draft: draftSchema,
   resultAttemptIds: resultIdsSchema,
+});
+const snapshotSchema = attemptSnapshotSchema.extend({
+  version: z.union([z.literal(1), z.literal(2)]),
+  pausedDrafts: z.array(attemptSnapshotSchema).max(5).default([]),
 });
 const submissionId = z.object({ attemptId: z.uuid() }).optional();
 const legacySchema = draftSchema.extend({
@@ -66,6 +71,7 @@ function parseSnapshot(value: string): z.infer<typeof snapshotSchema> {
   const legacy = legacySchema.parse(raw);
   return {
     version: 1,
+    pausedDrafts: [],
     draft: {
       ...draftSchema.parse(legacy),
       view: legacy.view === "review" ? "home" : legacy.view,
@@ -91,6 +97,15 @@ export async function loadSession(
   } catch (cause) {
     throw new Error("Saved IELTS session metadata is invalid.", { cause });
   }
+  const [active, ...pausedDrafts] = await Promise.all([
+    restoreAttempt(snapshot, reader),
+    ...snapshot.pausedDrafts.map(draft => restoreAttempt(draft, reader)),
+  ]);
+  return { ...active!, pausedDrafts };
+}
+
+async function restoreAttempt(snapshot: z.infer<typeof attemptSnapshotSchema>, reader: AttemptReader): Promise<IeltsAttemptState> {
+  const { pausedDrafts: _paused, ...initialAttempt } = initialSession;
   const { draft, resultAttemptIds: ids } = snapshot;
   const [listening, reading, writing, speaking] = await Promise.all([
     ids.listening ? reader.readObjectiveAttempt(ids.listening) : null,
@@ -107,7 +122,7 @@ export async function loadSession(
     throw new Error("A saved IELTS submission could not be found.");
   }
   return {
-    ...initialSession,
+    ...initialAttempt,
     ...draft,
     attemptId: draft.attemptId ?? (draft.mode ? crypto.randomUUID() : null),
     view: draft.view === "review" ? "home" : draft.view,
@@ -124,10 +139,18 @@ export async function loadSession(
 
 export function saveSession(session: IeltsSession): void {
   if (typeof localStorage === "undefined") return;
-  if (!session.mode) {
+  if (!session.mode && !session.pausedDrafts.length) {
     localStorage.removeItem(STORAGE_KEY);
     return;
   }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    version: 2,
+    ...snapshotAttempt(session),
+    pausedDrafts: session.pausedDrafts.map(snapshotAttempt),
+  }));
+}
+
+function snapshotAttempt(session: IeltsAttemptState) {
   const draft = draftSchema.parse({
     ...session,
     view:
@@ -146,17 +169,13 @@ export function saveSession(session: IeltsSession): void {
       ? { 1: "", 2: "" }
       : session.writingDrafts,
   });
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      version: 1,
-      draft,
-      resultAttemptIds: {
-        listening: session.objectiveSubmissions.listening?.attemptId,
-        reading: session.objectiveSubmissions.reading?.attemptId,
-        writing: session.writingSubmission?.attemptId,
-        speaking: session.speakingSubmission?.attemptId,
-      },
-    }),
-  );
+  return {
+    draft,
+    resultAttemptIds: {
+      listening: session.objectiveSubmissions.listening?.attemptId,
+      reading: session.objectiveSubmissions.reading?.attemptId,
+      writing: session.writingSubmission?.attemptId,
+      speaking: session.speakingSubmission?.attemptId,
+    },
+  };
 }

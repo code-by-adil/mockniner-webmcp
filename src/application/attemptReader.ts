@@ -14,7 +14,7 @@ type StoredWritingAttempt = {
 
 export type AttemptReader = {
   readLearningSummary: (recentLimit: number) => Promise<LearningSummary>
-  readObjectiveAttempt: (attemptId: string) => Promise<ObjectiveSubmission | null>
+  readObjectiveAttempt: (attemptId?: string, section?: 'listening' | 'reading') => Promise<ObjectiveSubmission | null>
   readWritingAttempt: (attemptId?: string) => Promise<StoredWritingAttempt | null>
   readSpeakingAttempt: (attemptId?: string) => Promise<{ submission: SpeakingSubmission; evaluation: SpeakingEvaluation | null } | null>
 }

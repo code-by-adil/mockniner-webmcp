@@ -13,6 +13,7 @@ import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { SECTION_META, SECTION_ORDER } from "@/domain/sections";
 import {
   getResumableSection,
+  findIeltsDraft,
   type IeltsMode,
   type IeltsSession,
 } from "@/domain/session";
@@ -32,7 +33,7 @@ type Mode = IeltsMode;
 type HomeProps = {
   assessmentLibrary: AssessmentLibraryProps;
   onStart: (mode: Mode, section: Section) => void;
-  onResume: () => void;
+  onResume: (attemptId?: string) => void;
   session: IeltsSession;
   listeningAudio: ListeningAudioSession;
   onRetryListeningAudio: () => void;
@@ -85,11 +86,8 @@ export function Home({
 }: HomeProps): React.ReactElement {
   const [toolsModalOpen, setToolsModalOpen] = useState(false);
   const listeningReady = listeningAudio.readyToPlay;
-  const resumableSection = getResumableSection(session);
-  const resumableFullExamSection =
-    session.mode === "full" ? resumableSection : null;
-  const resumablePracticeSection =
-    session.mode === "section" ? resumableSection : null;
+  const fullDraft = findIeltsDraft(session, 'full', 'listening');
+  const resumableFullExamSection = fullDraft ? getResumableSection(fullDraft) : null;
   const fullExamEntrySection = resumableFullExamSection ?? "listening";
   const canOpenFullExam = fullExamEntrySection !== "listening" || listeningReady;
 
@@ -159,7 +157,7 @@ export function Home({
                 type="button"
                 onClick={
                   resumableFullExamSection
-                    ? onResume
+                    ? () => onResume(fullDraft!.attemptId!)
                     : () => onStart("full", "listening")
                 }
                 disabled={!canOpenFullExam}
@@ -175,12 +173,12 @@ export function Home({
             </div>
           </div>
 
-          {resumableSection && session.mode === "full" && (
+          {fullDraft && (
             <div className="mt-4 pt-3 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
               <span>Unfinished attempt in progress.</span>
               <button
                 type="button"
-                onClick={() => onStart("full", "listening")}
+                onClick={() => { if (window.confirm('Discard the unfinished Full IELTS attempt and start over? Other section drafts will be kept.')) onStart("full", "listening"); }}
                 className="text-neutral-700 hover:text-neutral-950 inline-flex items-center gap-1 font-medium underline cursor-pointer"
               >
                 <RotateCcw size={11} /> Start over
@@ -211,7 +209,8 @@ export function Home({
                   (activeDoc.source === "agent" ||
                     !activeDoc.contentKey.startsWith("local-")),
               );
-              const isResumable = resumablePracticeSection === sec;
+              const draft = findIeltsDraft(session, 'section', sec);
+              const isResumable = Boolean(draft);
 
               return (
                 <div
@@ -244,6 +243,7 @@ export function Home({
                     </div>
 
                     {activeDoc ? <p className="break-words text-sm font-semibold leading-5 text-neutral-800">{activeDoc.name}</p> : null}
+                    {sec === 'speaking' && draft?.speakingPlan ? <p className="break-words text-sm font-semibold leading-5 text-neutral-800">{draft.speakingPlan.title}</p> : null}
 
                     <p className="text-xs text-neutral-500 leading-relaxed min-h-[36px]">
                       {presentation.summary}
@@ -283,7 +283,7 @@ export function Home({
                     <button
                       type="button"
                       onClick={
-                        isResumable ? onResume : () => onStart("section", sec)
+                        isResumable ? () => onResume(draft!.attemptId!) : () => onStart("section", sec)
                       }
                       disabled={sec === "listening" && !listeningReady}
                       className="w-full flex items-center justify-between rounded-md bg-neutral-50 hover:bg-neutral-100 border border-neutral-200/60 px-3.5 py-2 text-xs font-semibold text-neutral-800 transition-colors disabled:opacity-40 cursor-pointer"

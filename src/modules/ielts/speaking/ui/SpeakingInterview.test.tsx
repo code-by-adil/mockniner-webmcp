@@ -19,6 +19,7 @@ vi.mock('@/infrastructure/media/kokoroSpeakingPlayer', () => ({ KokoroSpeakingPl
 const plan = { ...defaultSpeakingPlan, title: 'Three-question flow test', questions: [defaultSpeakingPlan.questions[0]!, defaultSpeakingPlan.questions[6]!, defaultSpeakingPlan.questions[7]!] }
 let root: Root, host: HTMLDivElement, bridge: ReturnType<typeof createSpeakingInterviewController>
 const complete = vi.fn()
+const persistPlan = vi.fn()
 const trackStop = vi.fn()
 const button = (name: string) => [...host.querySelectorAll('button')].find(b => b.textContent?.includes(name))!
 const click = async (name: string) => { await act(async () => button(name).click()) }
@@ -36,7 +37,7 @@ beforeEach(async () => {
   host = document.createElement('div'); document.body.append(host); root = createRoot(host)
   let binding!: SpeakingInterviewBinding
   const bind = (next: SpeakingInterviewBinding) => { binding = next; return bridge.bind(next) }
-  await act(async () => root.render(<SpeakingInterview bindSpeakingInterview={bind} onComplete={complete} />))
+  await act(async () => root.render(<SpeakingInterview bindSpeakingInterview={bind} onComplete={complete} onConfigurePlan={persistPlan} />))
   // A reduced renderer fixture keeps lifecycle tests focused. The public plan
   // contract is tested independently and requires 10–12 questions.
   await act(async () => { binding.configure(plan) })
@@ -44,6 +45,31 @@ beforeEach(async () => {
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('one local Speaking experience', () => {
+  it('only updates the configured plan after persistence succeeds', async () => {
+    persistPlan.mockImplementationOnce(() => { throw new Error('Storage quota exceeded') })
+    expect(() => bridge.configure(defaultSpeakingPlan)).toThrow('quota')
+    expect(host.textContent).toContain(plan.title)
+    expect(bridge.read()).toMatchObject({ title: plan.title, contentKey: plan.contentKey })
+    await act(async () => { bridge.configure(defaultSpeakingPlan) })
+    expect(host.textContent).toContain(defaultSpeakingPlan.title)
+  })
+  it('restores a saved plan on remount and allows only empty setup navigation', async () => {
+    expect(bridge.canLeave()).toBe(true)
+    await act(async () => root.render(<div>Paused</div>))
+    expect(bridge.canLeave()).toBe(false)
+    await act(async () => root.render(<SpeakingInterview initialPlan={plan} bindSpeakingInterview={bridge.bind} onComplete={complete} onConfigurePlan={persistPlan} />))
+    expect(host.textContent).toContain(plan.title)
+    expect(bridge.read()).toMatchObject({ phase: 'setup', totalQuestions: 3, title: plan.title })
+    expect(bridge.canLeave()).toBe(true)
+    const before = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(before); expect(before.defaultPrevented).toBe(false)
+    await click('Start interview')
+    expect(bridge.canLeave()).toBe(false)
+    const running = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(running); expect(running.defaultPrevented).toBe(true)
+    await click('Record answer'); expect(bridge.canLeave()).toBe(false)
+    await click('Submit answer'); expect(bridge.canLeave()).toBe(false)
+  })
   it('uses Space for record and submit without interfering with notes or dialogs', async () => {
     const space = async (target: EventTarget) => { await act(async () => target.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true, cancelable: true }))) }
     await click('Start interview')

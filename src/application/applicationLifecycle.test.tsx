@@ -17,6 +17,8 @@ import type {
 import { useIeltsApplication } from "./useIeltsApplication";
 import { useAssessmentApplication } from "./useAssessmentApplication";
 import { getIeltsExample } from '@/content/ieltsExamples';
+import { defaultSpeakingPlan } from '@/domain/speakingPlan';
+import { loadSession } from '@/infrastructure/ieltsSessionStorage';
 
 const repositories = vi.hoisted(() => ({
   ielts: {
@@ -104,6 +106,48 @@ afterEach(async () => {
 });
 
 describe("real application hook lifecycle", () => {
+  it('persists a configured Speaking plan before returning and retains it across a section switch and remount', async () => {
+    await act(async () => root.render(<Native />));
+    const plan = { ...defaultSpeakingPlan, contentKey: 'durable-speaking', title: 'Durable interview' };
+    let id!: string;
+    await act(async () => {
+      native.commands.start('section', 'speaking');
+      id = native.state.attemptId!;
+      native.commands.configureSpeakingPlan(plan);
+      expect(await loadSession(repositories.ielts)).toMatchObject({ attemptId: id, speakingPlan: plan });
+      native.commands.start('section', 'reading');
+    });
+    await act(async () => root.render(<div>Unmounted</div>));
+    await act(async () => root.render(<Native />));
+    await act(async () => { native.commands.goHome(); native.commands.resume(id); });
+    expect(native.state).toMatchObject({ attemptId: id, speakingPlan: plan, currentSection: 'speaking' });
+  });
+  it('rejects configuration and navigation when storage fails, without changing the current draft', async () => {
+    await act(async () => root.render(<Native />));
+    await act(async () => native.commands.start('section', 'speaking'));
+    const before = native.state;
+    const storage = localStorage;
+    vi.stubGlobal('localStorage', { getItem: storage.getItem.bind(storage), removeItem: storage.removeItem.bind(storage), setItem() { throw new Error('Quota exceeded'); } });
+    try {
+      expect(() => native.commands.configureSpeakingPlan(defaultSpeakingPlan)).toThrow('Quota exceeded');
+      expect(() => native.commands.start('section', 'reading')).toThrow('Quota exceeded');
+      expect(native.state).toBe(before);
+    } finally { vi.stubGlobal('localStorage', storage); }
+  });
+  it('finishes the correct parked draft when a submission resolves after switching sections', async () => {
+    await act(async () => root.render(<Native />));
+    await act(async () => native.commands.start('section', 'writing'));
+    const pending = deferred<WritingSubmission>();
+    repositories.ielts.saveWritingAttempt.mockReturnValueOnce(pending.promise);
+    let saving!: Promise<WritingSubmission>;
+    await act(async () => { saving = native.commands.submitWriting(); });
+    const saved = repositories.ielts.saveWritingAttempt.mock.calls[0][0];
+    await act(async () => native.commands.start('section', 'speaking'));
+    const currentId = native.state.attemptId;
+    expect(native.state.pausedDrafts).toHaveLength(1);
+    await act(async () => { pending.resolve(saved); await saving; });
+    expect(native.state).toMatchObject({ attemptId: currentId, currentSection: 'speaking', pausedDrafts: [], completedSections: [] });
+  });
   it("refreshes native history when a save completes after returning home", async () => {
     await act(async () => root.render(<Native />));
     await act(async () => {

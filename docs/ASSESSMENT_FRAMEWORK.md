@@ -264,8 +264,13 @@ layouts.
 
 All agent-evaluated items in one package share one rubric. On the result page,
 the agent can call `get_assessment_submission` to read the immutable submission
-without objective answer keys. If evaluation is needed, the page also registers
-`attach_assessment_evaluation`. That tool checks the rubric, scale, criteria,
+according to its saved review policy. `answers` includes objective keys and
+correctness; `responses` returns responses without either; `none` hides objective
+item details and responses. Aggregate scores remain available. Agent-scored items,
+their submitted responses, and rubrics remain readable under every policy so
+evaluation still works. No active draft responses or keys are returned.
+If evaluation is needed, call the registered `attach_assessment_evaluation`.
+That tool checks the rubric, scale, criteria,
 evidence, annotations, item IDs, and quoted response text before it saves the
 evaluation. An attempt accepts one evaluation. A second attachment is rejected
 instead of silently replacing the saved feedback.

@@ -1,8 +1,32 @@
 {
   "events": [
-    { "type": "content", "start": 0, "end": 129.121859, "part": 1, "label": "Part 1" },
-    { "type": "content", "start": 129.121859, "end": 283.251791, "part": 2, "label": "Part 2" },
-    { "type": "content", "start": 283.251791, "end": 452.344535, "part": 3, "label": "Part 3" },
-    { "type": "content", "start": 452.344535, "end": 648.009161, "part": 4, "label": "Part 4" }
+    {
+      "type": "content",
+      "start": 0,
+      "end": 129.156708,
+      "part": 1,
+      "label": "Part 1"
+    },
+    {
+      "type": "content",
+      "start": 129.156708,
+      "end": 272.640541,
+      "part": 2,
+      "label": "Part 2"
+    },
+    {
+      "type": "content",
+      "start": 272.640541,
+      "end": 441.73299899999995,
+      "part": 3,
+      "label": "Part 3"
+    },
+    {
+      "type": "content",
+      "start": 441.73299899999995,
+      "end": 637.397667,
+      "part": 4,
+      "label": "Part 4"
+    }
   ]
 }

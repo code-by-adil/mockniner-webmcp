@@ -186,7 +186,9 @@ export function Results({
                           ? `Estimated overall band ${session.writingEvaluation.overallBand} · Evaluation ready`
                           : section === "speaking" && session.speakingSubmission
                             ? session.speakingEvaluation
-                              ? `Estimated overall band ${session.speakingEvaluation.overallBand} · Evaluation ready`
+                              ? session.speakingEvaluation.status === 'insufficient_evidence'
+                                ? 'Insufficient evidence · Feedback ready · No band assigned'
+                                : `Estimated overall band ${session.speakingEvaluation.overallBand} · Evaluation ready`
                               : `${session.speakingSubmission.responses.filter(r => r.status === 'answered').length} answers recorded · ${session.speakingSubmission.responses.filter(r => r.status === 'skipped').length} skipped · Awaiting evaluation`
                             : "Submission ready for evaluation"}
                     </p>
@@ -421,6 +423,7 @@ export default function App() {
     );
   }
 
-  return <SpeakingExamRunner onExit={commands.goHome} onSubmit={commands.submitSpeaking}
+  return <SpeakingExamRunner key={state.attemptId} onExit={commands.goHome} onSubmit={commands.submitSpeaking}
+    initialPlan={state.speakingPlan} onConfigurePlan={commands.configureSpeakingPlan} canLeave={webMcp.canLeaveSpeaking}
     bindSpeakingInterview={webMcp.bindSpeakingInterview} />;
 }

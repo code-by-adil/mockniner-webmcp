@@ -166,10 +166,10 @@ describe('Speaking SQLite repository', () => {
     })
 
     const stored = await readSpeakingAttempt(database, submission.attemptId)
-    expect(stored?.evaluation?.overallBand).toBe(6.5)
+    expect(stored?.evaluation).toMatchObject({ overallBand: 6.5 })
     const history = await readLearningSummary(database, 5)
     expect(history.sections.speaking.recent).toEqual([
-      { attemptId: submission.attemptId, submittedAt: submission.submittedAt, overallBand: 6.5 },
+      { attemptId: submission.attemptId, submittedAt: submission.submittedAt, overallBand: 6.5, evaluationStatus: 'evaluated' },
     ])
     expect(JSON.stringify(history.sections.speaking)).not.toContain(submission.responses[0]!.transcript)
   })

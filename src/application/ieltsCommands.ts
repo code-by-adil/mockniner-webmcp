@@ -39,11 +39,13 @@ import type { ContentStore } from "./contentStore";
 import type { AttemptReader } from "./attemptReader";
 import { ApplicationError } from "@/domain/errors";
 import { resolveWritingEvaluation } from "@/domain/writingAnnotations";
-import { getResumableSection } from "@/domain/session";
+import { findContentBlockingDraft, getIeltsDrafts, sessionReducer } from "@/domain/session";
+import { speakingPlanSchema, type SpeakingPlan } from '@/domain/speakingPlan';
 
 type CommandDependencies = {
   getState: () => IeltsSession;
   dispatch: (action: SessionAction) => void;
+  persistSession?: (session: IeltsSession) => void;
   now?: () => Date;
   getRepository: () => Promise<AttemptReader & AttemptWriter>;
   getContent: () => ActiveContentDocuments;
@@ -53,7 +55,8 @@ type CommandDependencies = {
 
 export type IeltsCommands = {
   start: (mode: IeltsMode, section: SectionKey) => void;
-  resume: () => void;
+  resume: (attemptId?: string) => void;
+  configureSpeakingPlan: (plan: SpeakingPlan) => void;
   goHome: () => void;
   continueExam: () => void;
   setPart: (section: SectionKey, part: number) => void;
@@ -115,12 +118,20 @@ function requireVisibleSection(state: IeltsSession, section: SectionKey): void {
 export function createIeltsCommands({
   getState,
   dispatch,
+  persistSession = () => {},
   now = () => new Date(),
   getRepository,
   getContent,
   setContent,
   getContentStore,
 }: CommandDependencies): IeltsCommands {
+  // Metadata-changing commands must be durable before tools report success.
+  const commit = (action: SessionAction) => {
+    const next = sessionReducer(getState(), action);
+    try { persistSession(next); }
+    catch (cause) { throw new ApplicationError('DRAFT_SAVE_FAILED', cause instanceof Error ? `Could not save the practice draft: ${cause.message}` : 'Could not save the practice draft.', true); }
+    dispatch(action);
+  };
   const openReview = (review: IeltsReview) => {
     dispatch({ type: "OPEN_REVIEW", review });
   };
@@ -190,7 +201,7 @@ export function createIeltsCommands({
   return {
     start(mode, requestedSection) {
       const section = mode === "full" ? "listening" : requestedSection;
-      dispatch({
+      commit({
         type: "START",
         mode,
         section,
@@ -198,15 +209,20 @@ export function createIeltsCommands({
         attemptId: crypto.randomUUID(),
       });
     },
-    resume() {
-      dispatch({
+    resume(targetAttemptId) {
+      commit({
         type: "RESUME",
+        targetAttemptId,
         startedAt: now().toISOString(),
         attemptId: crypto.randomUUID(),
       });
     },
     goHome() {
-      dispatch({ type: "GO_HOME" });
+      commit({ type: "GO_HOME" });
+    },
+    configureSpeakingPlan(input) {
+      requireActiveSection(getState(), 'speaking');
+      commit({ type: 'SET_SPEAKING_PLAN', plan: speakingPlanSchema.parse(input) });
     },
     continueExam() {
       dispatch({
@@ -245,16 +261,21 @@ export function createIeltsCommands({
       dispatch({ type: "TICK", section });
     },
     async installContent(input) {
-      if (getResumableSection(getState()))
-        throw new ApplicationError(
-          "ACTIVE_ATTEMPT",
-          "Finish your unfinished IELTS attempt before installing a new practice set.",
-          true,
-        );
       const document = parsePracticeContentDocument(input);
-      await (await getContentStore()).saveAndActivate(document);
+      const assertContentUnlocked = () => {
+        if (findContentBlockingDraft(getState(), document.section))
+          throw new ApplicationError(
+            "ACTIVE_ATTEMPT",
+            "Finish the unfinished practice using this section before replacing its content. Other section drafts are preserved.",
+            true,
+          );
+      };
+      assertContentUnlocked();
+      const store = await getContentStore();
+      assertContentUnlocked();
+      await store.saveAndActivate(document);
       setContent(replaceActiveContent(getContent(), document));
-      dispatch({ type: "RESET" });
+      commit({ type: getIeltsDrafts(getState()).length ? 'GO_HOME' : 'RESET' });
       return document;
     },
     async submitObjective(section) {
@@ -372,6 +393,9 @@ export function createIeltsCommands({
         );
       }
       const evaluation = { ...parsed, evaluatedAt: now().toISOString() };
+      if (parsed.status !== 'insufficient_evidence' && !stored.submission.responses.some(response => response.status === 'answered' && response.transcript.trim())) {
+        throw new ApplicationError('INSUFFICIENT_SPEAKING_EVIDENCE', 'No transcript evidence was submitted. Use status insufficient_evidence with feedback and omit all bands.', true);
+      }
       await repository.saveSpeakingEvaluation(evaluation);
       dispatch({ type: "ATTACH_SPEAKING_EVALUATION", evaluation });
       return evaluation;

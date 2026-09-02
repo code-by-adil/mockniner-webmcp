@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { listeningDocument, readingDocument } from "@/content/objective";
 import { writingDocument } from "@/content/writing";
 import { initialAssessmentSession } from "@/domain/assessmentSession";
-import { initialSession, type IeltsSession } from "@/domain/session";
+import { initialSession, sessionReducer, type IeltsSession } from "@/domain/session";
+import { defaultSpeakingPlan } from '@/domain/speakingPlan';
 import { Home } from "./Home";
 import type { ActiveContentDocuments } from '@/domain/contentDocument';
 import type { ListeningAudioSession } from '@/application/useListeningAudio';
@@ -42,6 +43,17 @@ function renderHome(session: IeltsSession = initialSession, content: ActiveConte
 }
 
 describe("native IELTS home metadata", () => {
+  it('shows independent resume actions for every parked section and full exam', () => {
+    let session = initialSession;
+    for (const [index, section] of (['speaking', 'reading', 'writing', 'listening', 'listening'] as const).entries()) {
+      session = sessionReducer(session, { type: 'START', mode: index === 4 ? 'full' : 'section', section, attemptId: crypto.randomUUID(), startedAt: '2026-09-03T00:00:00.000Z' });
+      if (section === 'speaking') session = sessionReducer(session, { type: 'SET_SPEAKING_PLAN', plan: { ...defaultSpeakingPlan, title: 'Saved local places interview' } });
+    }
+    const html = renderHome(session);
+    for (const section of ['Speaking', 'Reading', 'Writing', 'Listening']) expect(html).toContain(`Resume ${section}`);
+    expect(html).toContain('Resume Exam (Listening)');
+    expect(html).toContain('Saved local places interview');
+  });
   it('shows the full active set names and escapes agent-authored markup', () => {
     const html = renderHome(initialSession, { listening: { ...listeningDocument, name: 'QA Harbour Listening', source: 'agent' },
       reading: { ...readingDocument, name: 'Reading <script>unsafe</script>', source: 'agent' }, writing: { ...writingDocument, name: 'QA Sports Writing', source: 'agent' } })
@@ -74,6 +86,7 @@ describe("native IELTS home metadata", () => {
     expect(renderHome({
       ...initialSession,
       mode: "full",
+      attemptId: '11111111-1111-4111-8111-111111111111',
       currentSection: "reading",
       completedSections: ["listening"],
     })).toContain("Resume Exam (Reading)");

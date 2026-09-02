@@ -9,6 +9,7 @@ import type {
 } from './types'
 import { SECTION_META, SECTION_ORDER } from './sections'
 import type { ObjectiveContentDocument } from './objectiveContent'
+import type { SpeakingPlan } from './speakingPlan'
 
 export type IeltsMode = 'full' | 'section'
 type SessionView = 'home' | 'exam' | 'transition' | 'result' | 'review'
@@ -46,7 +47,7 @@ export type IeltsReview =
       returnTo: ReviewReturnView
     }
 
-export type IeltsSession = {
+export type IeltsAttemptState = {
   attemptId: string | null
   view: SessionView
   mode: IeltsMode | null
@@ -63,16 +64,24 @@ export type IeltsSession = {
   writingEvaluation?: WritingEvaluation
   speakingSubmission?: SpeakingSubmission
   speakingEvaluation?: SpeakingEvaluation
+  speakingPlan?: SpeakingPlan
   review?: IeltsReview
   completedSections: SectionKey[]
   startedAt?: string
   startedAtBySection: Partial<Record<SectionKey, string>>
 }
 
+export type IeltsSession = IeltsAttemptState & { pausedDrafts: IeltsAttemptState[] }
+
+export function findContentBlockingDraft(state: IeltsSession, section: SectionKey) {
+  return getIeltsDrafts(state).find(draft => draft.mode === 'full' || draft.currentSection === section)
+}
+
 export type SessionAction =
   | { type: 'RESTORE'; session: IeltsSession }
   | { type: 'START'; mode: IeltsMode; section: SectionKey; startedAt: string; attemptId: string }
-  | { type: 'RESUME'; startedAt: string; attemptId: string }
+  | { type: 'RESUME'; startedAt: string; attemptId: string; targetAttemptId?: string }
+  | { type: 'SET_SPEAKING_PLAN'; plan: SpeakingPlan }
   | { type: 'SET_PART'; section: SectionKey; part: number }
   | { type: 'SET_ANSWER'; section: 'listening' | 'reading'; questionId: number; value: string }
   | { type: 'SET_WRITING'; task: 1 | 2; value: string }
@@ -90,6 +99,7 @@ export type SessionAction =
   | { type: 'RESET' }
 
 export const initialSession: IeltsSession = {
+  pausedDrafts: [],
   attemptId: null,
   view: 'home',
   mode: null,
@@ -121,7 +131,7 @@ function markComplete(state: IeltsSession, section: SectionKey): IeltsSession {
   }
 }
 
-export function getResumableSection(state: IeltsSession): SectionKey | null {
+export function getResumableSection(state: IeltsAttemptState): SectionKey | null {
   if (state.mode === 'full') {
     return SECTION_ORDER.find(
       (section) => !state.completedSections.includes(section),
@@ -137,13 +147,38 @@ export function getResumableSection(state: IeltsSession): SectionKey | null {
   return null
 }
 
+export function getIeltsDrafts(state: IeltsSession): IeltsAttemptState[] {
+  return [state, ...state.pausedDrafts].filter(draft => draft.attemptId && getResumableSection(draft))
+}
+
+export function findIeltsDraft(state: IeltsSession, mode: IeltsMode, section: SectionKey) {
+  return getIeltsDrafts(state).find(draft => draft.mode === mode && (mode === 'full' || draft.currentSection === section))
+}
+
+function parkedDrafts(state: IeltsSession): IeltsAttemptState[] {
+  const { pausedDrafts, review: _review, ...current } = state
+  return getResumableSection(current) && current.attemptId
+    ? [...pausedDrafts, { ...current, view: 'home' }] : pausedDrafts
+}
+
 export function sessionReducer(state: IeltsSession, action: SessionAction): IeltsSession {
+  // Submission writes may finish after the learner switches to another slot.
+  // Complete that exact parked draft, never whichever attempt is now visible.
+  if (action.type === 'COMPLETE_OBJECTIVE' || action.type === 'COMPLETE_WRITING' || action.type === 'COMPLETE_SPEAKING') {
+    const parked = state.pausedDrafts.find(draft => draft.attemptId === action.submission.attemptId)
+    if (parked) {
+      const updated = sessionReducer({ ...parked, pausedDrafts: [] }, action)
+      const { pausedDrafts: _paused, ...draft } = updated
+      return { ...state, pausedDrafts: state.pausedDrafts.flatMap(item => item === parked ? getResumableSection(draft) ? [draft] : [] : [item]) }
+    }
+  }
   switch (action.type) {
     case 'RESTORE':
       return state.mode === null ? action.session : state
     case 'START':
       return {
         ...initialSession,
+        pausedDrafts: parkedDrafts(state).filter(draft => !(draft.mode === action.mode && (action.mode === 'full' || draft.currentSection === action.section))),
         attemptId: action.attemptId,
         view: 'exam',
         mode: action.mode,
@@ -153,20 +188,28 @@ export function sessionReducer(state: IeltsSession, action: SessionAction): Ielt
       }
     case 'RESUME':
       if (state.view !== 'home') return state
-      const resumedSection = getResumableSection(state)
+      const target = action.targetAttemptId
+        ? getIeltsDrafts(state).find(draft => draft.attemptId === action.targetAttemptId) : state
+      if (!target) return state
+      const resumedSection = getResumableSection(target)
       if (!resumedSection) return state
       return {
-        ...state,
+        ...target,
+        review: undefined,
+        pausedDrafts: parkedDrafts(state).filter(draft => draft.attemptId !== target.attemptId),
         currentSection: resumedSection,
-        attemptId: resumedSection === state.currentSection && state.attemptId
-          ? state.attemptId : action.attemptId,
+        attemptId: resumedSection === target.currentSection && target.attemptId
+          ? target.attemptId : action.attemptId,
         startedAtBySection: {
-          ...state.startedAtBySection,
+          ...target.startedAtBySection,
           [resumedSection]:
-            state.startedAtBySection[resumedSection] ?? action.startedAt,
+            target.startedAtBySection[resumedSection] ?? action.startedAt,
         },
         view: 'exam',
       }
+    case 'SET_SPEAKING_PLAN':
+      if (state.view !== 'exam' || state.currentSection !== 'speaking' || !state.attemptId) return state
+      return { ...state, speakingPlan: action.plan }
     case 'SET_PART':
       if (state.view === 'review') {
         if (state.review?.section !== action.section) return state
@@ -304,6 +347,6 @@ export function sessionReducer(state: IeltsSession, action: SessionAction): Ielt
     case 'GO_HOME':
       return { ...state, review: undefined, view: 'home' }
     case 'RESET':
-      return initialSession
+      return { ...initialSession, pausedDrafts: state.pausedDrafts }
   }
 }

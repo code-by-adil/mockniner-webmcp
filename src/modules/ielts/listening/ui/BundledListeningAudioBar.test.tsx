@@ -3,6 +3,9 @@ import { act, StrictMode, type ComponentProps } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BundledListeningAudioBar } from "./BundledListeningAudioBar";
+import { getListeningAudioSources } from '@/infrastructure/media/listeningAudio';
+
+const { audioUrl, timelineUrl } = getListeningAudioSources('local-original');
 
 const timeline = {
   events: [
@@ -92,11 +95,12 @@ describe("bundled Listening media lifecycle", () => {
 
   it("restores its source after StrictMode cleanup and loads it with the media policy set", async () => {
     const audio = await render();
-    expect(audio.getAttribute("src")).toBe("/audio/listening-test-1.mp3");
+    expect(audio.getAttribute("src")).toBe(audioUrl);
+    expect(fetch).toHaveBeenCalledWith(timelineUrl, expect.anything());
     expect(loads).toEqual([
-      { src: "/audio/listening-test-1.mp3", crossOrigin: "anonymous", preload: "metadata" },
+      { src: audioUrl, crossOrigin: "anonymous", preload: "metadata" },
       { src: null, crossOrigin: "anonymous", preload: "metadata" },
-      { src: "/audio/listening-test-1.mp3", crossOrigin: "anonymous", preload: "metadata" },
+      { src: audioUrl, crossOrigin: "anonymous", preload: "metadata" },
     ]);
     expect(audio.play).not.toHaveBeenCalled();
     await loadMetadata(audio);
@@ -144,7 +148,7 @@ describe("bundled Listening media lifecycle", () => {
     expect(audio.currentTime).toBeCloseTo(60.01);
     expect(onPersistState).toHaveBeenLastCalledWith({ currentTimeSec: 60.01, volume: 0.85 });
     expect(loads).toHaveLength(3);
-    expect(audio.getAttribute("src")).toBe("/audio/listening-test-1.mp3");
+    expect(audio.getAttribute("src")).toBe(audioUrl);
   });
 
   it("releases the old media without persisting its reset and resumes on reentry", async () => {
@@ -175,7 +179,7 @@ describe("bundled Listening media lifecycle", () => {
 
     const resumed = await render({ hydrateState: saved });
     expect(resumed).not.toBe(audio);
-    expect(resumed.getAttribute("src")).toBe("/audio/listening-test-1.mp3");
+    expect(resumed.getAttribute("src")).toBe(audioUrl);
     await loadMetadata(resumed);
     expect(resumed.currentTime).toBe(37);
   });

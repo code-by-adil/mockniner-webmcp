@@ -46,7 +46,7 @@ export type LearningSummary = {
     writing: WritingLearningSummary
     speaking: {
       attemptCount: number
-      recent?: { attemptId: string; submittedAt: string; overallBand?: number }[]
+      recent?: { attemptId: string; submittedAt: string; overallBand?: number; evaluationStatus?: 'evaluated' | 'insufficient_evidence' | 'awaiting_evaluation' }[]
     }
   }
 }

@@ -8,11 +8,13 @@ import { useSpeakingRecorder } from './useSpeakingRecorder'
 
 export type SpeakingPhase = 'setup' | 'preparing' | 'buffering' | 'speaking' | 'thinking' | 'ready' | 'starting' | 'recording' | 'stopping' | 'saving' | 'error' | 'save-error'
 
-export function useSpeakingInterview({ bindSpeakingInterview, onComplete }: {
+export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initialPlan, onConfigurePlan }: {
   bindSpeakingInterview: BindSpeakingInterview
   onComplete: (input: CompleteSpeakingAttemptInput) => Promise<unknown>
+  initialPlan?: SpeakingPlan
+  onConfigurePlan: (plan: SpeakingPlan) => void
 }) {
-  const [plan, setPlan] = useState<SpeakingPlan>(defaultSpeakingPlan)
+  const [plan, setPlan] = useState<SpeakingPlan>(initialPlan ?? defaultSpeakingPlan)
   const [phase, setPhaseState] = useState<SpeakingPhase>('setup')
   const [index, setIndex] = useState(0)
   const [secondsLeft, setSecondsLeft] = useState(0)
@@ -57,16 +59,29 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete }: {
   useEffect(() => bindSpeakingInterview({
     configure(next) {
       if (phaseRef.current !== 'setup') throw new ApplicationError('SPEAKING_ALREADY_STARTED', 'The question set is locked. Finish or exit this interview before installing another.', true)
+      // Save first: failed persistence must not update the UI or report success.
+      onConfigurePlan(next)
       planRef.current = next
       setPlan(next)
     },
     read: () => ({
+      contentKey: planRef.current.contentKey, title: planRef.current.title,
       phase: phaseRef.current, currentQuestion: indexRef.current + 1,
+      part: planRef.current.questions[indexRef.current]?.part,
+      secondsRemaining: ['thinking', 'recording'].includes(phaseRef.current)
+        ? Math.max(0, Math.ceil((deadline.current - performance.now()) / 1000)) : null,
       totalQuestions: planRef.current.questions.length,
       recordedAnswers: responses.current.filter(r => r.status === 'answered').length,
       skippedAnswers: responses.current.filter(r => r.status === 'skipped').length,
     }),
-  }), [bindSpeakingInterview])
+  }), [bindSpeakingInterview, onConfigurePlan])
+
+  useEffect(() => {
+    if (phase === 'setup') return
+    const protectDraft = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', protectDraft)
+    return () => window.removeEventListener('beforeunload', protectDraft)
+  }, [phase])
 
   const startRecording = useCallback(async () => {
     if (!['thinking', 'ready'].includes(phaseRef.current)) return

@@ -16,6 +16,7 @@ import { createIeltsCommands } from './ieltsCommands'
 import { createAssessmentCommands } from './assessmentCommands'
 import { createPracticeNavigation, getResumablePractices, type PracticeWorkspace } from './practiceNavigation'
 import { getPracticeContext } from './practiceContext'
+import { defaultSpeakingPlan } from '@/domain/speakingPlan'
 
 let database: SQLocal
 const dates = { startedAt: '2026-09-01T10:00:00.000Z', submittedAt: '2026-09-01T10:15:00.000Z' }
@@ -47,6 +48,85 @@ function setup() {
 }
 
 describe('semantic practice navigation and discovery', () => {
+  it('reports content activation locks from a Full IELTS draft without blocking reuse of the active set', async () => {
+    const h = setup()
+    const otherReading = { ...readingDocument, contentKey: 'other-reading' }
+    await h.contentStore.saveAndActivate(otherReading)
+    await h.navigate({ action: 'start', kind: 'full_ielts' })
+    await h.navigate({ action: 'library' })
+    const library = await readPracticeLibrary(database, h.workspace, { ...page, kind: 'reading' })
+    expect(library.items.find(item => 'contentKey' in item && item.contentKey === otherReading.contentKey)).toMatchObject({ startability: { canStart: false, blockingReason: { code: 'ACTIVE_ATTEMPT' } } })
+    expect(library.items.find(item => 'contentKey' in item && item.contentKey === readingDocument.contentKey)).toMatchObject({ startability: { canStart: true } })
+    await expect(h.navigate({ action: 'start', kind: 'reading', contentKey: otherReading.contentKey })).rejects.toMatchObject({ code: 'ACTIVE_ATTEMPT' })
+  })
+  it('reports selection metadata and start blockers that agree with navigation', async () => {
+    const h = setup()
+    let library = await readPracticeLibrary(database, h.workspace, page)
+    expect(library.items).toContainEqual(expect.objectContaining({ kind: 'reading', durationSeconds: 3600, itemCount: 40, partCount: 3, difficulty: null, startability: { canStart: true, blockingReason: null } }))
+    expect(library.items).toContainEqual(expect.objectContaining({ kind: 'assessment', itemCount: 12, subject: satPracticeAssessment.metadata.subject, difficulty: satPracticeAssessment.metadata.difficulty }))
+    await h.navigate({ action: 'start', kind: 'reading' })
+    library = await readPracticeLibrary(database, h.workspace, page)
+    expect(library.items.find(item => item.kind === 'reading')).toMatchObject({ startability: { canStart: false, blockingReason: { code: 'ACTIVE_ATTEMPT', attemptId: h.workspace.native.attemptId } } })
+    expect(library.items.find(item => item.kind === 'writing')).toMatchObject({ startability: { canStart: true } })
+    await expect(h.navigate({ action: 'start', kind: 'reading' })).rejects.toMatchObject({ code: 'ACTIVE_ATTEMPT' })
+    h.workspace.listeningAudio.readyToPlay = false
+    library = await readPracticeLibrary(database, h.workspace, page)
+    expect(library.items.find(item => item.kind === 'listening')).toMatchObject({ startability: { canStart: false, blockingReason: { code: 'LISTENING_AUDIO_NOT_READY' } } })
+    h.workspace.native = { ...initialSession, view: 'exam', currentSection: 'speaking' }
+    library = await readPracticeLibrary(database, h.workspace, page)
+    expect(library.items.every(item => item.startability.blockingReason?.code === 'SPEAKING_IN_PROGRESS')).toBe(true)
+    h.workspace.canLeaveSpeaking = true
+    library = await readPracticeLibrary(database, h.workspace, page)
+    expect(library.items.find(item => item.kind === 'writing')).toMatchObject({ startability: { canStart: true } })
+  })
+  it('persists unscored Speaking feedback through commands, history and learning summary', async () => {
+    const h = setup(); await h.navigate({ action: 'start', kind: 'speaking' })
+    const submission = await h.native.submitSpeaking({ contentKey: 'skipped-speaking', startedAt: dates.startedAt,
+      recordings: [{ status: 'skipped', promptId: 1, partLabel: 'Part 1', sequence: 0, promptText: 'Describe your hometown.', timeLimitSeconds: 30, durationMs: 0, transcript: '', audio: null }] })
+    await expect(h.native.attachSpeakingEvaluation({ attemptId: submission.attemptId, overallBand: 0, fluencyCoherence: 0, lexicalResource: 0, grammaticalRangeAccuracy: 0, summary: 'No evidence.', strengths: ['None'], improvements: ['Record answers.'] })).rejects.toMatchObject({ code: 'INSUFFICIENT_SPEAKING_EVIDENCE' })
+    const evaluation = await h.native.attachSpeakingEvaluation({ attemptId: submission.attemptId, status: 'insufficient_evidence', reason: 'Every question was skipped.', summary: 'No band can be assigned.', strengths: [], improvements: ['Record answers.'] })
+    expect((await h.nativeRepository.readSpeakingAttempt(submission.attemptId))?.evaluation).toEqual(evaluation)
+    expect(getPracticeContext(h.workspace.native, h.workspace.assessment).submissions[0]?.evaluationStatus).toBe('insufficient_evidence')
+    const history = await readPracticeHistory(database, { ...page, kind: 'speaking' })
+    expect(history.items[0]).toMatchObject({ evaluationStatus: 'insufficient_evidence' })
+    expect(history.items[0]).not.toHaveProperty('band')
+    expect((await h.nativeRepository.readLearningSummary(5)).sections.speaking.recent?.[0]).toMatchObject({ evaluationStatus: 'insufficient_evidence' })
+    await expect(h.native.attachSpeakingEvaluation(evaluation)).rejects.toThrow()
+  })
+  it('can leave empty Speaking setup and switch sections without losing either draft', async () => {
+    const h = setup();
+    const navigate = createPracticeNavigation({ ...h.deps, canLeaveSpeaking: () => true });
+    await navigate({ action: 'start', kind: 'speaking' });
+    const speakingId = h.workspace.native.attemptId!;
+    h.native.configureSpeakingPlan({ ...defaultSpeakingPlan, title: 'Preserved questions' });
+    await navigate({ action: 'library' });
+    await navigate({ action: 'start', kind: 'reading' });
+    h.native.setObjectiveAnswer('reading', 1, 'TRUE');
+    const readingId = h.workspace.native.attemptId!;
+    expect(getResumablePractices(h.workspace)).toHaveLength(2);
+    await navigate({ action: 'resume', kind: 'ielts', attemptId: speakingId });
+    expect(h.workspace.native).toMatchObject({ attemptId: speakingId, currentSection: 'speaking' });
+    expect(h.workspace.native.speakingPlan?.title).toBe('Preserved questions');
+    await navigate({ action: 'resume', kind: 'ielts', attemptId: readingId });
+    expect(h.workspace.native).toMatchObject({ attemptId: readingId, answers: { reading: { 1: 'TRUE' } } });
+  });
+  it('allows unrelated content installation but never replaces content used by a parked draft or full exam', async () => {
+    const h = setup();
+    await h.navigate({ action: 'start', kind: 'speaking' });
+    h.native.goHome();
+    const speakingId = h.workspace.native.attemptId;
+    const custom = { ...readingDocument, contentKey: 'reading-while-speaking-paused' };
+    await h.native.installContent(custom);
+    expect(h.workspace.native.attemptId).toBe(speakingId);
+    await h.navigate({ action: 'start', kind: 'reading', contentKey: custom.contentKey });
+    await h.navigate({ action: 'start', kind: 'writing' });
+    await expect(h.native.installContent(readingDocument)).rejects.toMatchObject({ code: 'ACTIVE_ATTEMPT' });
+    expect(h.workspace.content.reading).toEqual(custom);
+    await h.navigate({ action: 'start', kind: 'full_ielts' });
+    await h.navigate({ action: 'library' });
+    await expect(h.native.installContent(listeningDocument)).rejects.toMatchObject({ code: 'ACTIVE_ATTEMPT' });
+    expect(getResumablePractices(h.workspace)).toHaveLength(4);
+  });
   it('lists built-in and archived native sets without questions or answers, then starts the chosen archived set', async () => {
     const h = setup()
     const saved = { ...readingDocument, contentKey: 'archived-reading', name: 'Archived Reading' }
@@ -149,7 +229,7 @@ describe('semantic practice navigation and discovery', () => {
     const navigate = createPracticeNavigation({ ...h.deps, loadContent: () => pending })
     const first = navigate({ action: 'start', kind: 'reading', contentKey: 'other-reading' })
     await expect(navigate({ action: 'library' })).rejects.toMatchObject({ code: 'NAVIGATION_BUSY' })
-    h.native.start('section', 'writing')
+    h.native.start('section', 'reading')
     resolve({ ...readingDocument, contentKey: 'other-reading' })
     await expect(first).rejects.toMatchObject({ code: 'ACTIVE_ATTEMPT' })
     expect(h.workspace.content.reading.contentKey).toBe(readingDocument.contentKey)

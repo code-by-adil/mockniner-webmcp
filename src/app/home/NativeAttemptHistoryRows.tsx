@@ -46,7 +46,8 @@ function getNativeHistoryRows(
       attemptId: attempt.attemptId,
       section: 'speaking' as const,
       submittedAt: attempt.submittedAt,
-      result: attempt.overallBand === undefined ? 'Awaiting Evaluation' : `Band ${attempt.overallBand}`,
+      result: attempt.evaluationStatus === 'insufficient_evidence' ? 'Insufficient evidence · Feedback ready'
+        : attempt.overallBand === undefined ? 'Awaiting Evaluation' : `Band ${attempt.overallBand}`,
     })),
   ].sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
 }

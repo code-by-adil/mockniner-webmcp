@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { ApplicationError } from '@/domain/errors'
-import { getResumableSection, type IeltsSession } from '@/domain/session'
+import { getIeltsDrafts, getResumableSection, findIeltsDraft, findContentBlockingDraft, type IeltsSession } from '@/domain/session'
 import type { AssessmentSession } from '@/domain/assessmentSession'
 import type { AssessmentPackage } from '@/domain/assessment'
 import type { ActiveContentDocuments, PracticeContentDocument } from '@/domain/contentDocument'
@@ -21,12 +21,41 @@ export const navigationSchema = z.discriminatedUnion('action', [
   z.strictObject({ action: z.literal('resume'), kind: z.enum(['ielts', 'assessment']), attemptId: z.uuid() }),
 ])
 export type PracticeNavigationInput = z.infer<typeof navigationSchema>
-export type PracticeWorkspace = { native: IeltsSession; assessment: AssessmentSession; content: ActiveContentDocuments; assessments: AssessmentPackage[]; listeningAudio: ListeningAudioStatus }
+export type PracticeWorkspace = { native: IeltsSession; assessment: AssessmentSession; content: ActiveContentDocuments; assessments: AssessmentPackage[]; listeningAudio: ListeningAudioStatus; canLeaveSpeaking?: boolean }
+
+type StartKind = 'assessment' | 'listening' | 'reading' | 'writing' | 'speaking' | 'full_ielts'
+export function getPracticeLeaveBlocker(workspace: PracticeWorkspace) {
+  return workspace.native.view === 'exam' && workspace.native.currentSection === 'speaking' && !workspace.canLeaveSpeaking
+    ? { code: 'SPEAKING_IN_PROGRESS', message: 'The interview is running or has unsaved responses. Finish it or use Exit Test before leaving. Empty setup can be paused safely.' } : null
+}
+
+export function getPracticeDraftBlocker(workspace: PracticeWorkspace, kind: StartKind) {
+  const existing = kind === 'assessment' ? workspace.assessment.attemptId
+    : findIeltsDraft(workspace.native, kind === 'full_ielts' ? 'full' : 'section', kind === 'full_ielts' ? 'listening' : kind)?.attemptId
+  return existing ? { code: 'ACTIVE_ATTEMPT', attemptId: existing,
+    message: 'An unfinished attempt exists for this practice. Resume its attemptId, or let the learner finish or replace it in the interface. Other IELTS sections can be practised without discarding it.' } : null
+}
+
+export function getPracticeStartability(workspace: PracticeWorkspace, kind: StartKind, contentKey?: string) {
+  const blocked = getPracticeLeaveBlocker(workspace) ?? getPracticeDraftBlocker(workspace, kind)
+  if (blocked) return { canStart: false, blockingReason: blocked }
+  if (contentKey && (kind === 'reading' || kind === 'listening' || kind === 'writing') && workspace.content[kind].contentKey !== contentKey) {
+    const draft = findContentBlockingDraft(workspace.native, kind)
+    if (draft) return { canStart: false, blockingReason: { code: 'ACTIVE_ATTEMPT', attemptId: draft.attemptId,
+      message: 'An unfinished practice uses this section. It can use the active set, but cannot activate a different set until that practice is finished.' } }
+  }
+  if (kind === 'listening' && contentKey && contentKey !== workspace.content.listening.contentKey) return {
+    canStart: false, blockingReason: { code: 'LISTENING_ACTIVATION_REQUIRED', message: 'Use open_practice start with this contentKey to activate it, then wait for listeningAudio.readyToPlay and start again.' },
+  }
+  if ((kind === 'listening' || kind === 'full_ielts') && !workspace.listeningAudio.readyToPlay) return {
+    canStart: false, blockingReason: { code: 'LISTENING_AUDIO_NOT_READY', message: 'Wait for listeningAudio.readyToPlay. If canRetry is true, use retry_ielts_listening_audio.' },
+  }
+  return { canStart: true, blockingReason: null }
+}
 
 export function getResumablePractices({ native, assessment }: PracticeWorkspace) {
-  const section = getResumableSection(native)
   return [
-    ...(section && native.attemptId ? [{ kind: 'ielts' as const, attemptId: native.attemptId, section, mode: native.mode }] : []),
+    ...getIeltsDrafts(native).map(draft => ({ kind: 'ielts' as const, attemptId: draft.attemptId!, section: getResumableSection(draft)!, mode: draft.mode })),
     ...(assessment.attemptId && assessment.packageId ? [{ kind: 'assessment' as const, attemptId: assessment.attemptId, packageId: assessment.packageId }] : []),
   ]
 }
@@ -36,14 +65,16 @@ export function createPracticeNavigation(deps: {
   native: Pick<IeltsCommands, 'goHome' | 'openAttempt' | 'resume' | 'start' | 'installContent'>
   assessment: Pick<AssessmentApplicationCommands, 'goHome' | 'openAttempt' | 'resume' | 'start'>
   loadContent: (key: string) => Promise<PracticeContentDocument | null>
+  canLeaveSpeaking?: () => boolean
 }) {
   let navigating = false
   const assertCanLeave = () => {
-    const { native } = deps.getWorkspace()
-    if (native.view === 'exam' && native.currentSection === 'speaking') throw new ApplicationError('SPEAKING_IN_PROGRESS', 'Finish the interview or use Exit Test before leaving. Its unfinished recordings are held in this tab.', true)
+    const blocker = getPracticeLeaveBlocker({ ...deps.getWorkspace(), canLeaveSpeaking: deps.canLeaveSpeaking?.() })
+    if (blocker) throw new ApplicationError(blocker.code, blocker.message, true)
   }
-  const assertNoDraft = (kind: 'ielts' | 'assessment') => {
-    if (getResumablePractices(deps.getWorkspace()).some(draft => draft.kind === kind)) throw new ApplicationError('ACTIVE_ATTEMPT', 'An unfinished attempt exists in this practice family. Read get_practice_library and resume its attemptId, or let the learner finish or replace it in the interface before starting another.', true)
+  const assertNoDraft = (kind: 'assessment' | 'listening' | 'reading' | 'writing' | 'speaking' | 'full_ielts') => {
+    const blocker = getPracticeDraftBlocker(deps.getWorkspace(), kind)
+    if (blocker) throw new ApplicationError(blocker.code, blocker.message, true)
   }
   const requireListening = (section: string) => {
     if (section === 'listening' && !deps.getWorkspace().listeningAudio.readyToPlay) throw new ApplicationError('LISTENING_AUDIO_NOT_READY', 'Listening audio is not ready to play. Read listeningAudio in get_practice_context; if canRetry is true, use retry_ielts_listening_audio with its contentKey.', true)
@@ -63,18 +94,18 @@ export function createPracticeNavigation(deps: {
       if (input.action === 'resume') {
         const draft = getResumablePractices(deps.getWorkspace()).find(d => d.kind === input.kind && d.attemptId === input.attemptId)
         if (!draft) throw new ApplicationError('RESUMABLE_ATTEMPT_NOT_FOUND', 'That attempt is not the saved unfinished attempt. Read get_practice_library for its current ID.', true)
-        if (draft.kind === 'ielts') { requireListening(draft.section); deps.assessment.goHome(); deps.native.goHome(); deps.native.resume() }
+        if (draft.kind === 'ielts') { requireListening(draft.section); deps.assessment.goHome(); deps.native.goHome(); deps.native.resume(draft.attemptId) }
         else { deps.native.goHome(); deps.assessment.resume() }
         return { view: 'exam', kind: input.kind, resumedFromAttemptId: input.attemptId }
       }
-      assertNoDraft(input.kind === 'assessment' ? 'assessment' : 'ielts')
+      assertNoDraft(input.kind)
       if (input.kind === 'assessment') {
         if (!deps.getWorkspace().assessments.some(p => p.packageId === input.packageId)) throw new ApplicationError('PRACTICE_NOT_FOUND', 'That assessment is not installed. Read get_practice_library.', true)
         deps.assessment.start(input.packageId!); deps.native.goHome()
       } else {
         if (input.contentKey && deps.getWorkspace().content[input.kind as keyof ActiveContentDocuments]?.contentKey !== input.contentKey) {
           const content = await deps.loadContent(input.contentKey)
-          assertCanLeave(); assertNoDraft('ielts')
+          assertCanLeave(); assertNoDraft(input.kind)
           if (!content || content.section !== input.kind) throw new ApplicationError('PRACTICE_NOT_FOUND', 'That content key is not a saved practice of the requested kind.', true)
           await deps.native.installContent(content)
           // A changed Listening set needs the app's audio preparation before start.

@@ -1,3 +1,5 @@
+import { revision } from '@/content/bundledListeningAudio.json';
+
 type ListeningAudioSources = {
   assetKey: string;
   audioUrl: string;
@@ -7,8 +9,8 @@ type ListeningAudioSources = {
 const LISTENING_AUDIO_ASSETS: Record<string, ListeningAudioSources> = {
   "local-original": {
     assetKey: "local-original",
-    audioUrl: "/audio/listening-test-1.mp3",
-    timelineUrl: "/audio/local-original-timeline.json",
+    audioUrl: `/audio/listening-test-1.mp3?v=${revision}`,
+    timelineUrl: `/audio/local-original-timeline.json?v=${revision}`,
   },
 };
 

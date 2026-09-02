@@ -59,6 +59,17 @@ function createTools(
 }
 
 describe("Speaking WebMCP tools", () => {
+  it('attaches and reads insufficient evidence as a terminal feedback outcome without scores', async () => {
+    const feedback = { attemptId, status: 'insufficient_evidence' as const, reason: 'The transcript is too short to support a band.', summary: 'Record a fuller interview.', strengths: [], improvements: ['Develop several answers.'] }
+    const evaluation = { ...feedback, evaluatedAt: '2026-09-03T10:00:00Z' }
+    const attach = vi.fn(async () => evaluation)
+    const tool = createTools(null, attach).find(t => t.name === 'attach_ielts_speaking_evaluation')!
+    const result = await tool.execute(feedback, toolOptions())
+    expect(result).toMatchObject({ ok: true, data: { evaluationStatus: 'insufficient_evidence' } })
+    expect(result).not.toHaveProperty('data.overallBand')
+    const reader = createTools(evaluation).find(t => t.name === 'get_ielts_speaking_submission')!
+    expect(await reader.execute({}, toolOptions())).toMatchObject({ ok: true, data: { evaluationStatus: 'insufficient_evidence', canAttachEvaluation: false, evaluation } })
+  })
   it("registers only the tools relevant to the visible Speaking surface", () => {
     const dependencies = {
       readSpeakingAttempt: vi.fn(),

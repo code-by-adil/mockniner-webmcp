@@ -9,7 +9,7 @@ import type {
   WritingSubmission,
 } from "./types";
 import { writingEvaluationInputSchema } from "./writingEvaluation";
-import { speakingEvaluationInputSchema } from "./speakingEvaluation";
+import { scoredSpeakingEvaluationSchema, unscoredSpeakingEvaluationSchema } from "./speakingEvaluation";
 import { writingTask1Schema, writingTask2Schema } from "./writingContent";
 
 const timestampSchema = z.iso.datetime({ offset: true });
@@ -113,9 +113,10 @@ export const speakingSubmissionSchema: z.ZodType<SpeakingSubmission> =
     );
 
 export const speakingEvaluationSchema: z.ZodType<SpeakingEvaluation> =
-  speakingEvaluationInputSchema.extend({
-    evaluatedAt: timestampSchema,
-  });
+  z.union([
+    scoredSpeakingEvaluationSchema.extend({ evaluatedAt: timestampSchema }),
+    unscoredSpeakingEvaluationSchema.extend({ evaluatedAt: timestampSchema }),
+  ]);
 
 function parseStoredJson(value: string, label: string): unknown {
   try {

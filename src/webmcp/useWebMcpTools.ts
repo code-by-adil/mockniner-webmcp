@@ -7,6 +7,8 @@ import { createListeningAudioRetryTool } from './listeningAudioTool';
 import { createSpeakingInterviewController } from "@/application/speakingInterviewController";
 import type { PracticeContext, VisibleSubmission } from '@/application/practiceContext';
 import { createPracticeContextTool } from './practiceContextTool';
+import { getPracticeProgress } from '@/application/practiceProgress';
+import { createObjectiveReviewTool } from './objectiveReviewTool';
 import { toolFailure } from './toolResult';
 import type { IeltsCommands } from "@/application/ieltsCommands";
 import type { AssessmentApplicationCommands } from "@/application/assessmentCommands";
@@ -67,14 +69,24 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     const controller = new AbortController();
     const tools: WebMCP.ModelContextTool[] = [];
     const visibleAttemptId = (kind: VisibleSubmission['kind']) => latest.current.context.submissions.find(submission => submission.kind === kind)?.attemptId;
-    const readContext = () => ({ ...latest.current.context, listeningAudio: latest.current.workspace.listeningAudio });
+    const readContext = () => {
+      const speaking = interview.read();
+      return { ...latest.current.context, listeningAudio: latest.current.workspace.listeningAudio,
+        progress: getPracticeProgress(latest.current.workspace, 'currentQuestion' in speaking ? speaking : undefined) };
+    };
     const readListeningAudio = () => latest.current.workspace.listeningAudio;
     tools.push(createPracticeContextTool(readContext), createListeningAudioRetryTool(readListeningAudio, () => flushSync(() => latest.current.retryListeningAudio())));
+    tools.push(createObjectiveReviewTool({
+      readAttempt: async (id, section) => (await getIeltsRepository()).readObjectiveAttempt(id, section),
+      loadContent: key => latest.current.loadPracticeContent(key),
+      visibleId: section => visibleAttemptId(section),
+    }));
     const navigation = createPracticeNavigation({
+      canLeaveSpeaking: interview.canLeave,
       getWorkspace: () => latest.current.workspace,
       native: {
         start: (...args) => flushSync(() => latest.current.commands.start(...args)),
-        resume: () => flushSync(() => latest.current.commands.resume()),
+        resume: (...args) => flushSync(() => latest.current.commands.resume(...args)),
         goHome: () => flushSync(() => latest.current.commands.goHome()),
         installContent: (input) => latest.current.commands.installContent(input),
         openAttempt: (...args) => latest.current.commands.openAttempt(...args),
@@ -90,7 +102,7 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     tools.push(...createPracticeTools({
       readLibrary: async input => {
         const [{ getLocalDatabase }, { readPracticeLibrary }] = await Promise.all([import('@/infrastructure/database/client'), import('@/infrastructure/database/practiceDiscovery')]);
-        return readPracticeLibrary(await getLocalDatabase(), latest.current.workspace, input);
+        return readPracticeLibrary(await getLocalDatabase(), { ...latest.current.workspace, canLeaveSpeaking: interview.canLeave() }, input);
       },
       readHistory: async input => {
         const [{ getLocalDatabase }, { readPracticeHistory }] = await Promise.all([import('@/infrastructure/database/client'), import('@/infrastructure/database/practiceDiscovery')]);
@@ -189,5 +201,5 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     });
     return () => controller.abort();
   }, [enabled, interview]);
-  return { bindSpeakingInterview: interview.bind, registrationStatus: enabled && !document.modelContext ? 'unavailable' as const : registrationStatus };
+  return { bindSpeakingInterview: interview.bind, canLeaveSpeaking: interview.canLeave, registrationStatus: enabled && !document.modelContext ? 'unavailable' as const : registrationStatus };
 }

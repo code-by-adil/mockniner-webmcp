@@ -156,7 +156,7 @@ describe("mixed universal assessment workflow", () => {
       answeredCount: 8,
       awaitingEvaluationCount: 1,
     });
-    expect(JSON.stringify(submissionResult)).not.toContain('"scoring"');
+    expect(JSON.stringify(submissionResult)).toContain('"scoring"'); // This package permits answer review.
 
     const invalidEvaluation = await evaluationTool.execute({
       ...evaluationInput,

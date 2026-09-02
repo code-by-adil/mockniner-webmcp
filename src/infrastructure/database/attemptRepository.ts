@@ -256,7 +256,9 @@ export async function readLearningSummary(
       speaking: { attemptCount: count("speaking"), recent: speakingRows.map((row) => {
         const evaluation = row.evaluationJson ? parseStoredSpeakingEvaluation(row.evaluationJson) : null;
         if (evaluation && evaluation.attemptId !== row.id) throw new Error('The stored Speaking evaluation does not match its attempt.');
-        return { attemptId: row.id, submittedAt: row.submittedAt, ...(evaluation ? { overallBand: evaluation.overallBand } : {}) };
+        return { attemptId: row.id, submittedAt: row.submittedAt,
+          evaluationStatus: evaluation?.status === 'insufficient_evidence' ? 'insufficient_evidence' as const : evaluation ? 'evaluated' as const : 'awaiting_evaluation' as const,
+          ...(evaluation && evaluation.status !== 'insufficient_evidence' ? { overallBand: evaluation.overallBand } : {}) };
       }) },
     },
   };
@@ -309,7 +311,8 @@ export async function saveObjectiveAttempt(
 
 export async function readObjectiveAttempt(
   database: Pick<SQLocal, "sql">,
-  attemptId: string,
+  attemptId?: string,
+  section?: 'listening' | 'reading',
 ): Promise<ObjectiveSubmission | null> {
   const [row] = await database.sql<ObjectiveSubmissionRow>`
     SELECT
@@ -324,8 +327,10 @@ export async function readObjectiveAttempt(
     FROM attempts
     INNER JOIN objective_submissions
       ON objective_submissions.attempt_id = attempts.id
-    WHERE attempts.id = ${attemptId}
+    WHERE (${attemptId ?? null} IS NULL OR attempts.id = ${attemptId ?? null})
       AND attempts.section IN ('listening', 'reading')
+      AND (${section ?? null} IS NULL OR attempts.section = ${section ?? null})
+    ORDER BY attempts.submitted_at DESC, attempts.id DESC LIMIT 1
   `;
   if (!row || (row.section !== "listening" && row.section !== "reading"))
     return null;

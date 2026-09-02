@@ -8,7 +8,7 @@ export type VisibleSubmission = {
   attemptId: string
   contentKey?: string
   packageId?: string
-  evaluationStatus: 'evaluated' | 'awaiting_evaluation' | 'not_required'
+  evaluationStatus: 'evaluated' | 'awaiting_evaluation' | 'not_required' | 'insufficient_evidence'
 }
 
 export type PracticeContext = {
@@ -36,7 +36,9 @@ export function getPracticeContext(native: IeltsSession, assessment: AssessmentS
   if (native.view === 'review') {
     const review = native.review
     if (review) context.submissions.push({ kind: review.section, attemptId: review.submission.attemptId,
-      contentKey: review.submission.contentKey, evaluationStatus: review.kind === 'objective' ? 'not_required' : review.evaluation ? 'evaluated' : 'awaiting_evaluation' })
+      contentKey: review.submission.contentKey, evaluationStatus: review.kind === 'objective' ? 'not_required'
+        : review.kind === 'speaking' && review.evaluation?.status === 'insufficient_evidence' ? 'insufficient_evidence'
+        : review.evaluation ? 'evaluated' : 'awaiting_evaluation' })
     return context
   }
   if (native.view === 'exam') {
@@ -50,7 +52,8 @@ export function getPracticeContext(native: IeltsSession, assessment: AssessmentS
     if (!submission) continue
     const evaluation = kind === 'writing' ? native.writingEvaluation : kind === 'speaking' ? native.speakingEvaluation : null
     context.submissions.push({ kind, attemptId: submission.attemptId, contentKey: submission.contentKey,
-      evaluationStatus: kind === 'writing' || kind === 'speaking' ? evaluation ? 'evaluated' : 'awaiting_evaluation' : 'not_required' })
+      evaluationStatus: kind === 'speaking' && native.speakingEvaluation?.status === 'insufficient_evidence' ? 'insufficient_evidence'
+        : kind === 'writing' || kind === 'speaking' ? evaluation ? 'evaluated' : 'awaiting_evaluation' : 'not_required' })
   }
   return context
 }

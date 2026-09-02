@@ -68,7 +68,8 @@ export function useIeltsApplication(persistence = defaultPersistence) {
       createIeltsCommands({
         getState,
         getContent,
-        dispatch,
+        dispatch: action => flushSync(() => dispatch(action)),
+        persistSession: saveSession,
         // External installation callers must observe the new content and its
         // derived audio status before the installation promise resolves.
         setContent: documents => flushSync(() => setContent(documents)),

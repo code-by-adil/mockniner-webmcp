@@ -106,14 +106,6 @@ type SpeakingSubmittedResponse = {
   transcript: string
 }
 
-export type SpeakingEvaluation = {
-  attemptId: string
-  overallBand: number
-  fluencyCoherence: number
-  lexicalResource: number
-  grammaticalRangeAccuracy: number
-  summary: string
-  strengths: string[]
-  improvements: string[]
+export type SpeakingEvaluation = import('./speakingEvaluation').SpeakingEvaluationInput & {
   evaluatedAt: string
 }

@@ -162,7 +162,7 @@ describe("universal assessment WebMCP tools", () => {
     });
   });
 
-  it("never returns answer keys with a submission", async () => {
+  it("returns answer keys when the submitted package allows answer review", async () => {
     const tool = createAssessmentToolDefinitions({
       installAssessment: vi.fn(),
       readAssessmentAttempt: async () => ({ submission, evaluation: null }),
@@ -172,7 +172,7 @@ describe("universal assessment WebMCP tools", () => {
 
     const result = await tool.execute({}, options());
     expect(result).toMatchObject({ ok: true, data: { evaluationStatus: "not_required" } });
-    expect(JSON.stringify(result)).not.toContain('"scoring"');
+    expect(JSON.stringify(result)).toContain('"scoring"');
   });
 
   it("registers only tools relevant to the visible assessment surface", () => {

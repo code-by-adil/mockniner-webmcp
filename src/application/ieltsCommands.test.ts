@@ -228,8 +228,8 @@ describe('exam application commands', () => {
       [newerAttempt.attemptId, newerAttempt],
       [olderAttempt.attemptId, olderAttempt],
     ])
-    const readObjectiveAttempt = vi.fn(async (attemptId: string) =>
-      attempts.get(attemptId) ?? null,
+    const readObjectiveAttempt = vi.fn(async (attemptId?: string) =>
+      attemptId ? attempts.get(attemptId) ?? null : null,
     )
     const harness = createHarness({
       storedContent: [oldDocument],

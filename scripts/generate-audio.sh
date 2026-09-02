@@ -20,11 +20,14 @@ for part in 1 2 3 4; do
     /usr/bin/say -v "$voice" -r 145 -o "$clip" "$words"
     printf "file '%s'\n" "$clip" >> "$concat_file"
   done < "$script_dir/audio/part-$part.txt"
-  ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i "$concat_file" -codec:a libmp3lame -b:a 96k "$audio_work_dir/listening-part-$part.mp3"
+  # Normalize the lossless parts before concatenation; encode MP3 only once.
+  ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i "$concat_file" -ar 24000 -ac 1 -codec:a pcm_s16le "$audio_work_dir/listening-part-$part.wav"
 done
 
 concat_file="$audio_work_dir/listening.txt"
 for part in 1 2 3 4; do
-  printf "file '%s/listening-part-%s.mp3'\n" "$audio_work_dir" "$part" >> "$concat_file"
+  printf "file '%s/listening-part-%s.wav'\n" "$audio_work_dir" "$part" >> "$concat_file"
 done
-ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i "$concat_file" -codec:a libmp3lame -b:a 96k "$output_dir/listening-test-1.mp3"
+ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i "$concat_file" -codec:a libmp3lame -b:a 96k "$audio_work_dir/listening-test-1.mp3"
+# Publish only after all parts succeed, with matching timings and cache revision.
+node "$script_dir/finalize-listening-audio.mjs" "$audio_work_dir"
