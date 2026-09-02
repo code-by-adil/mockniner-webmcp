@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { MessageCircle, Mic } from "lucide-react";
-import { ExamUiBoundary } from "@/app/layouts/UiLayerBoundary";
+import { ExamUiBoundary } from "@/app/layouts/ExamUiBoundary";
 import { Header } from "@/modules/exam-engine/ui/Header";
 import {
   StandardSpeakingMode,
@@ -16,7 +16,7 @@ type Props = {
   onSubmit: (input: CompleteSpeakingAttemptInput) => Promise<SpeakingSubmission>;
 };
 
-export function LocalSpeakingExam({ onExit, onSubmit }: Props) {
+export function SpeakingExamRunner({ onExit, onSubmit }: Props) {
   const [mode, setMode] = useState<"choose" | "standard" | "agent">("choose");
   const questions = useMemo<SpeakingQuestion[]>(
     () =>

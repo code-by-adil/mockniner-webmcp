@@ -9,7 +9,7 @@ import { canAssignDragOption } from "@/shared/ui/exam/dragSelection";
 import { useExamProximityDropLayer } from "@/shared/ui/exam/examProximityDrop";
 import type {
   ObjectiveWebBlockRendererProps,
-} from "@/modules/section-packs/content-json/types";
+} from "@/modules/section-packs/objective/types/ObjectiveWebRenderContext";
 import { findCorrectAnswer } from "./helpers";
 import { MapPrimitiveScene } from "./MapPrimitiveScene";
 import {

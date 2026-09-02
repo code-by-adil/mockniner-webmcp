@@ -4,12 +4,12 @@ import type {
 } from "@/domain/objectiveContent";
 import { HighlightableArea } from "@/shared/ui/exam/HighlightableArea";
 import { ResizableSplitPane } from "@/shared/ui/exam/ResizableSplitPane";
-import { ObjectiveWebBlock } from "./blocks";
-import type { ObjectiveWebRenderContext } from "./types";
+import { ObjectiveWebBlock } from "../blocks/ObjectiveWebBlock";
+import type { ObjectiveWebRenderContext } from "../types/ObjectiveWebRenderContext";
 import {
   HeadingMatchingOptionsBlock,
   HeadingMatchingPassageBlock,
-} from "./blocks/MatchingQuestionsBlock";
+} from "../blocks/MatchingQuestionsBlock";
 import {
   splitObjectivePartBlocks,
   toObjectiveBlockListItems,

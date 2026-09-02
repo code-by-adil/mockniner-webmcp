@@ -24,15 +24,16 @@ import type { ActiveContentDocuments } from "@/domain/contentDocument";
 import type { ListeningAudioSession } from "@/application/useListeningAudio";
 import type { LearningSummary } from "@/domain/learningSummary";
 import {
-  UniversalAssessmentHistoryRows,
-  UniversalAssessmentLibrary,
-  type UniversalAssessmentHomeProps,
-} from "./UniversalAssessmentLibrary";
+  AssessmentHistory,
+  AssessmentLibrary,
+  type AssessmentLibraryProps,
+} from "./AssessmentLibrary";
 import { NativeAttemptHistoryRows } from "./NativeAttemptHistoryRows";
 
 type Section = SectionKey;
 type Mode = ExamMode;
-type HomeProps = UniversalAssessmentHomeProps & {
+type HomeProps = {
+  assessmentLibrary: AssessmentLibraryProps;
   onStart: (mode: Mode, section: Section) => void;
   onResume: () => void;
   session: ExamSession;
@@ -93,15 +94,7 @@ export function Home({
   content,
   learningSummary,
   onReviewAttempt,
-  assessments,
-  assessmentSession,
-  assessmentHistory,
-  onStartAssessment,
-  onResumeAssessment,
-  onRestartAssessment,
-  onDiscardAssessment,
-  onDeleteAssessment,
-  onReviewAssessment,
+  assessmentLibrary,
 }: HomeProps): React.ReactElement {
   const [toolsModalOpen, setToolsModalOpen] = useState(false);
   const [copiedPromptIndex, setCopiedPromptIndex] = useState<number | null>(null);
@@ -217,15 +210,7 @@ export function Home({
           )}
         </section>
 
-        <UniversalAssessmentLibrary
-          assessments={assessments}
-          assessmentSession={assessmentSession}
-          onStartAssessment={onStartAssessment}
-          onResumeAssessment={onResumeAssessment}
-          onRestartAssessment={onRestartAssessment}
-          onDiscardAssessment={onDiscardAssessment}
-          onDeleteAssessment={onDeleteAssessment}
-        />
+        <AssessmentLibrary {...assessmentLibrary} />
 
         {/* Modular Section Practice List */}
         <section className="space-y-4">
@@ -332,21 +317,21 @@ export function Home({
         </section>
 
         {/* Recent Attempts (if existing) */}
-        {((learningSummary && learningSummary.totalAttempts > 0) || assessmentHistory.length > 0) && (
+        {((learningSummary && learningSummary.totalAttempts > 0) || assessmentLibrary.assessmentHistory.length > 0) && (
           <section className="space-y-4">
             <div className="flex items-center justify-between border-b border-neutral-200/80 pb-2.5">
               <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
                 Recent Attempts
               </h2>
               <span className="text-xs text-neutral-400">
-                {(learningSummary?.totalAttempts ?? 0) + assessmentHistory.length} universal and IELTS attempts saved locally
+                {(learningSummary?.totalAttempts ?? 0) + assessmentLibrary.assessmentHistory.length} universal and IELTS attempts saved locally
               </span>
             </div>
 
             <div className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-white text-xs shadow-2xs">
-              <UniversalAssessmentHistoryRows
-                history={assessmentHistory}
-                onReview={onReviewAssessment}
+              <AssessmentHistory
+                history={assessmentLibrary.assessmentHistory}
+                onReview={assessmentLibrary.onReviewAssessment}
               />
 
               {learningSummary ? (

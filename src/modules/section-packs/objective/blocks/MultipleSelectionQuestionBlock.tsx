@@ -1,7 +1,7 @@
 import { CheckboxGroup } from "@/shared/ui/exam/CheckboxGroup";
 import type {
   ObjectiveWebBlockRendererProps,
-} from "@/modules/section-packs/content-json/types";
+} from "@/modules/section-packs/objective/types/ObjectiveWebRenderContext";
 
 export function MultipleSelectionQuestionBlock({
   block,

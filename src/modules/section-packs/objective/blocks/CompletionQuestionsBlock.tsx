@@ -1,12 +1,12 @@
 import {
   normalizeObjectiveCompletionBlock,
-} from "../objectiveRendering";
+} from "../ui/objectiveRendering";
 import { FlowchartCompletion } from "@/shared/ui/exam/FlowchartCompletion";
 import { InlineCompletion, type InlineCompletionItem } from "@/shared/ui/exam/InlineCompletion";
 import { InputAnswer } from "@/shared/ui/exam/InputAnswer";
 import type {
   ObjectiveWebBlockRendererProps,
-} from "@/modules/section-packs/content-json/types";
+} from "@/modules/section-packs/objective/types/ObjectiveWebRenderContext";
 
 export function CompletionQuestionsBlock({
   block,

@@ -4,7 +4,7 @@ import type {
   WritingTask1,
   WritingTask2,
 } from "@/domain/writingContent";
-import { ExamUiBoundary } from "@/app/layouts/UiLayerBoundary";
+import { ExamUiBoundary } from "@/app/layouts/ExamUiBoundary";
 import { useTimedSubmission } from "@/modules/exam-engine/useTimedSubmission";
 import { Header } from "@/modules/exam-engine/ui/Header";
 import { WritingExamFooter } from "@/modules/exam-engine/ui/Footer";
@@ -105,7 +105,7 @@ function WritingPart2({
   );
 }
 
-type LocalWritingExamProps = {
+type WritingExamRunnerProps = {
   document: WritingContentDocument;
   answers: Record<1 | 2, string>;
   currentPart: 1 | 2;
@@ -117,7 +117,7 @@ type LocalWritingExamProps = {
   onSubmit: () => unknown | Promise<unknown>;
 };
 
-export function LocalWritingExam({
+export function WritingExamRunner({
   document,
   answers,
   currentPart,
@@ -127,7 +127,7 @@ export function LocalWritingExam({
   onPartChange,
   onTick,
   onSubmit,
-}: LocalWritingExamProps) {
+}: WritingExamRunnerProps) {
   const { isSubmitting, submissionError, submit } = useTimedSubmission({
     secondsRemaining,
     onTick,

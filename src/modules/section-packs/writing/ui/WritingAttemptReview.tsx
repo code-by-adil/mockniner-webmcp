@@ -1,4 +1,4 @@
-import { ExamUiBoundary } from '@/app/layouts/UiLayerBoundary'
+import { ExamUiBoundary } from '@/app/layouts/ExamUiBoundary'
 import type {
   WritingEvaluation,
   WritingSubmission,
@@ -13,7 +13,7 @@ type Props = {
   onExit: () => void
 }
 
-export function LocalWritingReview({
+export function WritingAttemptReview({
   submission,
   evaluation,
   currentPart,

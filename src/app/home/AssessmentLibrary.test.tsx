@@ -4,15 +4,14 @@ import { greStyleAssessment } from "@/content/gre";
 import { satPracticeAssessment } from "@/content/sat";
 import { initialAssessmentSession } from "@/domain/assessmentSession";
 import { AssessmentLifecycleDialog } from "./AssessmentLifecycleDialog";
-import { UniversalAssessmentLibrary } from "./UniversalAssessmentLibrary";
-import { UniversalAssessmentHistoryRows } from "./UniversalAssessmentLibrary";
+import { AssessmentHistory, AssessmentLibrary } from "./AssessmentLibrary";
 
 const noOp = () => undefined;
 const noOpAsync = async () => undefined;
 
 function renderLibrary(session = initialAssessmentSession) {
   return renderToStaticMarkup(
-    <UniversalAssessmentLibrary
+    <AssessmentLibrary
       assessments={[satPracticeAssessment, { ...greStyleAssessment, source: "agent" }]}
       assessmentSession={session}
       onStartAssessment={noOp}
@@ -24,7 +23,7 @@ function renderLibrary(session = initialAssessmentSession) {
   );
 }
 
-describe("universal assessment library", () => {
+describe("assessment library", () => {
   it("offers start for idle packages and deletion only for agent-installed packages", () => {
     const html = renderLibrary();
 
@@ -69,7 +68,7 @@ describe("assessment lifecycle confirmation", () => {
   });
 });
 
-describe("universal assessment history", () => {
+describe("assessment history", () => {
   it("distinguishes pending and completed evaluations", () => {
     const base = {
       packageId: greStyleAssessment.packageId,
@@ -79,7 +78,7 @@ describe("universal assessment history", () => {
       submittedAt: "2026-09-02T10:40:00.000Z",
     };
     const html = renderToStaticMarkup(
-      <UniversalAssessmentHistoryRows
+      <AssessmentHistory
         history={[
           {
             ...base,

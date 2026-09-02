@@ -1,7 +1,7 @@
 import { QuestionGroupHeader } from "@/shared/ui/exam/QuestionGroupHeader";
 import type {
   ObjectiveWebBlockRendererProps,
-} from "@/modules/section-packs/content-json/types";
+} from "@/modules/section-packs/objective/types/ObjectiveWebRenderContext";
 
 function textVariantClass(variant: "title" | "subtitle" | "body" | "muted" | undefined) {
   switch (variant) {

@@ -1,5 +1,5 @@
 import type { ObjectiveContentBlock } from "@/domain/objectiveContent";
-import type { ObjectiveWebRenderContext } from "../types";
+import type { ObjectiveWebRenderContext } from "../types/ObjectiveWebRenderContext";
 import { CompletionQuestionsBlock } from "./CompletionQuestionsBlock";
 import {
   FeatureMatchingQuestionsBlock,

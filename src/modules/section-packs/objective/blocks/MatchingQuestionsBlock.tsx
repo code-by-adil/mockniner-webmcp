@@ -8,7 +8,7 @@ import {
 } from "@/shared/ui/exam/matchingChoice";
 import type {
   ObjectiveWebBlockRendererProps,
-} from "@/modules/section-packs/content-json/types";
+} from "@/modules/section-packs/objective/types/ObjectiveWebRenderContext";
 import { findCorrectAnswer } from "./helpers";
 
 type MatchingBlockType = "feature_matching_questions" | "heading_matching_questions";

@@ -8,14 +8,14 @@ import {
   Headphones,
   Mic,
 } from "lucide-react";
-import { ExamUiBoundary } from "@/app/layouts/UiLayerBoundary";
+import { ExamUiBoundary } from "@/app/layouts/ExamUiBoundary";
 import { Home } from "@/app/home/Home";
 import { ListeningExamRunner } from "@/modules/section-packs/listening/ui/ListeningExamRunner";
 import { ReadingExamRunner } from "@/modules/section-packs/reading/ui/ReadingExamRunner";
-import { LocalWritingExam } from "@/local/LocalWritingExam";
-import { LocalWritingReview } from "@/local/LocalWritingReview";
-import { LocalSpeakingExam } from "@/local/LocalSpeakingExam";
-import { LocalSpeakingReview } from "@/local/LocalSpeakingReview";
+import { WritingExamRunner } from "@/modules/section-packs/writing/ui/WritingExamRunner";
+import { WritingAttemptReview } from "@/modules/section-packs/writing/ui/WritingAttemptReview";
+import { SpeakingExamRunner } from "@/modules/section-packs/speaking/ui/SpeakingExamRunner";
+import { SpeakingAttemptReview } from "@/modules/section-packs/speaking/ui/SpeakingAttemptReview";
 import { SECTION_ORDER } from "@/domain/exam";
 import type { ExamMode, ExamSession } from "@/domain/session";
 import type { SectionKey } from "@/domain/types";
@@ -317,15 +317,17 @@ export default function App() {
         content={content}
         learningSummary={learningSummary}
         onReviewAttempt={commands.openAttempt}
-        assessments={assessmentApplication.assessments}
-        assessmentSession={assessmentApplication.state}
-        assessmentHistory={assessmentApplication.history}
-        onStartAssessment={assessmentApplication.commands.start}
-        onResumeAssessment={assessmentApplication.commands.resume}
-        onRestartAssessment={assessmentApplication.commands.restart}
-        onDiscardAssessment={assessmentApplication.commands.discard}
-        onDeleteAssessment={assessmentApplication.commands.deleteAssessment}
-        onReviewAssessment={assessmentApplication.commands.openAttempt}
+        assessmentLibrary={{
+          assessments: assessmentApplication.assessments,
+          assessmentSession: assessmentApplication.state,
+          assessmentHistory: assessmentApplication.history,
+          onStartAssessment: assessmentApplication.commands.start,
+          onResumeAssessment: assessmentApplication.commands.resume,
+          onRestartAssessment: assessmentApplication.commands.restart,
+          onDiscardAssessment: assessmentApplication.commands.discard,
+          onDeleteAssessment: assessmentApplication.commands.deleteAssessment,
+          onReviewAssessment: assessmentApplication.commands.openAttempt,
+        }}
       />
     );
   }
@@ -389,7 +391,7 @@ export default function App() {
   if (section === "writing") {
     if (state.view === "review" && state.review?.kind === "writing") {
       return (
-        <LocalWritingReview
+        <WritingAttemptReview
           submission={state.review.submission}
           evaluation={state.review.evaluation}
           currentPart={state.review.part === 2 ? 2 : 1}
@@ -399,7 +401,7 @@ export default function App() {
       );
     }
     return (
-      <LocalWritingExam
+      <WritingExamRunner
         document={content.writing}
         answers={state.writingDrafts}
         currentPart={state.partBySection.writing === 2 ? 2 : 1}
@@ -415,7 +417,7 @@ export default function App() {
 
   if (state.view === "review" && state.review?.kind === "speaking") {
     return (
-      <LocalSpeakingReview
+      <SpeakingAttemptReview
         submission={state.review.submission}
         evaluation={state.review.evaluation}
         onExit={commands.closeReview}
@@ -423,5 +425,5 @@ export default function App() {
     );
   }
 
-  return <LocalSpeakingExam onExit={commands.goHome} onSubmit={commands.submitSpeaking} />;
+  return <SpeakingExamRunner onExit={commands.goHome} onSubmit={commands.submitSpeaking} />;
 }

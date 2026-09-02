@@ -1,6 +1,6 @@
 import { ArrowLeft, CheckCircle2, Mic, Volume2 } from 'lucide-react'
 import type { SpeakingEvaluation, SpeakingSubmission } from '@/domain/types'
-import { ExamUiBoundary } from '@/app/layouts/UiLayerBoundary'
+import { ExamUiBoundary } from '@/app/layouts/ExamUiBoundary'
 import { Header } from '@/modules/exam-engine/ui/Header'
 
 type Props = {
@@ -15,7 +15,7 @@ const criteria = [
   ['Grammar range & accuracy', 'grammaticalRangeAccuracy'],
 ] as const
 
-export function LocalSpeakingReview({ submission, evaluation, onExit }: Props) {
+export function SpeakingAttemptReview({ submission, evaluation, onExit }: Props) {
   return (
     <ExamUiBoundary>
       <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">

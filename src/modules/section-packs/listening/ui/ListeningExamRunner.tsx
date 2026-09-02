@@ -3,8 +3,8 @@ import { Header } from "@/modules/exam-engine/ui/Header";
 import { ObjectiveExamFooter } from "@/modules/exam-engine/ui/Footer";
 import { buildObjectiveFooterParts } from "@/modules/exam-engine/footerParts";
 import { formatTime } from "@/domain/exam";
-import { ObjectivePartView } from "@/modules/section-packs/content-json/ObjectivePartView";
-import type { ObjectivePracticeRunnerProps } from "@/modules/section-packs/objective/types";
+import { ObjectivePartView } from "@/modules/section-packs/objective/ui/ObjectivePartView";
+import type { ObjectivePracticeRunnerProps } from "@/modules/section-packs/objective/types/ObjectivePracticeRunnerProps";
 import { ListeningAudioBar } from "./ListeningAudioBar";
 import type {
   ListeningAudioPersistedState,

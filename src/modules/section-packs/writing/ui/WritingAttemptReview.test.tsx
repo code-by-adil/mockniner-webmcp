@@ -6,7 +6,7 @@ import type {
   WritingSubmission,
   WritingTaskEvaluation,
 } from '@/domain/types'
-import { LocalWritingReview } from './LocalWritingReview'
+import { WritingAttemptReview } from './WritingAttemptReview'
 
 const attemptId = '22222222-2222-4222-8222-222222222222'
 const submission: WritingSubmission = {
@@ -57,7 +57,7 @@ const evaluation: WritingEvaluation = {
 describe('Writing review surface', () => {
   it('renders the writing review for the selected task', () => {
     const markup = renderToStaticMarkup(
-      <LocalWritingReview
+      <WritingAttemptReview
         submission={submission}
         evaluation={evaluation}
         currentPart={2}

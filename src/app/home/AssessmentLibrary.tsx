@@ -15,7 +15,7 @@ import {
   type AssessmentLifecycleAction,
 } from "./AssessmentLifecycleDialog";
 
-export type UniversalAssessmentHomeProps = {
+export type AssessmentLibraryProps = {
   assessments: AssessmentPackage[];
   assessmentSession: AssessmentSession;
   assessmentHistory: AssessmentHistoryEntry[];
@@ -27,7 +27,7 @@ export type UniversalAssessmentHomeProps = {
   onReviewAssessment: (attemptId: string) => Promise<void>;
 };
 
-export function UniversalAssessmentLibrary({
+export function AssessmentLibrary({
   assessments,
   assessmentSession,
   onStartAssessment,
@@ -36,7 +36,7 @@ export function UniversalAssessmentLibrary({
   onDiscardAssessment,
   onDeleteAssessment,
 }: Pick<
-  UniversalAssessmentHomeProps,
+  AssessmentLibraryProps,
   | "assessments"
   | "assessmentSession"
   | "onStartAssessment"
@@ -177,7 +177,7 @@ export function UniversalAssessmentLibrary({
   );
 }
 
-export function UniversalAssessmentHistoryRows({
+export function AssessmentHistory({
   history,
   onReview,
 }: {
