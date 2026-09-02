@@ -208,7 +208,7 @@ describe("universal assessment WebMCP tools", () => {
     expect(installAssessment).not.toHaveBeenCalled();
   });
 
-  it("routes IELTS and universal authoring clearly in tool descriptions", () => {
+  it("describes universal authoring without cross-tool routing prose", () => {
     const tools = createAssessmentToolDefinitions({
       installAssessment: vi.fn(),
       readAssessmentAttempt: vi.fn(),
@@ -216,8 +216,8 @@ describe("universal assessment WebMCP tools", () => {
       getCurrentAttemptId: () => undefined,
     });
     expect(tools.find((tool) => tool.name === "get_assessment_authoring_kit")?.description)
-      .toContain("Native IELTS Listening, Reading, and Writing use install_practice_set");
+      .toContain("universal engine capabilities");
     expect(tools.find((tool) => tool.name === "install_assessment")?.description)
-      .toContain("GRE-style");
+      .not.toContain("IELTS");
   });
 });

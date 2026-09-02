@@ -150,9 +150,9 @@ describe('Agent Speaking WebMCP lifecycle', () => {
     const onComplete = vi.fn(async () => submission)
     await act(async () => root.render(<SpeakingRoute onComplete={onComplete} />))
 
-    expect(tools.has('conduct_speaking_turn')).toBe(false)
+    expect(tools.has('conduct_ielts_speaking_turn')).toBe(false)
     await click(container, 'Open Agent interview')
-    const tool = tools.get('conduct_speaking_turn')
+    const tool = tools.get('conduct_ielts_speaking_turn')
     expect(tool).toBeDefined()
 
     await click(container, 'Enable microphone and audio')
@@ -206,7 +206,7 @@ describe('Agent Speaking WebMCP lifecycle', () => {
       },
     })
     expect(container.textContent).toContain('Speaking complete')
-    expect(tools.has('conduct_speaking_turn')).toBe(false)
+    expect(tools.has('conduct_ielts_speaking_turn')).toBe(false)
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
       contentKey: 'agent-speaking-interview-v1',
       recordings: [expect.objectContaining({
@@ -222,7 +222,7 @@ describe('Agent Speaking WebMCP lifecycle', () => {
     ))
     await click(container, 'Open Agent interview')
     await click(container, 'Enable microphone and audio')
-    const tool = tools.get('conduct_speaking_turn')!
+    const tool = tools.get('conduct_ielts_speaking_turn')!
     const controller = new AbortController()
     let turn!: Promise<unknown>
     await act(async () => {
@@ -248,6 +248,6 @@ describe('Agent Speaking WebMCP lifecycle', () => {
     expect((error as DOMException).name).toBe('AbortError')
     expect(media.cancelRecording).toHaveBeenCalledOnce()
     expect(container.textContent).toContain('Ready. Give the prompt below')
-    expect(tools.has('conduct_speaking_turn')).toBe(true)
+    expect(tools.has('conduct_ielts_speaking_turn')).toBe(true)
   })
 })

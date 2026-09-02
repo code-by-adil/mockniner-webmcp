@@ -80,8 +80,8 @@ const SECTION_CONFIG = {
 const PROMPT_SUGGESTIONS = [
   "Create and install an original SAT-style diagnostic focused on algebra and inference.",
   "Build a six-question universal assessment with multiple choice, numeric entry, and one rubric-evaluated response.",
-  "Generate an IELTS Academic Reading test on renewable energy with 13 questions.",
-  "Grade my submitted IELTS Writing Task 2 essay against official band descriptors.",
+  "Create and install an original 40-question IELTS Academic Reading set about renewable energy.",
+  "Grade my latest submitted IELTS Writing attempt against official band descriptors.",
 ];
 
 export function Home({

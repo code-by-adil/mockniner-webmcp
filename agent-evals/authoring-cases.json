@@ -1,5 +1,5 @@
 {
-  "contractVersion": 1,
+  "contractVersion": 2,
   "cases": [
     {
       "id": "gre-verbal",
@@ -31,8 +31,9 @@
     },
     {
       "id": "ielts-reading",
-      "name": "IELTS Reading stays on the native authoring route",
+      "name": "IELTS Reading uses the native section authoring kit",
       "kind": "ielts",
+      "section": "reading",
       "prompt": "Give me IELTS Reading practice."
     },
     {

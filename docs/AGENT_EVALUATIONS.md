@@ -25,18 +25,19 @@ requests and one focused recovery case:
 6. an unsupported request to select a sentence directly in a passage;
 7. repair of an invalid package using a returned `error.issues` path.
 
-The prepared suite exposes the same four tool definitions that the application
-registers on its library screen: native IELTS installation, the compact IELTS
-learning summary, the universal authoring kit, and universal installation.
+The prepared suite exposes the same five tool definitions that the application
+registers on its library screen: the native IELTS authoring kit and installation,
+the compact IELTS learning summary, the universal authoring kit, and universal
+installation.
 Submission, evaluation, and Speaking-interview schemas are registered only on
 their relevant result or interview surfaces, so unrelated large schemas do not
 consume authoring context.
 
 The first four requests must call the smallest relevant universal authoring
 kit and then `install_assessment`. IELTS Reading must call
-`install_practice_set` without entering the universal lane. Passage-text
-selection must stop after reading the GRE-style kit and explain the unsupported
-capability; calling either installation tool fails the case.
+`get_ielts_authoring_kit` for Reading and then `install_ielts_practice_set`.
+Passage-text selection must stop after reading the GRE-style kit and explain
+the unsupported capability; calling either installation tool fails the case.
 
 The report gate does more than compare function names. It passes every
 generated package back through the application's current parser and checks the
@@ -67,7 +68,9 @@ In addition to Vitest, it prepares the evaluation artifacts under the ignored
 `.evals/agent-authoring/fixtures` directory and verifies:
 
 - all expected production tools are present once and in runtime order;
-- the IELTS versus universal routing descriptions remain explicit;
+- native and universal authoring tools remain distinct and unambiguous;
+- the always-loaded IELTS installation schema stays below ten percent of the
+  complete runtime schema;
 - every authoring kit example passes the current package parser;
 - GRE coverage still declares passage selection unsupported and official score
   reporting limited;

@@ -10,7 +10,7 @@ type Props = {
 }
 
 const DEFAULT_SPEAKING_PROMPT =
-  'Conduct a full IELTS Speaking interview with me covering Parts 1, 2, and 3. Ask questions one at a time, listen to each response, and conclude when finished.'
+  'Conduct a full IELTS Speaking interview with me covering Parts 1, 2, and 3. Use the IELTS Speaking turn tool to ask one question at a time, listen to each response, and conclude when finished.'
 
 export function AgentSpeakingMode({ onComplete }: Props) {
   const [copied, setCopied] = useState(false)

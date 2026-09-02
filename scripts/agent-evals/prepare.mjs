@@ -111,14 +111,22 @@ function universalEval(definition, getAssessmentAuthoringKit) {
   };
 }
 
-function ieltsEval(definition) {
+function ieltsEval(definition, getIeltsAuthoringKit) {
   return {
     name: definition.name,
     messages: [{ role: "user", type: "message", content: definition.prompt }],
     expectedCall: [
       {
-        functionName: "install_practice_set",
-        arguments: { section: "reading" },
+        functionName: "get_ielts_authoring_kit",
+        arguments: { section: definition.section },
+        mockOutput: {
+          ok: true,
+          data: getIeltsAuthoringKit(definition.section),
+        },
+      },
+      {
+        functionName: "install_ielts_practice_set",
+        arguments: { section: definition.section },
         result: { ok: true, data: { section: "reading", itemCount: 40 } },
         mockOutput: {
           ok: true,
@@ -202,11 +210,13 @@ function repairEval(definition) {
   };
 }
 
-function buildEval(definition, getAssessmentAuthoringKit) {
+function buildEval(definition, getAssessmentAuthoringKit, getIeltsAuthoringKit) {
   if (definition.kind === "universal") {
     return universalEval(definition, getAssessmentAuthoringKit);
   }
-  if (definition.kind === "ielts") return ieltsEval(definition);
+  if (definition.kind === "ielts") {
+    return ieltsEval(definition, getIeltsAuthoringKit);
+  }
   if (definition.kind === "unsupported") {
     return unsupportedEval(definition, getAssessmentAuthoringKit);
   }
@@ -238,8 +248,12 @@ function browserSmokeEvals(modules) {
       ],
       expectedCall: [
         {
-          functionName: "get_learning_summary",
+          functionName: "get_ielts_learning_summary",
           arguments: { recentLimit: 1 },
+        },
+        {
+          functionName: "get_ielts_authoring_kit",
+          arguments: { section: "writing" },
         },
         {
           functionName: "get_assessment_authoring_kit",
@@ -250,7 +264,7 @@ function browserSmokeEvals(modules) {
           arguments: assessmentPackage,
         },
         {
-          functionName: "install_practice_set",
+          functionName: "install_ielts_practice_set",
           arguments: writingDocument,
         },
       ],
@@ -262,7 +276,11 @@ export async function prepareAgentEvalArtifacts() {
   const [manifest, modules] = await Promise.all([readCaseManifest(), loadProjectModules()]);
   const tools = toolDefinitions(modules);
   const evals = manifest.cases.map((definition) =>
-    buildEval(definition, modules.examples.getAssessmentAuthoringKit),
+    buildEval(
+      definition,
+      modules.examples.getAssessmentAuthoringKit,
+      modules.ieltsAuthoring.getIeltsAuthoringKit,
+    ),
   );
   const smokeEvals = browserSmokeEvals(modules);
 

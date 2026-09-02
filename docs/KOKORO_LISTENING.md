@@ -78,8 +78,10 @@ limits reject accidentally unbounded generation without making the agent
 manually optimize audio chunks.
 
 The authoritative executable contract is the Zod schema in
-`src/domain/objectiveContent.ts`. The `install_practice_set` WebMCP tool accepts
-that complete document and invokes the existing `installContent` command.
+`src/domain/objectiveContent.ts`. Call `get_ielts_authoring_kit` with
+`section: "listening"` to load that section's schema, then pass the complete
+document to `install_ielts_practice_set`. Installation invokes the existing
+`installContent` command.
 No TTS-specific WebMCP tool or second audio payload is needed.
 
 ## Runtime
@@ -132,8 +134,9 @@ worker are rejected. The existing bundled recording remains supported through
 - Clearing site data removes generated audio and attempts.
 - No API key, backend, embedded chatbot, FFmpeg, MP3 encoder, voice cloning, or
   application-side model service is involved.
-- The existing `install_practice_set` tool carries the authoring guidance in
-  both its description and generated JSON Schema.
+- `get_ielts_authoring_kit` loads the Listening guidance and schema only when an
+  agent requests that section. `install_ielts_practice_set` keeps compact
+  discovery metadata and applies the full runtime validator.
 
 Kokoro integration sources: the
 [`kokoro-js@1.2.1` package documentation](https://www.npmjs.com/package/kokoro-js),

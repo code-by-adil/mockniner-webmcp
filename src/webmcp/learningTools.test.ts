@@ -32,6 +32,7 @@ describe('learning-summary WebMCP tool', () => {
 
     const result = await tool!.execute({}, toolOptions())
 
+    expect(tool!.name).toBe('get_ielts_learning_summary')
     expect(readLearningSummary).toHaveBeenCalledWith(5)
     expect(result).toMatchObject({
       ok: true,

@@ -36,7 +36,7 @@ export function createLearningToolDefinitions({
 }: LearningToolDependencies): WebMCP.ModelContextTool[] {
   return [
     {
-      name: 'get_learning_summary',
+      name: 'get_ielts_learning_summary',
       title: 'Read IELTS learning summary',
       description:
         'Read a compact local summary of recent IELTS performance for adapting future practice. Returns scores and criterion averages without essays, recordings, answer keys, or draft answers.',

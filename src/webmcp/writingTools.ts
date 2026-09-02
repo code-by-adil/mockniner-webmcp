@@ -97,7 +97,7 @@ export function createWritingToolDefinitions(
   surface: WritingToolSurface = "evaluation",
 ): WebMCP.ModelContextTool[] {
   const submissionTool: WebMCP.ModelContextTool = {
-    name: "get_writing_submission",
+    name: "get_ielts_writing_submission",
     title: "Read IELTS Writing submission",
     description:
       "Read an immutable submitted IELTS Writing attempt, including both original task definitions, candidate responses, word counts, and attempt identity. Use this before evaluating Writing. Omit attemptId to read the latest submission.",
@@ -138,7 +138,7 @@ export function createWritingToolDefinitions(
     },
   };
   const evaluationTool: WebMCP.ModelContextTool = {
-    name: "attach_writing_evaluation",
+    name: "attach_ielts_writing_evaluation",
     title: "Attach IELTS Writing evaluation",
     description:
       "Validate and attach a structured IELTS Writing evaluation to the current immutable submission. Supply whole or half-band scores from 0 to 9 for both tasks and all four criteria. On success the application opens the read-only Writing review.",

@@ -57,7 +57,7 @@ export function createSpeakingInterviewToolDefinition(
   conductSpeakingTurn: AgentSpeakingTurnHandler,
 ): WebMCP.ModelContextTool {
   return {
-    name: "conduct_speaking_turn",
+    name: "conduct_ielts_speaking_turn",
     title: "Conduct one IELTS Speaking turn",
     description:
       "Conduct exactly one turn of the visible Agent interview. For a question, provide examinerText, IELTS part 1-3, a response limit, and finishInterview=false; Kokoro speaks it and the call waits until the learner approves a transcript. Use that transcript to choose the next question. Finish with one short closing examinerText and finishInterview=true to save the complete attempt. Call turns serially.",
@@ -111,7 +111,7 @@ export function createSpeakingToolDefinitions(
   surface: SpeakingToolSurface = "evaluation",
 ): WebMCP.ModelContextTool[] {
   const submissionTool: WebMCP.ModelContextTool = {
-    name: "get_speaking_submission",
+    name: "get_ielts_speaking_submission",
     title: "Read IELTS Speaking transcript",
     description:
       "Read an immutable submitted Speaking attempt with every examiner prompt, candidate transcript, duration, part, and attempt identity. Audio stays private in the local browser. Omit attemptId to read the latest attempt.",
@@ -161,7 +161,7 @@ export function createSpeakingToolDefinitions(
     },
   };
   const evaluationTool: WebMCP.ModelContextTool = {
-    name: "attach_speaking_evaluation",
+    name: "attach_ielts_speaking_evaluation",
     title: "Attach IELTS Speaking evaluation",
     description:
       "Attach one structured transcript-based IELTS Speaking evaluation to the current immutable attempt. Use whole or half bands from 0 to 9 for overall, fluency/coherence, lexical resource, and grammatical range/accuracy. Pronunciation stays unscored because the agent receives transcripts, not audio. On success the application opens the Speaking review.",

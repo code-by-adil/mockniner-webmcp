@@ -65,13 +65,13 @@ describe("Speaking WebMCP tools", () => {
     };
     expect(
       createSpeakingInterviewToolDefinition(vi.fn()).name,
-    ).toBe("conduct_speaking_turn");
+    ).toBe("conduct_ielts_speaking_turn");
     expect(createSpeakingToolDefinitions(dependencies, "results").map((tool) => tool.name)).toEqual(
-      ["get_speaking_submission"],
+      ["get_ielts_speaking_submission"],
     );
     expect(
       createSpeakingToolDefinitions(dependencies, "evaluation").map((tool) => tool.name),
-    ).toEqual(["get_speaking_submission", "attach_speaking_evaluation"]);
+    ).toEqual(["get_ielts_speaking_submission", "attach_ielts_speaking_evaluation"]);
     expect(createSpeakingToolDefinitions(dependencies, "none")).toEqual([]);
   });
 
@@ -108,7 +108,7 @@ describe("Speaking WebMCP tools", () => {
   });
 
   it("returns transcript evidence without exposing local audio", async () => {
-    const tool = createTools().find((item) => item.name === "get_speaking_submission")!;
+    const tool = createTools().find((item) => item.name === "get_ielts_speaking_submission")!;
     const result = (await tool.execute({}, toolOptions())) as {
       ok: true;
       data: { submission: SpeakingSubmission; scoringScope: { excluded: string[] } };
@@ -130,7 +130,7 @@ describe("Speaking WebMCP tools", () => {
     };
     const attach = vi.fn(async () => attached);
     const tool = createTools(null, attach).find(
-      (item) => item.name === "attach_speaking_evaluation",
+      (item) => item.name === "attach_ielts_speaking_evaluation",
     )!;
 
     await expect(tool.execute(evaluationInput, toolOptions())).resolves.toMatchObject({
@@ -157,7 +157,7 @@ describe("Speaking WebMCP tools", () => {
     };
     const attach = vi.fn();
     const tool = createTools(existing, attach).find(
-      (item) => item.name === "attach_speaking_evaluation",
+      (item) => item.name === "attach_ielts_speaking_evaluation",
     )!;
 
     await expect(tool.execute(evaluationInput, toolOptions())).resolves.toMatchObject({

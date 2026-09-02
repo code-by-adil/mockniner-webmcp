@@ -45,11 +45,11 @@ describe("Writing WebMCP tools", () => {
       getCurrentWritingAttemptId: () => undefined,
     };
     expect(createWritingToolDefinitions(dependencies, "results").map((tool) => tool.name)).toEqual([
-      "get_writing_submission",
+      "get_ielts_writing_submission",
     ]);
     expect(
       createWritingToolDefinitions(dependencies, "evaluation").map((tool) => tool.name),
-    ).toEqual(["get_writing_submission", "attach_writing_evaluation"]);
+    ).toEqual(["get_ielts_writing_submission", "attach_ielts_writing_evaluation"]);
     expect(createWritingToolDefinitions(dependencies, "none")).toEqual([]);
   });
 
@@ -59,7 +59,7 @@ describe("Writing WebMCP tools", () => {
       attachWritingEvaluation: vi.fn(),
       getCurrentWritingAttemptId: () => attemptId,
     });
-    const tool = tools.find((item) => item.name === "get_writing_submission")!;
+    const tool = tools.find((item) => item.name === "get_ielts_writing_submission")!;
 
     const result = await tool.execute({}, toolOptions());
 
@@ -89,7 +89,7 @@ describe("Writing WebMCP tools", () => {
       attachWritingEvaluation,
       getCurrentWritingAttemptId: () => attemptId,
     });
-    const tool = tools.find((item) => item.name === "attach_writing_evaluation")!;
+    const tool = tools.find((item) => item.name === "attach_ielts_writing_evaluation")!;
 
     const result = await tool.execute(evaluationInput, toolOptions());
 
@@ -107,7 +107,7 @@ describe("Writing WebMCP tools", () => {
       attachWritingEvaluation: vi.fn(),
       getCurrentWritingAttemptId: () => attemptId,
     });
-    const tool = tools.find((item) => item.name === "attach_writing_evaluation")!;
+    const tool = tools.find((item) => item.name === "attach_ielts_writing_evaluation")!;
 
     await expect(
       tool.execute({ ...evaluationInput, overallBand: 7.3 }, toolOptions()),
@@ -127,7 +127,7 @@ describe("Writing WebMCP tools", () => {
       attachWritingEvaluation,
       getCurrentWritingAttemptId: () => attemptId,
     });
-    const tool = tools.find((item) => item.name === "attach_writing_evaluation")!;
+    const tool = tools.find((item) => item.name === "attach_ielts_writing_evaluation")!;
 
     await expect(
       tool.execute(
@@ -167,7 +167,7 @@ describe("Writing WebMCP tools", () => {
       attachWritingEvaluation,
       getCurrentWritingAttemptId: () => attemptId,
     });
-    const tool = tools.find((item) => item.name === "attach_writing_evaluation")!;
+    const tool = tools.find((item) => item.name === "attach_ielts_writing_evaluation")!;
 
     const result = (await tool.execute(
       {
@@ -210,7 +210,7 @@ describe("Writing WebMCP tools", () => {
       attachWritingEvaluation,
       getCurrentWritingAttemptId: () => attemptId,
     });
-    const tool = tools.find((item) => item.name === "attach_writing_evaluation")!;
+    const tool = tools.find((item) => item.name === "attach_ielts_writing_evaluation")!;
 
     await expect(tool.execute(evaluationInput, toolOptions())).resolves.toMatchObject({
       ok: false,

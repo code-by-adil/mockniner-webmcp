@@ -68,7 +68,7 @@ export function createAssessmentToolDefinitions({
       name: "get_assessment_authoring_kit",
       title: "Get universal assessment authoring kit",
       description:
-        "Return the engine capabilities, supported and unsupported behavior, authoring rules, and one complete JSON package for a chosen non-IELTS assessment pattern. Use the closest template before creating a universal assessment. Native IELTS Listening, Reading, and Writing use install_practice_set instead.",
+        "Return the universal engine capabilities, coverage limits, authoring rules, and one complete JSON package for a chosen assessment pattern. Use the closest template before creating GRE-style, SAT-style, school, professional, or custom practice.",
       inputSchema: getAuthoringKitInputSchema,
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async (input, options) => {
@@ -90,7 +90,7 @@ export function createAssessmentToolDefinitions({
       name: "install_assessment",
       title: "Install universal assessment",
       description:
-        "Validate and install one complete universal assessment package. Use this for GRE-style, SAT-style, school, professional, and custom practice built from the declared engine capabilities. Native IELTS Listening, Reading, and Writing use install_practice_set. Installation is atomic, and a successful package appears in the assessment library immediately.",
+        "Validate and install one complete universal assessment package built from get_assessment_authoring_kit. Installation is atomic, and a successful package appears in the assessment library immediately.",
       inputSchema: getAssessmentPackageJsonSchema(),
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: async (input, options) => {

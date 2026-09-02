@@ -376,18 +376,22 @@ const objectiveContentDocumentBase = {
   source: z.literal("agent").optional(),
 };
 
+export const listeningContentDocumentSchema = z.strictObject({
+  ...objectiveContentDocumentBase,
+  section: z.literal("listening"),
+  audio: listeningAudioSchema,
+  parts: z.array(objectiveContentPartSchema).length(4),
+});
+
+export const readingContentDocumentSchema = z.strictObject({
+  ...objectiveContentDocumentBase,
+  section: z.literal("reading"),
+  parts: z.array(objectiveContentPartSchema).length(3),
+});
+
 export const objectiveContentDocumentSchema = z.discriminatedUnion("section", [
-  z.strictObject({
-    ...objectiveContentDocumentBase,
-    section: z.literal("listening"),
-    audio: listeningAudioSchema,
-    parts: z.array(objectiveContentPartSchema).length(4),
-  }),
-  z.strictObject({
-    ...objectiveContentDocumentBase,
-    section: z.literal("reading"),
-    parts: z.array(objectiveContentPartSchema).length(3),
-  }),
+  listeningContentDocumentSchema,
+  readingContentDocumentSchema,
 ]).superRefine((document, context) => {
   const partIds = document.parts.map((part) => part.id);
   const expectedPartIds = Array.from(

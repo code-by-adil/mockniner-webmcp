@@ -133,7 +133,9 @@ function expectedRoute(definition) {
   if (definition.kind === "universal") {
     return ["get_assessment_authoring_kit", "install_assessment"];
   }
-  if (definition.kind === "ielts") return ["install_practice_set"];
+  if (definition.kind === "ielts") {
+    return ["get_ielts_authoring_kit", "install_ielts_practice_set"];
+  }
   if (definition.kind === "unsupported") return ["get_assessment_authoring_kit"];
   if (definition.kind === "repair") return ["install_assessment"];
   return [];
@@ -179,7 +181,9 @@ async function validateRun(definition, runIndex, reportResults, modules) {
   }
 
   if (definition.kind === "ielts") {
-    const install = calls.find((call) => call.functionName === "install_practice_set");
+    const install = calls.find(
+      (call) => call.functionName === "install_ielts_practice_set",
+    );
     if (install) {
       try {
         const content = modules.contentDocument.parsePracticeContentDocument({
@@ -193,7 +197,7 @@ async function validateRun(definition, runIndex, reportResults, modules) {
         );
       } catch (error) {
         issues.push(
-          `install_practice_set payload fails the application parser: ${error instanceof Error ? error.message : String(error)}`,
+          `install_ielts_practice_set payload fails the application parser: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }

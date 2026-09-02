@@ -3,8 +3,10 @@ import {
   ActiveAttemptError,
   type ExamApplicationCommands,
 } from '@/application/commands'
-import { getPracticeContentJsonSchema } from '@/domain/contentDocument'
-import { KOKORO_LISTENING_AUTHORING_GUIDANCE } from '@/domain/objectiveContent'
+import {
+  getIeltsAuthoringKit,
+  IELTS_AUTHORING_SECTIONS,
+} from './ieltsAuthoring'
 import {
   getToolExecutionSignal,
   toolFailure,
@@ -15,6 +17,47 @@ import {
 type PracticeToolDependencies = {
   installContent: ExamApplicationCommands['installContent']
 }
+
+const ieltsAuthoringKitInputSchema = {
+  type: 'object',
+  properties: {
+    section: {
+      type: 'string',
+      enum: IELTS_AUTHORING_SECTIONS,
+      description: 'The native IELTS section to author.',
+    },
+  },
+  required: ['section'],
+  additionalProperties: false,
+} as const
+
+const ieltsPracticeSetTeachingSchema = {
+  type: 'object',
+  properties: {
+    schemaVersion: { type: 'number', const: 1 },
+    contentKey: {
+      type: 'string',
+      pattern: '^[a-z0-9][a-z0-9._-]*$',
+      description: 'Stable ID for this authored IELTS set.',
+    },
+    section: { type: 'string', enum: IELTS_AUTHORING_SECTIONS },
+    name: { type: 'string', description: 'Learner-visible practice name.' },
+    audio: {
+      type: 'object',
+      description: 'Required for Listening. Follow the selected authoring kit.',
+    },
+    parts: {
+      type: 'array',
+      description: 'Required for Listening and Reading. Follow the selected authoring kit.',
+    },
+    tasks: {
+      type: 'array',
+      description: 'Required for Writing. Follow the selected authoring kit.',
+    },
+  },
+  required: ['schemaVersion', 'contentKey', 'section', 'name'],
+  additionalProperties: true,
+} as const
 
 function questionCount(section: 'listening' | 'reading' | 'writing'): number {
   return section === 'writing' ? 2 : 40
@@ -30,11 +73,35 @@ export function createPracticeToolDefinitions({
 }: PracticeToolDependencies): WebMCP.ModelContextTool[] {
   return [
     {
-      name: 'install_practice_set',
+      name: 'get_ielts_authoring_kit',
+      title: 'Get native IELTS authoring kit',
+      description:
+        'Return the current rules and complete JSON Schema for one native IELTS Listening, Reading, or Writing document. Use the matching section kit before creating a practice set.',
+      inputSchema: ieltsAuthoringKitInputSchema,
+      annotations: { readOnlyHint: true, untrustedContentHint: false },
+      execute: async (input, options) => {
+        const signal = getToolExecutionSignal(options)
+        throwIfCancelled(signal)
+        const parsed = z.strictObject({
+          section: z.enum(IELTS_AUTHORING_SECTIONS),
+        }).safeParse(input)
+        if (!parsed.success) {
+          return toolFailure(
+            'INVALID_IELTS_AUTHORING_SECTION',
+            'Choose one of the declared native IELTS sections.',
+            true,
+            zodIssues(parsed.error),
+          )
+        }
+        return { ok: true, data: getIeltsAuthoringKit(parsed.data.section) }
+      },
+    },
+    {
+      name: 'install_ielts_practice_set',
       title: 'Install IELTS practice set',
       description:
-        `Install and activate one native IELTS Listening, Reading, or Writing set. Use this on the home screen when no attempt is active. Use install_assessment for GRE-style, SAT-style, and other formats. ${KOKORO_LISTENING_AUTHORING_GUIDANCE}`,
-      inputSchema: getPracticeContentJsonSchema(),
+        'Validate, install, and activate one complete native IELTS Listening, Reading, or Writing document built from get_ielts_authoring_kit. A successful set appears on the home screen immediately.',
+      inputSchema: ieltsPracticeSetTeachingSchema,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: async (input, options) => {
         const signal = getToolExecutionSignal(options)

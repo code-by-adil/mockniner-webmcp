@@ -46,8 +46,9 @@ runtime.
 
 ## Instructions for agents
 
-Use `install_practice_set` for native IELTS Listening, Reading, or Writing.
-Those sections have specialized schemas and interfaces.
+Use `get_ielts_authoring_kit` followed by `install_ielts_practice_set` for
+native IELTS Listening, Reading, or Writing. Those sections keep their
+specialized schemas and interfaces.
 
 Use the universal tools for other assessments:
 

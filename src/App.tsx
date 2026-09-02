@@ -110,7 +110,7 @@ function Complete({
           <div className="mt-6 w-full max-w-xl rounded-lg border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-5 py-4 text-left shadow-sm">
             <p className="text-sm font-bold text-[var(--exam-text)]">Ready for agent evaluation</p>
             <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">
-              Ask your agent: “Grade my latest Writing attempt.” It can read this immutable
+              Ask your agent: “Grade my latest IELTS Writing submission.” It can read this immutable
               submission and return structured feedback here.
             </p>
           </div>
@@ -120,7 +120,7 @@ function Complete({
               Ready for transcript evaluation
             </p>
             <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">
-              Ask your agent: “Evaluate my latest Speaking attempt.” It can score fluency,
+              Ask your agent: “Evaluate my latest IELTS Speaking transcript.” It can score fluency,
               vocabulary, and grammar, then return the review here.
             </p>
           </div>
