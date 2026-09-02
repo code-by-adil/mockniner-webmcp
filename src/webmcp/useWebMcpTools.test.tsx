@@ -48,6 +48,46 @@ describe('stable page WebMCP registration', () => {
     container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container)
   })
   afterEach(async () => { await act(async () => root.unmount()); container.remove() })
+  it.each(['reading', 'listening', 'writing', 'speaking', 'assessment'] as const)(
+    'blocks both answer-bearing kits for a %s draft, including while paused or viewing history', async kind => {
+      const config = { signal: new AbortController().signal }
+      const requests = [
+        ['get_ielts_authoring_kit', { section: 'reading' }],
+        ['get_ielts_authoring_kit', { section: 'listening' }],
+        ['get_ielts_authoring_kit', { section: 'writing' }],
+        ['get_assessment_authoring_kit', { template: 'sat-style' }],
+        ['get_assessment_authoring_kit', { template: 'minimal-objective' }],
+        ['get_assessment_authoring_kit', { template: 'writing-with-rubric' }],
+        ['get_assessment_authoring_kit', { template: 'gre-style' }],
+      ] as const
+      await act(async () => root.render(<Harness value={options(true)} />))
+      for (const view of ['exam', 'home', 'review', 'transition'] as const) {
+        const value = options(true)
+        const attemptId = '11111111-1111-4111-8111-111111111111'
+        if (kind === 'assessment') {
+          value.workspace.assessment = { ...initialAssessmentSession, attemptId, packageId: satPracticeAssessment.packageId,
+            view: view === 'exam' ? 'assessment' : view === 'home' ? 'home' : 'result' }
+        } else {
+          value.workspace.native = { ...initialSession, mode: view === 'transition' ? 'full' : 'section',
+            currentSection: kind, attemptId, view }
+        }
+        value.context = getPracticeContext(value.workspace.native, value.workspace.assessment)
+        const before = JSON.stringify(value.workspace)
+        await act(async () => root.render(<Harness value={value} />))
+        for (const [name, input] of requests) {
+          const result = await registered.get(name)!.execute(input, config)
+          expect(result).toMatchObject({ ok: false, error: { code: 'TOOL_NOT_AVAILABLE', message: expect.stringContaining('unfinished'), retryable: true } })
+          expect(result).not.toHaveProperty('data')
+        }
+        await expect(registered.get('get_practice_context')!.execute({}, config)).resolves.toMatchObject({ ok: true })
+        expect(JSON.stringify(value.workspace)).toBe(before)
+      }
+      // The same registered callbacks must unlock after the draft is finished.
+      await act(async () => root.render(<Harness value={options(true)} />))
+      for (const [name, input] of requests) await expect(registered.get(name)!.execute(input, config)).resolves.toMatchObject({ ok: true })
+      expect(register).toHaveBeenCalledTimes(18)
+    },
+  )
   it('reads live audio transitions and scopes retry without re-registering the catalog', async () => {
     const value = options(true)
     value.workspace.listeningAudio = { contentKey: 'new-audio', source: 'kokoro', phase: 'loading', readyToPlay: false, completedChunks: 0, totalChunks: null, error: null, canRetry: false }
@@ -60,6 +100,20 @@ describe('stable page WebMCP registration', () => {
     await expect(context.execute({}, config)).resolves.toMatchObject({ data: { listeningAudio: { phase: 'error', canRetry: true } } })
     await registered.get('retry_ielts_listening_audio')!.execute({ contentKey: 'new-audio' }, config)
     expect(value.retryListeningAudio).toHaveBeenCalledTimes(1)
+    expect(register).toHaveBeenCalledTimes(18)
+  })
+  it('allows authoring after a completed IELTS attempt but not while another family still has a draft', async () => {
+    const value = options(true)
+    value.workspace.native = { ...initialSession, mode: 'section', currentSection: 'reading', view: 'result',
+      attemptId: '11111111-1111-4111-8111-111111111111', completedSections: ['reading'] }
+    await act(async () => root.render(<Harness value={value} />))
+    const tool = registered.get('get_ielts_authoring_kit')!
+    const config = { signal: new AbortController().signal }
+    await expect(tool.execute({ section: 'reading' }, config)).resolves.toMatchObject({ ok: true })
+    const pending = { ...value, workspace: { ...value.workspace, assessment: { ...initialAssessmentSession,
+      attemptId: '22222222-2222-4222-8222-222222222222', packageId: satPracticeAssessment.packageId } } }
+    await act(async () => root.render(<Harness value={pending} />))
+    await expect(tool.execute({ section: 'reading' }, config)).resolves.toMatchObject({ ok: false, error: { code: 'TOOL_NOT_AVAILABLE' } })
     expect(register).toHaveBeenCalledTimes(18)
   })
   it('keeps context and default reads aligned through navigation without re-registering', async () => {

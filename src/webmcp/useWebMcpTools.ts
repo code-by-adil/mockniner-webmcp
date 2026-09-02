@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from 'react-dom';
-import { createPracticeNavigation, type PracticeWorkspace } from '@/application/practiceNavigation';
+import { createPracticeNavigation, getResumablePractices, type PracticeWorkspace } from '@/application/practiceNavigation';
 import type { PracticeContentDocument } from '@/domain/contentDocument';
 import { createPracticeTools } from './practiceTools';
 import { createListeningAudioRetryTool } from './listeningAudioTool';
@@ -107,6 +107,9 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
         : Promise.resolve(toolFailure('TOOL_NOT_AVAILABLE', message, true)),
     });
     const homeAvailable = () => latest.current.nativeAuthoringEnabled && latest.current.assessmentToolSurface === 'authoring';
+    // Kits include answer-bearing examples that agents can install verbatim.
+    // Paused drafts and drafts hidden behind history need the same protection.
+    const authoringKitAvailable = () => getResumablePractices(latest.current.workspace).length === 0;
       tools.push(
         ...createHomeToolDefinitions({
           installContent: (input) =>
@@ -116,7 +119,9 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
             latest.current.assessmentCommands.installAssessment(input),
           readLearningSummary: async (limit) =>
             (await getIeltsRepository()).readLearningSummary(limit),
-        }).map((tool) => tool.annotations?.readOnlyHint ? tool : guard(tool, homeAvailable, 'Use open_practice with action library before installing practice.')),
+        }).map((tool) => tool.name === 'get_ielts_authoring_kit' || tool.name === 'get_assessment_authoring_kit'
+          ? guard(tool, authoringKitAvailable, 'Authoring examples contain answer keys and are unavailable while any unfinished practice exists, including paused drafts. Finish the practice, or let the learner discard it in the interface, before requesting an authoring kit. Library, history and submission readers remain available.')
+          : tool.annotations?.readOnlyHint ? tool : guard(tool, homeAvailable, 'Use open_practice with action library before installing practice.')),
       );
     tools.push(
       ...createWritingToolDefinitions(

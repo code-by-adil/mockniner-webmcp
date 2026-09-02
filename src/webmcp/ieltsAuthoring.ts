@@ -43,6 +43,6 @@ export function getIeltsAuthoringKit(section: IeltsAuthoringSection) {
     documentSchema: z.toJSONSchema(schemas[section], { target: "draft-07" }),
     exampleDocument: getIeltsExample(section),
     nextAction:
-      "Use exampleDocument as a complete original structural example. Choose a fresh contentKey and descriptive name, replace its content for new practice, and validate against documentSchema before calling install_ielts_practice_set. Listening returns preparation status; follow get_practice_context.listeningAudio until readyToPlay.",
+      "Use exampleDocument as a compact, complete structural example, not a full-length calibrated exam. It is separate from built-in practice. Choose a fresh contentKey and descriptive name, replace its content for new practice, and validate against documentSchema before calling install_ielts_practice_set. Listening returns preparation status; follow get_practice_context.listeningAudio until readyToPlay.",
   };
 }

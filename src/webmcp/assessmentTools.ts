@@ -57,7 +57,7 @@ export function createAssessmentAuthoringToolDefinitions({
       name: "get_assessment_authoring_kit",
       title: "Get universal assessment authoring kit",
       description:
-        "Return the universal engine capabilities, coverage limits, authoring rules, and one complete JSON package for a chosen assessment pattern. Use the closest template before creating GRE-style, SAT-style, school, professional, or custom practice.",
+        "Return universal engine capabilities, coverage limits, authoring rules, and one complete example package. Available only when no unfinished practice exists, including paused drafts, because examples contain answer keys. Use the closest template for GRE-style, SAT-style, school, professional, or custom practice.",
       inputSchema: getAuthoringKitInputSchema,
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async (input, options) => {

@@ -6,7 +6,7 @@ import {
   type AssessmentPackage,
 } from "@/domain/assessment";
 import { greStyleAssessment } from "./gre";
-import { satPracticeAssessment } from "./sat";
+import { satAuthoringExample } from "./satAuthoringExample";
 
 const minimalObjectiveAssessment = parseAssessmentPackage({
   schemaVersion: 3,
@@ -133,7 +133,7 @@ const writingWithRubricAssessment = parseAssessmentPackage({
 const examples = {
   "minimal-objective": minimalObjectiveAssessment,
   "writing-with-rubric": writingWithRubricAssessment,
-  "sat-style": satPracticeAssessment,
+  "sat-style": satAuthoringExample,
   "gre-style": greStyleAssessment,
 } satisfies Record<AssessmentAuthoringTemplateId, AssessmentPackage>;
 

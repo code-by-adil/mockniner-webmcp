@@ -12,6 +12,10 @@ The built-in questions, museum map, favicon, Listening script, and generated
 Listening recording are original project assets. No commercial assets, private
 data, credentials, or application-owned cloud model services are included.
 
+The IELTS and SAT-style authoring examples are separate original project
+content, not copies of playable built-in questions or bundled audio scripts.
+They demonstrate valid package structure and are not full-length calibrated exams.
+
 Speaking recognition uses the public OpenAI Whisper base.en model, converted
 to ONNX by the ONNX Community, through Transformers.js. It is downloaded from
 `onnx-community/whisper-base.en` at revision

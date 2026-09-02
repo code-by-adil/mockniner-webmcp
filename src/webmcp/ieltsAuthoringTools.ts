@@ -77,7 +77,7 @@ export function createIeltsAuthoringToolDefinitions({
       name: 'get_ielts_authoring_kit',
       title: 'Get native IELTS authoring kit',
       description:
-        'Return current rules, a complete valid exampleDocument and the JSON Schema for one native IELTS Listening, Reading, or Writing set. Use the matching kit, choose a fresh contentKey, and adapt the example before installation.',
+        'Return rules, a separate complete exampleDocument and JSON Schema for native IELTS Listening, Reading, or Writing. Available only when no unfinished practice exists, including paused drafts, because examples contain answer keys. Choose a fresh contentKey and replace example content before installation.',
       inputSchema: ieltsAuthoringKitInputSchema,
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async (input, options) => {
