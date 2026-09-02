@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { ArrowLeft, Check, ClipboardCheck } from "lucide-react";
 import type { AssessmentEvaluation, AssessmentSubmission } from "@/domain/assessment";
-import { WorkspaceBrandMark } from "@/shared/ui/global/WorkspaceBrandMark";
+import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { AssessmentAnswerReview } from "./AssessmentAnswerReview";
 import { AssessmentEvaluationPanel } from "./AssessmentEvaluationPanel";
 import { getAssessmentThemeStyle } from "./assessmentTheme";
@@ -27,7 +27,7 @@ export function AssessmentResults({
     <div style={style} className="min-h-screen bg-neutral-100 text-neutral-950">
       <header className="border-b border-neutral-200 bg-white">
         <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-4 sm:px-8">
-          <WorkspaceBrandMark />
+          <AssessmentLabBrand />
           <button type="button" onClick={onHome} className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"><ArrowLeft size={15} /> Assessment library</button>
         </div>
       </header>

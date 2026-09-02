@@ -5,7 +5,7 @@ import type {
   WritingTaskEvaluation,
 } from "@/domain/types";
 import { ResizableSplitPane } from "@/shared/ui/exam/ResizableSplitPane";
-import { ExamBrandMark } from "@/modules/exam-engine/ui/ExamBrandMark";
+import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import {
   ArrowDown,
   ChevronDown,
@@ -477,7 +477,7 @@ export const WritingReviewView: React.FC<Props> = ({
     <div className="fixed inset-0 z-[60] flex flex-col bg-white">
       <div className="z-20 flex h-12 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-3 sm:h-14 sm:px-5">
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-          <ExamBrandMark />
+          <AssessmentLabBrand />
           <div className="hidden h-5 w-px bg-gray-200 sm:block" />
           <h1 className="hidden truncate text-sm font-semibold text-gray-700 sm:block">Writing Review</h1>
         </div>

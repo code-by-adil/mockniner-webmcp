@@ -12,7 +12,7 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
-import { WorkspaceBrandMark } from "@/shared/ui/global/WorkspaceBrandMark";
+import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { SECTION_ORDER } from "@/domain/exam";
 import {
   getResumableSection,
@@ -127,7 +127,7 @@ export function Home({
       <header className="w-full border-b border-neutral-200/80 bg-white sticky top-0 z-30">
         <div className="max-w-[1400px] mx-auto flex h-[60px] items-center justify-between px-4 sm:px-8">
           <div className="flex items-center gap-2 sm:gap-6 min-w-0">
-            <WorkspaceBrandMark />
+            <AssessmentLabBrand />
             <div className="hidden sm:flex flex-col text-xs border-l pl-6 h-8 justify-center min-w-0">
               <span className="font-bold text-neutral-900 leading-tight">
                 Assessment Practice Workspace

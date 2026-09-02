@@ -1,7 +1,7 @@
 import { useState, type ReactElement } from "react";
 import { Calculator, ChevronDown, Clock, Eye, EyeOff, FileText, LogOut } from "lucide-react";
 import type { CompiledAssessmentPart } from "@/domain/assessment";
-import { WorkspaceBrandMark } from "@/shared/ui/global/WorkspaceBrandMark";
+import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { AssessmentCalculatorDialog } from "./AssessmentCalculatorDialog";
 import { AssessmentReferenceDialog } from "./AssessmentReferenceDialog";
 
@@ -41,7 +41,7 @@ export function AssessmentRunnerHeader({
       <header className="relative z-30 shrink-0 border-b border-neutral-200 bg-white shadow-xs">
         <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-3 px-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <WorkspaceBrandMark />
+            <AssessmentLabBrand />
             <div className="hidden min-w-0 border-l border-neutral-200 pl-4 md:block">
               <p className="truncate text-xs font-bold">{part.groupTitle ?? assessmentTitle}</p>
               <p className="truncate text-[11px] text-neutral-500">{part.title}</p>

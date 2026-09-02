@@ -1,9 +1,9 @@
 import React from "react";
 
-export const DRAG_GROUP_MIME = "application/x-mockniner-drag-group";
-export const DRAG_VALUE_MIME = "application/x-mockniner-drag-value";
+export const DRAG_GROUP_MIME = "application/x-assessment-lab-drag-group";
+export const DRAG_VALUE_MIME = "application/x-assessment-lab-drag-value";
 
-const PLAIN_PAYLOAD_PREFIX = "mockniner:";
+const PLAIN_PAYLOAD_PREFIX = "assessment-lab:";
 
 export type ExamDragPayload = {
   groupId: string;

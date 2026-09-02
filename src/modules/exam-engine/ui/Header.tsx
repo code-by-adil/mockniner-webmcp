@@ -10,7 +10,7 @@ import {
   VolumeX,
   Wifi,
 } from "lucide-react";
-import { ExamBrandMark } from "./ExamBrandMark";
+import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { ExamSettingsMenu } from "./ExamSettingsMenu";
 
 interface Props {
@@ -106,7 +106,7 @@ export const Header: React.FC<Props> = ({
     >
       <div className="max-w-[1400px] mx-auto px-2 sm:px-4 h-full flex items-center justify-between">
         <div className="flex items-center gap-2 sm:gap-6 min-w-0">
-          <ExamBrandMark />
+          <AssessmentLabBrand />
 
           {/* Review Mode Badge */}
           {isReviewMode && (

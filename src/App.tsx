@@ -25,7 +25,7 @@ import { useWebMcpTools } from "@/webmcp/useWebMcpTools";
 import { useAssessmentApplication } from "@/application/useAssessmentApplication";
 import { AssessmentRunner } from "@/modules/assessment-engine/ui/AssessmentRunner";
 import { AssessmentResults } from "@/modules/assessment-engine/ui/AssessmentResults";
-import { WorkspaceBrandMark } from "@/shared/ui/global/WorkspaceBrandMark";
+import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { getAssessmentToolSurface, getNativeToolSurfaces } from "@/webmcp/toolSurfaces";
 
 type Section = SectionKey;
@@ -59,7 +59,7 @@ function AppHeader() {
     <header className="w-full border-b border-neutral-200/80 bg-white sticky top-0 z-30">
       <div className="max-w-[1400px] mx-auto flex h-[60px] items-center justify-between px-4 sm:px-8">
         <div className="flex items-center gap-2 sm:gap-6 min-w-0">
-          <WorkspaceBrandMark />
+          <AssessmentLabBrand />
           <div className="hidden sm:flex flex-col text-xs border-l pl-6 h-8 justify-center min-w-0">
             <span className="font-bold text-neutral-900 leading-tight">
               Assessment Practice Workspace

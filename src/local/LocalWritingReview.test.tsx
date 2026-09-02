@@ -55,7 +55,7 @@ const evaluation: WritingEvaluation = {
 }
 
 describe('Writing review surface', () => {
-  it('renders the MockNiner review layout for the selected task', () => {
+  it('renders the writing review for the selected task', () => {
     const markup = renderToStaticMarkup(
       <LocalWritingReview
         submission={submission}
@@ -67,6 +67,8 @@ describe('Writing review surface', () => {
     )
 
     expect(markup).toContain('Writing Review')
+    expect(markup).toContain('Assessment ')
+    expect(markup).toContain('>Lab</span>')
     expect(markup).toContain('Agent evaluation')
     expect(markup).toContain('Both tasks address the prompt clearly.')
     expect(markup).toContain('Task response')
