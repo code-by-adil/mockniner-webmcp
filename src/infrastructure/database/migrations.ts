@@ -174,6 +174,28 @@ const migrations = [
       `CREATE INDEX speaking_responses_attempt_id ON speaking_responses(attempt_id)`,
     ],
   },
+  {
+    version: 11,
+    statements: [
+      `CREATE TABLE practice_activity (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        recorded_at TEXT NOT NULL,
+        event_type TEXT NOT NULL CHECK (event_type IN ('practice_installed', 'practice_updated', 'attempt_submitted', 'feedback_attached')),
+        kind TEXT NOT NULL CHECK (kind IN ('listening', 'reading', 'writing', 'speaking', 'assessment')),
+        content_key TEXT,
+        package_id TEXT,
+        revision INTEGER CHECK (revision > 0),
+        attempt_id TEXT,
+        title TEXT CHECK (length(title) <= 160),
+        outcome TEXT CHECK (outcome IN ('evaluated', 'insufficient_evidence')),
+        CHECK ((kind = 'assessment' AND package_id IS NOT NULL AND revision IS NOT NULL AND content_key IS NULL)
+          OR (kind <> 'assessment' AND content_key IS NOT NULL AND package_id IS NULL AND revision IS NULL)),
+        CHECK ((event_type IN ('practice_installed', 'practice_updated') AND attempt_id IS NULL AND outcome IS NULL)
+          OR (event_type = 'attempt_submitted' AND attempt_id IS NOT NULL AND outcome IS NULL)
+          OR (event_type = 'feedback_attached' AND attempt_id IS NOT NULL AND outcome IS NOT NULL))
+      )`,
+    ],
+  },
 ] as const
 
 export async function migrateDatabase(database: SQLocal): Promise<void> {

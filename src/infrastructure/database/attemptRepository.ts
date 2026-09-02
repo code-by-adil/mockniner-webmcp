@@ -1,4 +1,5 @@
 import type { SQLocal } from "sqlocal";
+import { recordNativeAttemptActivity } from './practiceActivity';
 import { resolveWritingEvaluation } from "@/domain/writingAnnotations";
 import { ApplicationError } from "@/domain/errors";
 import type {
@@ -305,6 +306,7 @@ export async function saveObjectiveAttempt(
       )`,
     ]);
 
+    await recordNativeAttemptActivity(transaction, submission.attemptId, 'attempt_submitted');
     return submission;
   });
 }
@@ -381,6 +383,7 @@ export async function saveWritingAttempt(
       VALUES (${submission.attemptId}, ${JSON.stringify(submission)})`,
     ]);
 
+    await recordNativeAttemptActivity(transaction, submission.attemptId, 'attempt_submitted');
     return submission;
   });
 }
@@ -483,5 +486,6 @@ export async function saveWritingEvaluation(
       UPDATE attempts SET status = 'evaluated'
       WHERE id = ${evaluation.attemptId}
     `;
+    await recordNativeAttemptActivity(transaction, evaluation.attemptId, 'feedback_attached', 'evaluated');
   });
 }

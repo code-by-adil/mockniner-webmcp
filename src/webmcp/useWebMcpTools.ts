@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import { createPracticeNavigation, getResumablePractices, type PracticeWorkspace } from '@/application/practiceNavigation';
 import type { PracticeContentDocument } from '@/domain/contentDocument';
 import { createPracticeTools } from './practiceTools';
+import { createPracticeActivityTool } from './practiceActivityTool';
 import { createListeningAudioRetryTool } from './listeningAudioTool';
 import { createSpeakingInterviewController } from "@/application/speakingInterviewController";
 import type { PracticeContext, VisibleSubmission } from '@/application/practiceContext';
@@ -76,6 +77,12 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     };
     const readListeningAudio = () => latest.current.workspace.listeningAudio;
     tools.push(createPracticeContextTool(readContext), createListeningAudioRetryTool(readListeningAudio, () => flushSync(() => latest.current.retryListeningAudio())));
+    tools.push(createPracticeActivityTool(async input => {
+      const [{ getLocalDatabase }, { readPracticeActivity }] = await Promise.all([
+        import('@/infrastructure/database/client'), import('@/infrastructure/database/practiceActivity'),
+      ]);
+      return readPracticeActivity(await getLocalDatabase(), input);
+    }));
     tools.push(createObjectiveReviewTool({
       readAttempt: async (id, section) => (await getIeltsRepository()).readObjectiveAttempt(id, section),
       loadContent: key => latest.current.loadPracticeContent(key),

@@ -1,4 +1,5 @@
 import type { SQLocal } from "sqlocal";
+import { recordPracticeActivity } from './practiceActivity';
 import { ApplicationError } from '@/domain/errors';
 import type { ContentStore } from "@/application/contentStore";
 import {
@@ -75,6 +76,7 @@ export async function loadContentByKey(
 export async function saveAndActivateContent(
   database: SQLocal,
   document: PracticeContentDocument,
+  options: { bundled?: boolean } = {},
 ): Promise<void> {
   const documentJson = JSON.stringify(document);
 
@@ -114,6 +116,10 @@ export async function saveAndActivateContent(
         )
       `;
     }
+    if (!existing && !options.bundled) await recordPracticeActivity(transaction, {
+      type: 'practice_installed', kind: document.section,
+      contentKey: document.contentKey, title: document.name,
+    });
   });
 }
 
@@ -128,6 +134,9 @@ export function createContentStore(
       (await loadContentByKey(database, contentKey)) ??
       bundledDocuments.find((document) => document.contentKey === contentKey) ??
       null,
-    saveAndActivate: (document) => saveAndActivateContent(database, document),
+    saveAndActivate: (document) => saveAndActivateContent(database, document, {
+      bundled: bundledDocuments.some(bundled => bundled.contentKey === document.contentKey &&
+        JSON.stringify(bundled) === JSON.stringify(document)),
+    }),
   };
 }

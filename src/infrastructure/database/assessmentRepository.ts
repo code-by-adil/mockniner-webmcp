@@ -1,4 +1,5 @@
 import type { SQLocal } from "sqlocal";
+import { recordPracticeActivity } from './practiceActivity';
 import type { AssessmentRepository } from "@/application/assessmentRepository";
 import { ApplicationError } from "@/domain/errors";
 import { getLocalDatabase } from "./client";
@@ -141,6 +142,7 @@ export async function saveAssessmentPackage(
           true,
         );
       }
+      if (existingRevision === assessment.revision) return;
     }
     await transaction.sql`
       INSERT INTO assessment_packages (
@@ -155,6 +157,10 @@ export async function saveAssessmentPackage(
         document_json = excluded.document_json,
         installed_at = excluded.installed_at
     `;
+    await recordPracticeActivity(transaction, {
+      type: existing ? 'practice_updated' : 'practice_installed', kind: 'assessment',
+      packageId: assessment.packageId, revision: assessment.revision, title: assessment.title,
+    });
   });
 }
 
@@ -181,23 +187,31 @@ export async function saveAssessmentAttempt(
     startedAt: input.startedAt,
     submittedAt: input.submittedAt,
   };
-  await database.sql`
-    INSERT OR IGNORE INTO assessment_attempts (
-      id, package_id, package_snapshot_json, responses_json,
-      result_json, started_at, submitted_at
-    ) VALUES (
-      ${submission.attemptId}, ${submission.packageId},
-      ${JSON.stringify(submission.package)}, ${JSON.stringify(submission.responses)},
-      ${JSON.stringify(submission.result)}, ${submission.startedAt}, ${submission.submittedAt}
-    )
-  `;
-  const stored = await readAssessmentAttempt(database, submission.attemptId);
-  if (!stored) {
-    throw new Error(
-      `Assessment attempt ${submission.attemptId} could not be persisted.`,
-    );
-  }
-  return stored.submission;
+  return database.transaction(async (transaction) => {
+    const inserted = await transaction.sql<{ id: string }>`
+      INSERT OR IGNORE INTO assessment_attempts (
+        id, package_id, package_snapshot_json, responses_json,
+        result_json, started_at, submitted_at
+      ) VALUES (
+        ${submission.attemptId}, ${submission.packageId},
+        ${JSON.stringify(submission.package)}, ${JSON.stringify(submission.responses)},
+        ${JSON.stringify(submission.result)}, ${submission.startedAt}, ${submission.submittedAt}
+      )
+      RETURNING id
+    `;
+    const stored = await readAssessmentAttempt(transaction, submission.attemptId);
+    if (!stored) {
+      throw new Error(
+        `Assessment attempt ${submission.attemptId} could not be persisted.`,
+      );
+    }
+    if (inserted.length) await recordPracticeActivity(transaction, {
+      type: 'attempt_submitted', kind: 'assessment', attemptId: stored.submission.attemptId,
+      packageId: stored.submission.packageId, revision: stored.submission.package.revision,
+      title: stored.submission.package.title,
+    });
+    return stored.submission;
+  });
 }
 
 function parseAttemptRow(row: AttemptRow): {
@@ -239,7 +253,7 @@ function parseAttemptRow(row: AttemptRow): {
 }
 
 export async function readAssessmentAttempt(
-  database: SQLocal,
+  database: Pick<SQLocal, 'sql'>,
   attemptId?: string,
 ): Promise<{
   submission: AssessmentSubmission;
@@ -285,8 +299,11 @@ export async function saveAssessmentEvaluation(
   evaluation: AssessmentEvaluation,
 ): Promise<void> {
   await database.transaction(async (transaction) => {
-    const [attempt] = await transaction.sql<{ id: string }>`
-      SELECT id FROM assessment_attempts WHERE id = ${evaluation.attemptId}
+    const [attempt] = await transaction.sql<{ packageId: string; revision: number; title: string }>`
+      SELECT package_id AS packageId,
+        json_extract(package_snapshot_json, '$.revision') AS revision,
+        json_extract(package_snapshot_json, '$.title') AS title
+      FROM assessment_attempts WHERE id = ${evaluation.attemptId}
     `;
     if (!attempt) {
       throw new Error(
@@ -306,6 +323,10 @@ export async function saveAssessmentEvaluation(
         "EVALUATION_EXISTS",
         `Assessment attempt ${evaluation.attemptId} already has an evaluation.`,
       );
+    await recordPracticeActivity(transaction, {
+      ...attempt, type: 'feedback_attached', kind: 'assessment',
+      attemptId: evaluation.attemptId, outcome: 'evaluated',
+    });
   });
 }
 

@@ -1,4 +1,5 @@
 import type { SQLocal } from "sqlocal";
+import { recordNativeAttemptActivity } from './practiceActivity';
 import { ApplicationError } from "@/domain/errors";
 import type { SpeakingEvaluation, SpeakingSubmission } from "@/domain/types";
 import { parseStoredSpeakingEvaluation } from "@/domain/attemptValidation";
@@ -126,6 +127,7 @@ export async function saveSpeakingAttempt(
       ),
     ]);
 
+    await recordNativeAttemptActivity(transaction, attemptId, 'attempt_submitted');
     return {
       attemptId,
       contentKey: input.contentKey,
@@ -253,5 +255,7 @@ export async function saveSpeakingEvaluation(
     await transaction.sql`UPDATE attempts
       SET status = 'evaluated'
       WHERE id = ${evaluation.attemptId} AND section = 'speaking'`;
+    await recordNativeAttemptActivity(transaction, evaluation.attemptId, 'feedback_attached',
+      evaluation.status === 'insufficient_evidence' ? 'insufficient_evidence' : 'evaluated');
   });
 }
