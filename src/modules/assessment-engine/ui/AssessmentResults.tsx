@@ -84,7 +84,7 @@ export function AssessmentResults({
         ) : result.awaitingEvaluationCount ? (
           <section className="mt-8 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
             <ClipboardCheck className="mt-0.5 text-[var(--exam-accent)]" size={20} />
-            <div><h2 className="font-bold">Ready for agent evaluation</h2><p className="mt-1 text-sm leading-6 text-neutral-600">Ask your agent to evaluate the latest assessment submission. The tool returns the exact rubric and accepts structured feedback for this immutable attempt.</p></div>
+            <div><h2 className="font-bold">Ready for agent evaluation</h2><p className="mt-1 text-sm leading-6 text-neutral-600">Ask your agent to evaluate this assessment submission. The tool returns the exact rubric and accepts structured feedback for this immutable attempt.</p></div>
           </section>
         ) : null}
 

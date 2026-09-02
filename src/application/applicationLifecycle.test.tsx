@@ -16,6 +16,7 @@ import type {
 } from "@/domain/types";
 import { useIeltsApplication } from "./useIeltsApplication";
 import { useAssessmentApplication } from "./useAssessmentApplication";
+import { getIeltsExample } from '@/content/ieltsExamples';
 
 const repositories = vi.hoisted(() => ({
   ielts: {
@@ -74,6 +75,15 @@ function Universal() {
   });
   return <p>{application.state.view}</p>;
 }
+
+it('commits installed content before the external installation caller reads its identity', async () => {
+  await act(async () => root.render(<Native />));
+  const example = getIeltsExample('listening');
+  await act(async () => {
+    await native.commands.installContent(example);
+    expect(native.content.listening.contentKey).toBe(example.contentKey);
+  });
+});
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);

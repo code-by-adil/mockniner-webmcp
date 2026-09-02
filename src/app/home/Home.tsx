@@ -216,6 +216,8 @@ export function Home({
               return (
                 <div
                   key={sec}
+                  role="region"
+                  aria-label={`${meta.label} practice`}
                   className="flex flex-col justify-between rounded-xl border border-neutral-200/80 bg-white p-5 hover:border-neutral-300 transition-colors shadow-2xs"
                 >
                   <div className="space-y-2.5">
@@ -241,6 +243,8 @@ export function Home({
                       )}
                     </div>
 
+                    {activeDoc ? <p className="break-words text-sm font-semibold leading-5 text-neutral-800">{activeDoc.name}</p> : null}
+
                     <p className="text-xs text-neutral-500 leading-relaxed min-h-[36px]">
                       {presentation.summary}
                     </p>
@@ -252,20 +256,20 @@ export function Home({
                     {sec === "listening" && listeningAudio.phase !== "ready" && (
                       <div className="text-[11px] text-neutral-500 pt-1">
                         {listeningAudio.phase === "error" ? (
-                          <span className="text-red-600 font-medium">
-                            Audio generation failed —{" "}
+                          <span role="alert" className="text-red-600 font-medium">
+                            {listeningAudio.error || 'Audio preparation failed.'}{" "}
                             <button
                               type="button"
                               onClick={onRetryListeningAudio}
                               className="underline cursor-pointer"
                             >
-                              retry
+                              Retry audio
                             </button>
                           </span>
                         ) : listeningAudio.phase === "loading" ? (
                           "Loading Kokoro TTS voice engine…"
                         ) : listeningAudio.phase === "generating" ? (
-                          `Generating audio (${listeningAudio.completedChunks}${
+                          `${listeningReady ? 'Ready to start. Preparing remaining audio' : 'Generating audio'} (${listeningAudio.completedChunks}${
                             listeningAudio.totalChunks ? `/${listeningAudio.totalChunks}` : ""
                           } chunks)…`
                         ) : (

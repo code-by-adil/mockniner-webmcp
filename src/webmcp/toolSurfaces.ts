@@ -1,5 +1,6 @@
 import type { AssessmentSession } from "@/domain/assessmentSession";
 import type { IeltsSession } from "@/domain/session";
+import { getPracticeContext } from '@/application/practiceContext';
 import type { AssessmentToolSurface } from "./assessmentTools";
 import type { SpeakingToolSurface } from "./speakingTools";
 import type { WritingToolSurface } from "./writingTools";
@@ -30,23 +31,10 @@ export function getNativeToolSurfaces(
     return { authoringEnabled: false, writing: "none", speaking: "none" };
   }
 
-  if (session.view === 'review' && session.review?.kind === 'speaking') {
-    return { authoringEnabled: false, writing: 'none', speaking: 'results' };
-  }
-
-  const authoringEnabled = session.view === "home";
-  let writing: WritingToolSurface = "none";
-  let speaking: SpeakingToolSurface = "none";
-
-  if (session.writingSubmission && session.view !== "home") {
-    const writingIsVisible = session.currentSection === "writing" || session.view === "result";
-    if (writingIsVisible) writing = session.writingEvaluation ? "results" : "evaluation";
-  }
-
-  if (session.speakingSubmission && session.view !== "home") {
-    const speakingIsVisible = session.currentSection === "speaking" || session.view === "result";
-    if (speakingIsVisible) speaking = session.speakingEvaluation ? "results" : "evaluation";
-  }
-
-  return { authoringEnabled, writing, speaking };
+  const context = getPracticeContext(session, assessmentSession);
+  const surface = (kind: 'writing' | 'speaking'): WritingToolSurface => {
+    const submission = context.submissions.find(candidate => candidate.kind === kind);
+    return !submission ? 'none' : submission.evaluationStatus === 'awaiting_evaluation' ? 'evaluation' : 'results';
+  };
+  return { authoringEnabled: session.view === 'home', writing: surface('writing'), speaking: surface('speaking') };
 }

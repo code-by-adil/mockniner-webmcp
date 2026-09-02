@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { readSelectedSubmission, submissionSelectionSchema } from './submissionSelection';
 import type { IeltsCommands } from "@/application/ieltsCommands";
 import { speakingPlanSchema, type SpeakingPlan } from "@/domain/speakingPlan";
 import type { SpeakingEvaluation, SpeakingSubmission } from "@/domain/types";
@@ -10,19 +11,6 @@ import {
   toolFailure,
   zodIssues,
 } from "./toolResult";
-
-const getSpeakingSubmissionInputSchema = {
-  type: "object",
-  properties: {
-    attemptId: {
-      type: "string",
-      format: "uuid",
-      description:
-        "Optional Speaking attempt ID. Omit it to read the latest submission.",
-    },
-  },
-  additionalProperties: false,
-} as const;
 
 type SpeakingToolDependencies = {
   readSpeakingAttempt: (attemptId?: string) => Promise<{
@@ -81,31 +69,20 @@ export function createSpeakingToolDefinitions(
     name: "get_ielts_speaking_submission",
     title: "Read IELTS Speaking transcript",
     description:
-      "Read an immutable submitted Speaking attempt with every examiner prompt, candidate transcript, duration, part, and attempt identity. Audio stays private in the local browser. Omit attemptId to read the latest attempt.",
-    inputSchema: getSpeakingSubmissionInputSchema,
+      "Read the visible Speaking submission, all prompts, transcripts, durations and attached evaluation. Audio stays private. No parameters means the submission on screen. Use latest: true for the newest saved Speaking attempt, or attemptId for an exact historical attempt. Reading never changes the visible page.",
+    inputSchema: submissionSelectionSchema,
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     execute: async (input, options) => {
       const signal = getToolExecutionSignal(options);
       throwIfCancelled(signal);
-      const parsed = z
-        .object({ attemptId: z.uuid().optional() })
-        .strict()
-        .safeParse(input);
-      if (!parsed.success) {
-        return toolFailure(
-          "INVALID_INPUT",
-          "The Speaking submission request is invalid.",
-          true,
-          zodIssues(parsed.error),
-        );
-      }
-      const stored = await readSpeakingAttempt(parsed.data.attemptId);
-      throwIfCancelled(signal);
+      const selected = await readSelectedSubmission(input, readSpeakingAttempt, getCurrentSpeakingAttemptId, signal);
+      if (!selected.ok) return selected;
+      const { stored, requestedId, selection } = selected;
       if (!stored) {
         return toolFailure(
           "SPEAKING_SUBMISSION_NOT_FOUND",
-          parsed.data.attemptId
-            ? `Speaking attempt ${parsed.data.attemptId} was not found.`
+          requestedId
+            ? `Speaking attempt ${requestedId} was not found.`
             : "No submitted Speaking attempt is available yet.",
           true,
         );
@@ -113,6 +90,8 @@ export function createSpeakingToolDefinitions(
       return {
         ok: true,
         data: {
+          selection,
+          evaluation: stored.evaluation,
           submission: stored.submission,
           scoringScope: {
             supported: [

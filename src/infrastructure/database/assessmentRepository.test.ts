@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { SQLocal } from "sqlocal";
 import { satPracticeAssessment } from "@/content/sat";
 import { gradeAssessment } from "@/domain/assessment";
+import { createAssessmentToolDefinitions } from '@/webmcp/assessmentTools';
 import { migrateDatabase } from "./migrations";
 import {
   deleteAssessmentPackage,
@@ -41,6 +42,22 @@ afterEach(async () => {
 });
 
 describe("universal assessment repository", () => {
+  it('reads the visible older submission through WebMCP while latest remains explicit', async () => {
+    const save = (attemptId: string, submittedAt: string) => saveAssessmentAttempt(database, {
+      attemptId, assessment: satPracticeAssessment, responses: {}, result: gradeAssessment(satPracticeAssessment, {}),
+      startedAt: '2026-09-01T09:00:00.000Z', submittedAt,
+    });
+    const older = await save('11111111-1111-4111-8111-111111111111', '2026-09-01T10:00:00.000Z');
+    const newer = await save('22222222-2222-4222-8222-222222222222', '2026-09-02T10:00:00.000Z');
+    const tool = createAssessmentToolDefinitions({ installAssessment: vi.fn(), attachEvaluation: vi.fn(),
+      readAssessmentAttempt: id => readAssessmentAttempt(database, id), getCurrentAttemptId: () => older.attemptId,
+    }, 'results')[0]!;
+    const options = { signal: new AbortController().signal };
+    await expect(tool.execute({}, options)).resolves.toMatchObject({ ok: true, data: { submission: { attemptId: older.attemptId }, selection: { isVisible: true } } });
+    await expect(tool.execute({ latest: true }, options)).resolves.toMatchObject({ ok: true, data: { submission: { attemptId: newer.attemptId }, selection: { isVisible: false } } });
+    await expect(tool.execute({ attemptId: '33333333-3333-4333-8333-333333333333' }, options)).resolves.toMatchObject({ ok: false, error: { code: 'ASSESSMENT_SUBMISSION_NOT_FOUND' } });
+    expect(await readAssessmentHistory(database)).toHaveLength(2);
+  });
   it("creates only the canonical version-3 assessment columns", async () => {
     const packageColumns = await database.sql<{ name: string }>`PRAGMA table_info(assessment_packages)`;
     const attemptColumns = await database.sql<{ name: string }>`PRAGMA table_info(assessment_attempts)`;

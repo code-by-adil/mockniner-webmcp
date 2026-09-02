@@ -54,6 +54,7 @@ function evaluationToolSchemas(modules) {
       installContent: never,
       installAssessment: never,
       readLearningSummary: never,
+      readListeningAudio: never,
     })
     .map((tool) => ({
       name: tool.name,

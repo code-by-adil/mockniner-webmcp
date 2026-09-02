@@ -14,6 +14,8 @@ import { ListeningExamRunner } from "@/modules/ielts/listening/ui/ListeningExamR
 import { ReadingExamRunner } from "@/modules/ielts/reading/ui/ReadingExamRunner";
 import { WritingExamRunner } from "@/modules/ielts/writing/ui/WritingExamRunner";
 import { WritingAttemptReview } from "@/modules/ielts/writing/ui/WritingAttemptReview";
+import { PendingAttemptReview } from '@/app/PendingAttemptReview';
+import { getListeningAudioStatus } from '@/application/listeningAudioStatus';
 import { SpeakingExamRunner } from "@/modules/ielts/speaking/ui/SpeakingExamRunner";
 import { SpeakingAttemptReview } from "@/modules/ielts/speaking/ui/SpeakingAttemptReview";
 import { SpeakingEvaluationPrompt } from "@/modules/ielts/speaking/ui/SpeakingEvaluationPrompt";
@@ -28,6 +30,7 @@ import { AssessmentRunner } from "@/modules/assessment-engine/ui/AssessmentRunne
 import { AssessmentResults } from "@/modules/assessment-engine/ui/AssessmentResults";
 import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { getAssessmentToolSurface, getNativeToolSurfaces } from "@/webmcp/toolSurfaces";
+import { getPracticeContext } from '@/application/practiceContext';
 
 type Section = SectionKey;
 type Mode = IeltsMode;
@@ -97,7 +100,7 @@ export function Complete({
           <div className="mt-6 w-full max-w-xl rounded-lg border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-5 py-4 text-left shadow-sm">
             <p className="text-sm font-bold text-[var(--exam-text)]">Ready for agent evaluation</p>
             <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">
-              Ask your agent to grade your latest IELTS Writing submission.
+              Ask your agent to grade this IELTS Writing submission.
               It can read your saved response and return feedback here.
             </p>
           </div>
@@ -219,7 +222,7 @@ export function Results({
 }
 
 export default function App() {
-  const { state, content, contentReady, loadError, learningSummary, commands } = useIeltsApplication();
+  const { state, content, contentReady, loadError, learningSummary, commands, loadPracticeContent } = useIeltsApplication();
   const assessmentApplication = useAssessmentApplication();
   const listeningAudio = useListeningAudio(content.listening);
   const assessmentToolSurface = getAssessmentToolSurface(
@@ -230,13 +233,10 @@ export default function App() {
   const webMcp = useWebMcpTools({
     commands,
     assessmentCommands: assessmentApplication.commands,
-    currentWritingAttemptId: state.writingSubmission?.attemptId,
-    currentSpeakingAttemptId: state.view === 'review' && state.review?.kind === 'speaking'
-      ? state.review.submission.attemptId : state.speakingSubmission?.attemptId,
-    currentAssessmentAttemptId:
-      assessmentApplication.state.view === "result"
-        ? assessmentApplication.state.submission?.attemptId
-        : undefined,
+    context: getPracticeContext(state, assessmentApplication.state),
+    workspace: { native: state, assessment: assessmentApplication.state, content, assessments: assessmentApplication.assessments, listeningAudio: getListeningAudioStatus(content.listening, listeningAudio) },
+    retryListeningAudio: listeningAudio.retry,
+    loadPracticeContent,
     assessmentToolSurface,
     nativeAuthoringEnabled: nativeToolSurfaces.authoringEnabled,
     writingToolSurface: nativeToolSurfaces.writing,
@@ -383,6 +383,7 @@ export default function App() {
 
   if (section === "writing") {
     if (state.view === "review" && state.review?.kind === "writing") {
+      if (!state.review.evaluation) return <PendingAttemptReview review={state.review} onExit={commands.closeReview} />;
       return (
         <WritingAttemptReview
           submission={state.review.submission}
@@ -409,6 +410,7 @@ export default function App() {
   }
 
   if (state.view === "review" && state.review?.kind === "speaking") {
+    if (!state.review.evaluation) return <PendingAttemptReview review={state.review} onExit={commands.closeReview} />;
     return (
       <SpeakingAttemptReview
         backLabel={state.review.returnTo === 'home' ? 'Back to practice' : 'Back to results'}

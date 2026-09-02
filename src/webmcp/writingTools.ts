@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { readSelectedSubmission, submissionSelectionSchema } from './submissionSelection';
 import type { IeltsCommands } from "@/application/ieltsCommands";
 import type { WritingEvaluation, WritingSubmission } from "@/domain/types";
 import { writingEvaluationInputSchema } from "@/domain/writingEvaluation";
@@ -9,19 +10,6 @@ import {
   throwIfCancelled,
   zodIssues,
 } from "./toolResult";
-
-const getWritingSubmissionInputSchema = {
-  type: "object",
-  properties: {
-    attemptId: {
-      type: "string",
-      format: "uuid",
-      description:
-        "Optional Writing attempt ID. Omit it to read the latest submission.",
-    },
-  },
-  additionalProperties: false,
-} as const;
 
 const attachWritingEvaluationInputSchema = z.toJSONSchema(
   writingEvaluationInputSchema,
@@ -55,31 +43,20 @@ export function createWritingToolDefinitions(
     name: "get_ielts_writing_submission",
     title: "Read IELTS Writing submission",
     description:
-      "Read an immutable submitted IELTS Writing attempt, including both original task definitions, candidate responses, word counts, and attempt identity. Use this before evaluating Writing. Omit attemptId to read the latest submission.",
-    inputSchema: getWritingSubmissionInputSchema,
+      "Read the visible IELTS Writing submission, original tasks, responses, word counts and attached evaluation. No parameters means the submission on screen. Use latest: true for the newest saved Writing attempt, or attemptId for an exact historical attempt. Reading never changes the visible page.",
+    inputSchema: submissionSelectionSchema,
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     execute: async (input, options) => {
       const signal = getToolExecutionSignal(options);
       throwIfCancelled(signal);
-      const parsed = z
-        .object({ attemptId: z.uuid().optional() })
-        .strict()
-        .safeParse(input);
-      if (!parsed.success) {
-        return toolFailure(
-          "INVALID_INPUT",
-          "The Writing submission request is invalid.",
-          true,
-          zodIssues(parsed.error),
-        );
-      }
-      const stored = await readWritingAttempt(parsed.data.attemptId);
-      throwIfCancelled(signal);
+      const selected = await readSelectedSubmission(input, readWritingAttempt, getCurrentWritingAttemptId, signal);
+      if (!selected.ok) return selected;
+      const { stored, requestedId, selection } = selected;
       if (!stored) {
         return toolFailure(
           "WRITING_SUBMISSION_NOT_FOUND",
-          parsed.data.attemptId
-            ? `Writing attempt ${parsed.data.attemptId} was not found.`
+          requestedId
+            ? `Writing attempt ${requestedId} was not found.`
             : "No submitted Writing attempt is available yet.",
           true,
         );
@@ -87,6 +64,8 @@ export function createWritingToolDefinitions(
       return {
         ok: true,
         data: {
+          selection,
+          evaluation: stored.evaluation,
           submission: stored.submission,
           evaluationStatus: stored.evaluation
             ? "evaluated"

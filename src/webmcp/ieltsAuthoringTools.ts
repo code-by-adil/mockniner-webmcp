@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { IeltsCommands } from '@/application/ieltsCommands'
+import type { ListeningAudioStatus } from '@/application/listeningAudioStatus'
 import {
   getIeltsAuthoringKit,
   IELTS_AUTHORING_SECTIONS,
@@ -14,6 +15,7 @@ import {
 
 type IeltsAuthoringToolDependencies = {
   installContent: IeltsCommands['installContent']
+  readListeningAudio: () => ListeningAudioStatus
 }
 
 const ieltsAuthoringKitInputSchema = {
@@ -68,13 +70,14 @@ function markAsAgentCreated(input: unknown): unknown {
 
 export function createIeltsAuthoringToolDefinitions({
   installContent,
+  readListeningAudio,
 }: IeltsAuthoringToolDependencies): WebMCP.ModelContextTool[] {
   return [
     {
       name: 'get_ielts_authoring_kit',
       title: 'Get native IELTS authoring kit',
       description:
-        'Return the current rules and complete JSON Schema for one native IELTS Listening, Reading, or Writing document. Use the matching section kit before creating a practice set.',
+        'Return current rules, a complete valid exampleDocument and the JSON Schema for one native IELTS Listening, Reading, or Writing set. Use the matching kit, choose a fresh contentKey, and adapt the example before installation.',
       inputSchema: ieltsAuthoringKitInputSchema,
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async (input, options) => {
@@ -98,7 +101,7 @@ export function createIeltsAuthoringToolDefinitions({
       name: 'install_ielts_practice_set',
       title: 'Install IELTS practice set',
       description:
-        'Validate, install, and activate one complete native IELTS Listening, Reading, or Writing document built from get_ielts_authoring_kit. A successful set appears on the home screen immediately.',
+        'Validate, save and activate a complete native IELTS set built from get_ielts_authoring_kit. Returns the visible name and readiness. Listening audio is prepared asynchronously: active does not mean playable. Read listeningAudio in get_practice_context until readyToPlay, or retry a failed preparation.',
       inputSchema: ieltsPracticeSetTeachingSchema,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: async (input, options) => {
@@ -117,6 +120,7 @@ export function createIeltsAuthoringToolDefinitions({
               source: document.source,
               itemCount: questionCount(document.section),
               active: true,
+              ...(document.section === 'listening' ? { listeningAudio: readListeningAudio() } : {}),
             },
             sideEffect: {
               type: 'practice_set_installed',

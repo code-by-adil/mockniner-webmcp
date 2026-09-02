@@ -33,7 +33,7 @@ export type IeltsReview =
       kind: 'writing'
       section: 'writing'
       submission: WritingSubmission
-      evaluation: WritingEvaluation
+      evaluation: WritingEvaluation | null
       part: number
       returnTo: ReviewReturnView
     }
@@ -41,7 +41,7 @@ export type IeltsReview =
       kind: 'speaking'
       section: 'speaking'
       submission: SpeakingSubmission
-      evaluation: SpeakingEvaluation
+      evaluation: SpeakingEvaluation | null
       part: number
       returnTo: ReviewReturnView
     }
@@ -228,6 +228,10 @@ export function sessionReducer(state: IeltsSession, action: SessionAction): Ielt
       if (state.attemptId !== action.submission.attemptId || state.currentSection !== 'writing' || state.completedSections.includes('writing')) return state
       return markComplete({ ...state, writingSubmission: action.submission }, 'writing')
     case 'ATTACH_WRITING_EVALUATION':
+      if (state.view === 'review' && state.review?.kind === 'writing' && state.review.submission.attemptId === action.evaluation.attemptId) return {
+        ...state, review: { ...state.review, evaluation: action.evaluation },
+        ...(state.writingSubmission?.attemptId === action.evaluation.attemptId ? { writingEvaluation: action.evaluation } : {}),
+      }
       if (state.writingSubmission?.attemptId !== action.evaluation.attemptId) return state
       if (state.view !== 'transition' && state.view !== 'result') return { ...state, writingEvaluation: action.evaluation }
       return {
@@ -248,6 +252,10 @@ export function sessionReducer(state: IeltsSession, action: SessionAction): Ielt
       if (state.attemptId !== action.submission.attemptId || state.currentSection !== 'speaking' || state.completedSections.includes('speaking')) return state
       return markComplete({ ...state, speakingSubmission: action.submission }, 'speaking')
     case 'ATTACH_SPEAKING_EVALUATION':
+      if (state.view === 'review' && state.review?.kind === 'speaking' && state.review.submission.attemptId === action.evaluation.attemptId) return {
+        ...state, review: { ...state.review, evaluation: action.evaluation },
+        ...(state.speakingSubmission?.attemptId === action.evaluation.attemptId ? { speakingEvaluation: action.evaluation } : {}),
+      }
       if (state.speakingSubmission?.attemptId !== action.evaluation.attemptId) return state
       if (state.view !== 'transition' && state.view !== 'result') return { ...state, speakingEvaluation: action.evaluation }
       return {

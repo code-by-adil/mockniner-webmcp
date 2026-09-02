@@ -18,6 +18,7 @@ function homeTools() {
     installContent: vi.fn(),
     installAssessment: vi.fn(),
     readLearningSummary: vi.fn(),
+    readListeningAudio: vi.fn(),
   });
 }
 

@@ -9,7 +9,6 @@ type NativeHistoryRow = {
   section: NativeHistorySection
   submittedAt: string
   result: string
-  reviewable: boolean
 }
 
 const sectionPresentation = {
@@ -28,14 +27,12 @@ function getNativeHistoryRows(
       section: 'listening' as const,
       submittedAt: attempt.submittedAt,
       result: `Band ${attempt.band} (${attempt.raw}/${attempt.total})`,
-      reviewable: true,
     })),
     ...summary.sections.reading.recent.slice(0, 2).map((attempt) => ({
       attemptId: attempt.attemptId,
       section: 'reading' as const,
       submittedAt: attempt.submittedAt,
       result: `Band ${attempt.band} (${attempt.raw}/${attempt.total})`,
-      reviewable: true,
     })),
     ...summary.sections.writing.recent.slice(0, 2).map((attempt) => ({
       attemptId: attempt.attemptId,
@@ -44,14 +41,12 @@ function getNativeHistoryRows(
       result: attempt.overallBand === undefined
         ? 'Awaiting Evaluation'
         : `Band ${attempt.overallBand}`,
-      reviewable: attempt.overallBand !== undefined,
     })),
     ...(summary.sections.speaking.recent ?? []).slice(0, 2).map((attempt) => ({
       attemptId: attempt.attemptId,
       section: 'speaking' as const,
       submittedAt: attempt.submittedAt,
       result: attempt.overallBand === undefined ? 'Awaiting Evaluation' : `Band ${attempt.overallBand}`,
-      reviewable: attempt.overallBand !== undefined,
     })),
   ].sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
 }
@@ -91,7 +86,6 @@ export function NativeAttemptHistoryRows({
             </div>
             <div className="flex items-center gap-2.5">
               <span className="font-bold text-neutral-900">{attempt.result}</span>
-              {attempt.reviewable ? (
                 <button
                   type="button"
                   onClick={() => void onReview(attempt.attemptId, attempt.section)}
@@ -99,7 +93,6 @@ export function NativeAttemptHistoryRows({
                 >
                   Review
                 </button>
-              ) : null}
             </div>
           </div>
         )

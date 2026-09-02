@@ -5,11 +5,13 @@ import { writingDocument } from "@/content/writing";
 import { initialAssessmentSession } from "@/domain/assessmentSession";
 import { initialSession, type IeltsSession } from "@/domain/session";
 import { Home } from "./Home";
+import type { ActiveContentDocuments } from '@/domain/contentDocument';
+import type { ListeningAudioSession } from '@/application/useListeningAudio';
 
 const noOp = () => undefined;
 const noOpAsync = async () => undefined;
 
-function renderHome(session: IeltsSession = initialSession) {
+function renderHome(session: IeltsSession = initialSession, content: ActiveContentDocuments = { listening: listeningDocument, reading: readingDocument, writing: writingDocument }, audio: Partial<ListeningAudioSession> = {}) {
   return renderToStaticMarkup(
     <Home
       assessmentLibrary={{
@@ -29,9 +31,10 @@ function renderHome(session: IeltsSession = initialSession) {
       listeningAudio={{
         phase: "ready", hydrated: true, chunks: [], totalChunks: 1,
         error: null, completedChunks: 0, readyToPlay: true, retry: noOp,
+        ...audio,
       }}
       onRetryListeningAudio={noOp}
-      content={{ listening: listeningDocument, reading: readingDocument, writing: writingDocument }}
+      content={content}
       learningSummary={null}
       onReviewAttempt={noOpAsync}
     />,
@@ -39,6 +42,20 @@ function renderHome(session: IeltsSession = initialSession) {
 }
 
 describe("native IELTS home metadata", () => {
+  it('shows the full active set names and escapes agent-authored markup', () => {
+    const html = renderHome(initialSession, { listening: { ...listeningDocument, name: 'QA Harbour Listening', source: 'agent' },
+      reading: { ...readingDocument, name: 'Reading <script>unsafe</script>', source: 'agent' }, writing: { ...writingDocument, name: 'QA Sports Writing', source: 'agent' } })
+    expect(html).toContain('QA Harbour Listening')
+    expect(html).toContain('QA Sports Writing')
+    expect(html).toContain('Reading &lt;script&gt;unsafe&lt;/script&gt;')
+    expect(html).not.toContain('<script>unsafe</script>')
+  })
+  it('explains playable buffering and shows actionable failure details', () => {
+    expect(renderHome(initialSession, undefined, { phase: 'generating', readyToPlay: true, completedChunks: 2, totalChunks: 10 })).toContain('Ready to start. Preparing remaining audio (2/10 chunks)')
+    const failed = renderHome(initialSession, undefined, { phase: 'error', readyToPlay: false, error: 'WebGPU unavailable.' })
+    expect(failed).toContain('WebGPU unavailable.')
+    expect(failed).toContain('Retry audio')
+  })
   it("preserves timing, structure, and section action labels", () => {
     const html = renderHome();
     expect(html).toContain("~2 hrs 45 mins · 4 sections");

@@ -133,18 +133,14 @@ export function createIeltsCommands({
     const reader = await getRepository();
     if (section === 'speaking') {
       const stored = await reader.readSpeakingAttempt(attemptId);
-      if (!stored) throw new Error(`Speaking attempt ${attemptId} was not found.`);
-      if (!stored.evaluation) throw new Error(`Speaking attempt ${attemptId} has not been evaluated.`);
+      if (!stored) throw new ApplicationError('ATTEMPT_NOT_FOUND', `Speaking attempt ${attemptId} was not found.`, true);
       openReview({ kind: 'speaking', section, submission: stored.submission, evaluation: stored.evaluation, part: 1, returnTo });
       return;
     }
     if (section === "writing") {
       const stored = await reader.readWritingAttempt(attemptId);
       if (!stored) {
-        throw new Error(`Writing attempt ${attemptId} was not found.`);
-      }
-      if (!stored.evaluation) {
-        throw new Error(`Writing attempt ${attemptId} has not been evaluated.`);
+        throw new ApplicationError('ATTEMPT_NOT_FOUND', `Writing attempt ${attemptId} was not found.`, true);
       }
       openReview({
         kind: "writing",
@@ -159,10 +155,10 @@ export function createIeltsCommands({
 
     const submission = await reader.readObjectiveAttempt(attemptId);
     if (!submission) {
-      throw new Error(`${section} attempt ${attemptId} was not found.`);
+      throw new ApplicationError('ATTEMPT_NOT_FOUND', `${section} attempt ${attemptId} was not found.`, true);
     }
     if (submission.section !== section) {
-      throw new Error(
+      throw new ApplicationError('ATTEMPT_KIND_MISMATCH',
         `Attempt ${attemptId} belongs to ${submission.section}, not ${section}.`,
       );
     }
@@ -307,9 +303,9 @@ export function createIeltsCommands({
     },
     async attachWritingEvaluation(input) {
       const parsed = writingEvaluationInputSchema.parse(input);
-      const state = getState();
       const repository = await getRepository();
       const stored = await repository.readWritingAttempt(parsed.attemptId);
+      const state = getState();
       if (!stored)
         throw new ApplicationError(
           "WRITING_SUBMISSION_NOT_FOUND",
@@ -321,8 +317,8 @@ export function createIeltsCommands({
           `Writing attempt ${parsed.attemptId} already has an evaluation.`,
         );
       if (
-        state.writingSubmission?.attemptId !== parsed.attemptId ||
-        !["transition", "result"].includes(state.view)
+        !(state.view === 'review' && state.review?.kind === 'writing' && state.review.submission.attemptId === parsed.attemptId) &&
+        !(state.writingSubmission?.attemptId === parsed.attemptId && ["transition", "result"].includes(state.view))
       ) {
         throw new ApplicationError(
           "ATTEMPT_NOT_CURRENT",
@@ -353,9 +349,9 @@ export function createIeltsCommands({
     },
     async attachSpeakingEvaluation(input) {
       const parsed = speakingEvaluationInputSchema.parse(input);
-      const state = getState();
       const repository = await getRepository();
       const stored = await repository.readSpeakingAttempt(parsed.attemptId);
+      const state = getState();
       if (!stored)
         throw new ApplicationError(
           "SPEAKING_SUBMISSION_NOT_FOUND",
@@ -367,8 +363,8 @@ export function createIeltsCommands({
           `Speaking attempt ${parsed.attemptId} already has an evaluation.`,
         );
       if (
-        state.speakingSubmission?.attemptId !== parsed.attemptId ||
-        !["transition", "result"].includes(state.view)
+        !(state.view === 'review' && state.review?.kind === 'speaking' && state.review.submission.attemptId === parsed.attemptId) &&
+        !(state.speakingSubmission?.attemptId === parsed.attemptId && ["transition", "result"].includes(state.view))
       ) {
         throw new ApplicationError(
           "ATTEMPT_NOT_CURRENT",

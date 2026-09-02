@@ -18,6 +18,7 @@ import {
 import { createIeltsCommands } from "./ieltsCommands";
 import { reportHandledError } from "@/shared/reportHandledError";
 import type { LearningSummary } from "@/domain/learningSummary";
+import { flushSync } from 'react-dom';
 
 const bundledContent = [listeningDocument, readingDocument, writingDocument];
 const getRepository = async () =>
@@ -68,7 +69,9 @@ export function useIeltsApplication(persistence = defaultPersistence) {
         getState,
         getContent,
         dispatch,
-        setContent,
+        // External installation callers must observe the new content and its
+        // derived audio status before the installation promise resolves.
+        setContent: documents => flushSync(() => setContent(documents)),
         getRepository: persistence.getRepository,
         getContentStore: persistence.getContentStore,
       }),
@@ -125,5 +128,6 @@ export function useIeltsApplication(persistence = defaultPersistence) {
     state.speakingEvaluation,
     persistence,
   ]);
-  return { state, content, contentReady, loadError, learningSummary, commands };
+  const loadPracticeContent = useCallback(async (key: string) => (await persistence.getContentStore()).loadByKey(key), [persistence]);
+  return { state, content, contentReady, loadError, learningSummary, commands, loadPracticeContent };
 }

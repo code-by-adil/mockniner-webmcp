@@ -71,7 +71,7 @@ export function WebMcpHelpDialog({
                 Capabilities follow the current workspace
               </div>
               <div className="text-neutral-500 text-[11px]">
-                Authoring tools appear in the library. Submission and evaluation tools appear only on the relevant result screen.
+                Your agent can find practice and history from any screen, open saved results, and start or resume practice. It can read saved submissions by ID anywhere. Installing practice requires the library; attaching feedback requires the matching result to be open. Answering and submitting remain yours.
               </div>
             </div>
           </div>

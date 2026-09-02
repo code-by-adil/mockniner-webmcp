@@ -5,6 +5,7 @@ import {
   readingContentDocumentSchema,
 } from "@/domain/objectiveContent";
 import { writingContentDocumentSchema } from "@/domain/writingContent";
+import { getIeltsExample } from '@/content/ieltsExamples';
 
 export const IELTS_AUTHORING_SECTIONS = ["listening", "reading", "writing"] as const;
 
@@ -40,7 +41,8 @@ export function getIeltsAuthoringKit(section: IeltsAuthoringSection) {
     section,
     rules: rules[section],
     documentSchema: z.toJSONSchema(schemas[section], { target: "draft-07" }),
+    exampleDocument: getIeltsExample(section),
     nextAction:
-      "Create one complete document from documentSchema, then pass it to install_ielts_practice_set.",
+      "Use exampleDocument as a complete original structural example. Choose a fresh contentKey and descriptive name, replace its content for new practice, and validate against documentSchema before calling install_ielts_practice_set. Listening returns preparation status; follow get_practice_context.listeningAudio until readyToPlay.",
   };
 }

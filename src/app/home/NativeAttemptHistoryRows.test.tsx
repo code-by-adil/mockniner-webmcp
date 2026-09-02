@@ -57,7 +57,7 @@ describe('native attempt history rows', () => {
     } }} onReview={async () => undefined} />)
     expect(html).toContain('data-attempt-id="speaking-qa" data-section="speaking"')
     expect(html).toContain('Speaking Practice')
-    expect(html.match(/>Review<\/button>/g)).toHaveLength(3)
+    expect(html.match(/>Review<\/button>/g)).toHaveLength(5)
     expect(html).toContain('speaking-pending')
   })
   it('renders distinct row identities for two attempts in the same section', () => {
@@ -71,7 +71,7 @@ describe('native attempt history rows', () => {
     expect(html).toContain(
       'data-attempt-id="older-reading-attempt" data-section="reading"',
     )
-    expect(html.match(/>Review<\/button>/g)).toHaveLength(2)
+    expect(html.match(/>Review<\/button>/g)).toHaveLength(3)
     expect(html).toContain('Awaiting Evaluation')
   })
 })

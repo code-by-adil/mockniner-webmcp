@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { readSelectedSubmission, submissionSelectionSchema } from './submissionSelection';
 import type { AssessmentApplicationCommands } from "@/application/assessmentCommands";
 import { getAssessmentAuthoringKit } from "@/content/assessmentExamples";
 import {
@@ -21,18 +22,6 @@ import {
   toolFailure,
   zodIssues,
 } from "./toolResult";
-
-const getSubmissionInputSchema = {
-  type: "object",
-  properties: {
-    attemptId: {
-      type: "string",
-      format: "uuid",
-      description: "Optional immutable attempt ID. Omit it to read the latest universal assessment submission.",
-    },
-  },
-  additionalProperties: false,
-} as const;
 
 const getAuthoringKitInputSchema = {
   type: "object",
@@ -139,23 +128,20 @@ export function createAssessmentToolDefinitions({
     name: "get_assessment_submission",
     title: "Read assessment submission",
     description:
-      "Read an immutable submitted universal assessment attempt, its candidate-visible package without answer keys, responses, objective result, rubrics, and evaluation status. Omit attemptId to read the latest submission.",
-    inputSchema: getSubmissionInputSchema,
+      "Read the visible universal assessment submission, responses, objective result, rubrics and attached evaluation, without answer keys. No parameters means the submission on screen. Use latest: true for the newest saved attempt, or attemptId for an exact historical attempt. Reading never changes the visible page.",
+    inputSchema: submissionSelectionSchema,
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     execute: async (input, options) => {
       const signal = getToolExecutionSignal(options);
       throwIfCancelled(signal);
-      const parsed = z.object({ attemptId: z.uuid().optional() }).strict().safeParse(input);
-      if (!parsed.success) {
-        return toolFailure("INVALID_INPUT", "The submission request is invalid.", true, zodIssues(parsed.error));
-      }
-      const stored = await readAssessmentAttempt(parsed.data.attemptId);
-      throwIfCancelled(signal);
+      const selected = await readSelectedSubmission(input, readAssessmentAttempt, getCurrentAttemptId, signal);
+      if (!selected.ok) return selected;
+      const { stored, requestedId, selection } = selected;
       if (!stored) {
         return toolFailure(
           "ASSESSMENT_SUBMISSION_NOT_FOUND",
-          parsed.data.attemptId
-            ? `Assessment attempt ${parsed.data.attemptId} was not found.`
+          requestedId
+            ? `Assessment attempt ${requestedId} was not found.`
             : "No universal assessment has been submitted yet.",
           true,
         );
@@ -163,6 +149,8 @@ export function createAssessmentToolDefinitions({
       return {
         ok: true,
         data: {
+          selection,
+          evaluation: stored.evaluation,
           submission: {
             attemptId: stored.submission.attemptId,
             packageId: stored.submission.packageId,

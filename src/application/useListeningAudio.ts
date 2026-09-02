@@ -70,9 +70,8 @@ export function useListeningAudio(
       if (!active || failed) return;
       failed = true;
       worker?.terminate();
-      setState((value) => value.contentKey === document.contentKey
-        ? { ...value, phase: "error", error: errorMessage(error) }
-        : value);
+      setState((value) => ({ ...(value.contentKey === document.contentKey ? value : initialState(document)),
+        phase: "error", error: errorMessage(error) }));
     };
 
     void (async () => {
@@ -88,14 +87,18 @@ export function useListeningAudio(
       );
       if (!active) return;
 
-      setState({
+      setState(value => ({
         contentKey: document.contentKey,
         phase: "loading",
         hydrated: true,
-        chunks: stored,
+        // Keep validated, immutable chunks stable during retry so the audio
+        // element does not reload its current Blob and lose playback position.
+        chunks: stored.map(chunk => value.contentKey === document.contentKey
+          ? value.chunks.find(previous => previous.sequence === chunk.sequence && previous.cacheVersion === chunk.cacheVersion) ?? chunk
+          : chunk),
         totalChunks: null,
         error: null,
-      });
+      }));
 
       worker = new Worker(
         new URL("../infrastructure/media/kokoro.worker.ts", import.meta.url),
@@ -196,12 +199,12 @@ export function useListeningAudio(
     error: current.error,
     completedChunks: current.chunks.length,
     readyToPlay:
-      document.audio.type === "bundled" ||
+      current.phase !== 'error' && (document.audio.type === "bundled" ||
       current.phase === "ready" ||
       (
         current.chunks.length >= 2 &&
         current.chunks.some((chunk) => chunk.kind === "speech")
-      ),
+      )),
     retry,
   };
 }

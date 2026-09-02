@@ -1,5 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from 'react-dom';
+import { createPracticeNavigation, type PracticeWorkspace } from '@/application/practiceNavigation';
+import type { PracticeContentDocument } from '@/domain/contentDocument';
+import { createPracticeTools } from './practiceTools';
+import { createListeningAudioRetryTool } from './listeningAudioTool';
 import { createSpeakingInterviewController } from "@/application/speakingInterviewController";
+import type { PracticeContext, VisibleSubmission } from '@/application/practiceContext';
+import { createPracticeContextTool } from './practiceContextTool';
 import { toolFailure } from './toolResult';
 import type { IeltsCommands } from "@/application/ieltsCommands";
 import type { AssessmentApplicationCommands } from "@/application/assessmentCommands";
@@ -23,9 +30,10 @@ import {
 export type WebMcpToolOptions = {
   commands: IeltsCommands;
   assessmentCommands: AssessmentApplicationCommands;
-  currentWritingAttemptId?: string;
-  currentSpeakingAttemptId?: string;
-  currentAssessmentAttemptId?: string;
+  context: PracticeContext;
+  workspace: PracticeWorkspace;
+  loadPracticeContent: (key: string) => Promise<PracticeContentDocument | null>;
+  retryListeningAudio: () => void;
   assessmentToolSurface: AssessmentToolSurface;
   nativeAuthoringEnabled: boolean;
   writingToolSurface: WritingToolSurface;
@@ -58,6 +66,38 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     const modelContext = document.modelContext;
     const controller = new AbortController();
     const tools: WebMCP.ModelContextTool[] = [];
+    const visibleAttemptId = (kind: VisibleSubmission['kind']) => latest.current.context.submissions.find(submission => submission.kind === kind)?.attemptId;
+    const readContext = () => ({ ...latest.current.context, listeningAudio: latest.current.workspace.listeningAudio });
+    const readListeningAudio = () => latest.current.workspace.listeningAudio;
+    tools.push(createPracticeContextTool(readContext), createListeningAudioRetryTool(readListeningAudio, () => flushSync(() => latest.current.retryListeningAudio())));
+    const navigation = createPracticeNavigation({
+      getWorkspace: () => latest.current.workspace,
+      native: {
+        start: (...args) => flushSync(() => latest.current.commands.start(...args)),
+        resume: () => flushSync(() => latest.current.commands.resume()),
+        goHome: () => flushSync(() => latest.current.commands.goHome()),
+        installContent: (input) => latest.current.commands.installContent(input),
+        openAttempt: (...args) => latest.current.commands.openAttempt(...args),
+      },
+      assessment: {
+        start: (...args) => flushSync(() => latest.current.assessmentCommands.start(...args)),
+        resume: () => flushSync(() => latest.current.assessmentCommands.resume()),
+        goHome: () => flushSync(() => latest.current.assessmentCommands.goHome()),
+        openAttempt: (...args) => latest.current.assessmentCommands.openAttempt(...args),
+      },
+      loadContent: key => latest.current.loadPracticeContent(key),
+    });
+    tools.push(...createPracticeTools({
+      readLibrary: async input => {
+        const [{ getLocalDatabase }, { readPracticeLibrary }] = await Promise.all([import('@/infrastructure/database/client'), import('@/infrastructure/database/practiceDiscovery')]);
+        return readPracticeLibrary(await getLocalDatabase(), latest.current.workspace, input);
+      },
+      readHistory: async input => {
+        const [{ getLocalDatabase }, { readPracticeHistory }] = await Promise.all([import('@/infrastructure/database/client'), import('@/infrastructure/database/practiceDiscovery')]);
+        return readPracticeHistory(await getLocalDatabase(), input);
+      },
+      navigate: async input => ({ ...await navigation(input), view: latest.current.context.view, context: readContext() }),
+    }));
     // Register once per document. Repeated contextual registration exhausts the
     // in-app browser's change budget. Preserve state restrictions at execution.
     const guard = (tool: WebMCP.ModelContextTool, available: () => boolean, message: string): WebMCP.ModelContextTool => ({
@@ -71,11 +111,12 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
         ...createHomeToolDefinitions({
           installContent: (input) =>
             latest.current.commands.installContent(input),
+          readListeningAudio,
           installAssessment: (input) =>
             latest.current.assessmentCommands.installAssessment(input),
           readLearningSummary: async (limit) =>
             (await getIeltsRepository()).readLearningSummary(limit),
-        }).map((tool) => guard(tool, homeAvailable, 'Return to the practice home screen to author practice or read the learning summary.')),
+        }).map((tool) => tool.annotations?.readOnlyHint ? tool : guard(tool, homeAvailable, 'Use open_practice with action library before installing practice.')),
       );
     tools.push(
       ...createWritingToolDefinitions(
@@ -85,12 +126,12 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
           attachWritingEvaluation: (input) =>
             latest.current.commands.attachWritingEvaluation(input),
           getCurrentWritingAttemptId: () =>
-            latest.current.currentWritingAttemptId,
+            visibleAttemptId('writing'),
         },
         'evaluation',
       ).map((tool) => guard(tool, () => tool.name.startsWith('attach_')
         ? latest.current.writingToolSurface === 'evaluation'
-        : latest.current.writingToolSurface !== 'none',
+        : true,
       'Open a submitted IELTS Writing attempt. Evaluation attachment requires the visible attempt to be awaiting evaluation.')),
     );
     tools.push(
@@ -101,12 +142,12 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
           attachSpeakingEvaluation: (input) =>
             latest.current.commands.attachSpeakingEvaluation(input),
           getCurrentSpeakingAttemptId: () =>
-            latest.current.currentSpeakingAttemptId,
+            visibleAttemptId('speaking'),
         },
         'evaluation',
       ).map((tool) => guard(tool, () => tool.name.startsWith('attach_')
         ? latest.current.speakingToolSurface === 'evaluation'
-        : latest.current.speakingToolSurface !== 'none',
+        : true,
       'Open a submitted IELTS Speaking attempt. Evaluation attachment requires the visible attempt to be awaiting evaluation.')),
     );
       tools.push(
@@ -119,12 +160,12 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
             attachEvaluation: (input) =>
               latest.current.assessmentCommands.attachEvaluation(input),
             getCurrentAttemptId: () =>
-              latest.current.currentAssessmentAttemptId,
+              visibleAttemptId('assessment'),
           },
           'evaluation',
         ).map((tool) => guard(tool, () => tool.name.startsWith('attach_')
           ? latest.current.assessmentToolSurface === 'evaluation'
-          : ['results', 'evaluation'].includes(latest.current.assessmentToolSurface),
+          : true,
         'Open a submitted universal assessment. Evaluation attachment requires the visible attempt to be awaiting evaluation.')),
       );
     tools.push(createSpeakingInterviewToolDefinition(interview.configure), createSpeakingProgressToolDefinition(interview.read));

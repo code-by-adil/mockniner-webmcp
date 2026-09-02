@@ -11,6 +11,10 @@ import {
 } from '@/infrastructure/database/contentRepository'
 import { migrateDatabase } from '@/infrastructure/database/migrations'
 import { createIeltsCommands } from './ieltsCommands'
+import { getPracticeContext } from './practiceContext'
+import { initialAssessmentSession } from '@/domain/assessmentSession'
+import { createWritingToolDefinitions } from '@/webmcp/writingTools'
+import { createSpeakingToolDefinitions } from '@/webmcp/speakingTools'
 
 let database: SQLocal
 
@@ -60,7 +64,37 @@ describe('database-backed native history review', () => {
     await commands.openAttempt(submission.attemptId, 'speaking')
     expect(state).toMatchObject({ view: 'review', review: { kind: 'speaking', returnTo: 'home', submission: { attemptId: submission.attemptId } },
       writingDrafts: { 1: 'Unrelated draft' } })
+    const tool = createSpeakingToolDefinitions({ readSpeakingAttempt: repository.readSpeakingAttempt,
+      attachSpeakingEvaluation: commands.attachSpeakingEvaluation,
+      getCurrentSpeakingAttemptId: () => getPracticeContext(state, initialAssessmentSession).submissions.find(s => s.kind === 'speaking')?.attemptId,
+    }, 'results')[0]!
+    await expect(tool.execute({}, { signal: new AbortController().signal })).resolves.toMatchObject({ ok: true,
+      data: { submission: { attemptId: submission.attemptId }, evaluation: { attemptId: submission.attemptId }, selection: { isVisible: true } } })
     commands.closeReview(); expect(state.view).toBe('home')
+  })
+  it('reads the historical Writing review instead of a newer stored or retained submission', async () => {
+    const repository = createIeltsRepository(database)
+    const older = await repository.saveWritingAttempt({ attemptId: crypto.randomUUID(), contentKey: writingDocument.contentKey,
+      tasks: [{ task: writingDocument.tasks[0], response: 'Older response one.', wordCount: 3 }, { task: writingDocument.tasks[1], response: 'Older response two.', wordCount: 3 }],
+      startedAt: '2026-09-01T10:00:00.000Z', submittedAt: '2026-09-01T11:00:00.000Z' })
+    const newer = await repository.saveWritingAttempt({ ...older, attemptId: crypto.randomUUID(), submittedAt: '2026-09-02T11:00:00.000Z' })
+    const criterion = { band: 6, taskAchievement: 6, coherenceCohesion: 6, lexicalResource: 6, grammaticalRange: 6, feedback: 'Test feedback.', annotations: [] }
+    await repository.saveWritingEvaluation({ attemptId: older.attemptId, overallBand: 6, summary: 'Older evaluation.',
+      task1: criterion, task2: criterion, evaluatedAt: '2026-09-01T11:10:00.000Z' })
+    let state: IeltsSession = { ...initialSession, currentSection: 'speaking', writingSubmission: newer }
+    const commands = createIeltsCommands({ getState: () => state, dispatch: action => { state = sessionReducer(state, action) },
+      getContent: () => ({ listening: listeningDocument, reading: readingDocument, writing: writingDocument }),
+      setContent: vi.fn(), getContentStore: async () => createContentStore(database), getRepository: async () => repository })
+    await commands.openAttempt(older.attemptId, 'writing')
+    const tool = createWritingToolDefinitions({ readWritingAttempt: repository.readWritingAttempt,
+      attachWritingEvaluation: commands.attachWritingEvaluation,
+      getCurrentWritingAttemptId: () => getPracticeContext(state, initialAssessmentSession).submissions.find(s => s.kind === 'writing')?.attemptId,
+    }, 'results')[0]!
+    const options = { signal: new AbortController().signal }
+    await expect(tool.execute({}, options)).resolves.toMatchObject({ ok: true, data: { submission: { attemptId: older.attemptId }, evaluation: { summary: 'Older evaluation.' }, selection: { isVisible: true } } })
+    await expect(tool.execute({ latest: true }, options)).resolves.toMatchObject({ ok: true, data: { submission: { attemptId: newer.attemptId }, evaluation: null, canAttachEvaluation: false } })
+    expect(state.review?.submission.attemptId).toBe(older.attemptId)
+    expect(state.writingSubmission?.attemptId).toBe(newer.attemptId)
   })
   it('opens the selected rehydrated Reading attempt with its persisted content', async () => {
     const olderDocument = {
