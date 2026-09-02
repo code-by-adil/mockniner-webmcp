@@ -1,0 +1,53 @@
+{
+  "contractVersion": 1,
+  "cases": [
+    {
+      "id": "gre-verbal",
+      "name": "GRE verbal diagnostic uses the universal authoring kit",
+      "kind": "universal",
+      "template": "gre-style",
+      "prompt": "Create a ten-question GRE verbal diagnostic with one passage and two three-blank Text Completion questions."
+    },
+    {
+      "id": "gre-quantitative",
+      "name": "GRE quantitative practice declares its calculator and data table",
+      "kind": "universal",
+      "template": "gre-style",
+      "prompt": "Make a short GRE quantitative practice set with a calculator and a data table."
+    },
+    {
+      "id": "biology-minimal",
+      "name": "Biology quiz uses the minimal template without unnecessary affordances",
+      "kind": "universal",
+      "template": "minimal-objective",
+      "prompt": "Create a biology quiz without references or a calculator."
+    },
+    {
+      "id": "writing-rubric",
+      "name": "Writing assessment uses a four-criterion rubric",
+      "kind": "universal",
+      "template": "writing-with-rubric",
+      "prompt": "Create a writing assessment evaluated on four criteria."
+    },
+    {
+      "id": "ielts-reading",
+      "name": "IELTS Reading stays on the native authoring route",
+      "kind": "ielts",
+      "prompt": "Give me IELTS Reading practice."
+    },
+    {
+      "id": "unsupported-passage-selection",
+      "name": "Unsupported passage selection is explained instead of approximated",
+      "kind": "unsupported",
+      "template": "gre-style",
+      "prompt": "Create an assessment where I select a sentence directly inside a passage."
+    },
+    {
+      "id": "validation-repair",
+      "name": "A rejected package is repaired from the returned issue path",
+      "kind": "repair",
+      "template": "minimal-objective",
+      "prompt": "Create a one-question biology check and install it."
+    }
+  ]
+}

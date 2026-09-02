@@ -8,7 +8,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "vitest run",
+    "test": "vitest run && npm run eval:agent:check",
+    "eval:agent:check": "node scripts/agent-evals/check.mjs",
+    "eval:agent:local": "node scripts/agent-evals/run.mjs local",
+    "eval:agent:browser": "node scripts/agent-evals/run.mjs browser",
+    "eval:agent:release": "node scripts/agent-evals/run.mjs browser --release",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -33,6 +37,7 @@
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
     "vitest": "^4.1.11",
+    "webmcp-evals": "0.0.4",
     "webmcp-types": "^0.1.5"
   }
 }
