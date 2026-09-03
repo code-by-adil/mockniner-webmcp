@@ -14,6 +14,7 @@ import {
   type AssessmentResponseMap,
 } from "./assessmentScoring";
 import type { AssessmentSubmission } from "./assessmentSubmission";
+import type { AssessmentReviewSelection } from './assessmentReview';
 
 type AssessmentSessionView = "home" | "assessment" | "result";
 type AssessmentWorkspace = {
@@ -22,6 +23,7 @@ type AssessmentWorkspace = {
   timerHidden: boolean;
 };
 export type AssessmentSession = {
+  review?: AssessmentReviewSelection | null;
   packageSnapshot?: AssessmentPackage;
   view: AssessmentSessionView;
   attemptId: string | null;
@@ -52,7 +54,8 @@ export type AssessmentSessionAction =
   | { type: "COMPLETE_PART"; assessment: AssessmentPackage; partId: string; nowMs: number }
   | { type: "EXPIRE_PART"; assessment: AssessmentPackage; partId: string; nowMs: number }
   | { type: "COMPLETE"; submission: AssessmentSubmission }
-  | { type: "OPEN_SUBMISSION"; submission: AssessmentSubmission; evaluation: AssessmentEvaluation | null }
+  | { type: "OPEN_SUBMISSION"; submission: AssessmentSubmission; evaluation: AssessmentEvaluation | null; review?: AssessmentReviewSelection }
+  | { type: 'SET_REVIEW'; review: AssessmentReviewSelection | null }
   | { type: "ATTACH_EVALUATION"; evaluation: AssessmentEvaluation }
   | { type: "RESET" };
 
@@ -250,11 +253,14 @@ export function assessmentSessionReducer(
         view: "result",
         submission: action.submission,
         evaluation: action.evaluation ?? undefined,
+        review: action.review ?? null,
       };
     case "ATTACH_EVALUATION":
       return state.submission?.attemptId === action.evaluation.attemptId
         ? { ...state, evaluation: action.evaluation }
         : state;
+    case 'SET_REVIEW':
+      return state.view === 'result' ? { ...state, review: action.review } : state;
     case "RESET":
       return initialAssessmentSession;
   }

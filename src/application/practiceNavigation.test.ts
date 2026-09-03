@@ -17,6 +17,10 @@ import { createAssessmentCommands } from './assessmentCommands'
 import { createPracticeNavigation, getResumablePractices, type PracticeWorkspace } from './practiceNavigation'
 import { getPracticeContext } from './practiceContext'
 import { defaultSpeakingPlan } from '@/domain/speakingPlan'
+import { gradeObjectiveDocument } from '@/domain/objectiveScoring'
+import { createObjectiveReviewTool } from '@/webmcp/objectiveReviewTool'
+import { createObjectiveExplanationTool } from '@/webmcp/objectiveExplanationTool'
+import { restoreBackup } from '@/infrastructure/database/backupRepository'
 
 let database: SQLocal
 const dates = { startedAt: '2026-09-01T10:00:00.000Z', submittedAt: '2026-09-01T10:15:00.000Z' }
@@ -48,6 +52,96 @@ function setup() {
 }
 
 describe('semantic practice navigation and discovery', () => {
+  it.each(['reading', 'listening'] as const)('focuses a saved %s question and persists revisable explanations without changing answers or drafts', async section => {
+    const h = setup()
+    const document = h.workspace.content[section]
+    const attemptId = crypto.randomUUID()
+    const submission = await h.nativeRepository.saveObjectiveAttempt({ ...dates, attemptId, section, contentKey: document.contentKey, answers: { 28: 'Original response' }, result: gradeObjectiveDocument(document, { 28: 'Original response' }) })
+    h.native.start('section', 'writing')
+    h.native.setWritingDraft(1, 'Unfinished work to preserve.')
+    const draftId = h.workspace.native.attemptId
+    const navigation = createPracticeTools({ readLibrary: vi.fn(), readHistory: vi.fn(), navigate: h.navigate }).find(tool => tool.name === 'open_practice')!
+    const options = { signal: new AbortController().signal }
+    await expect(navigation.execute({ action: 'result', kind: section, attemptId, location: { questionId: 28 } }, options)).resolves.toMatchObject({ ok: true })
+    expect(h.workspace.native.review).toMatchObject({ part: 3, selectedQuestionId: 28 })
+    expect(getPracticeContext(h.workspace.native, h.workspace.assessment).reviewLocation).toMatchObject({ questionId: 28, part: 3, attemptId })
+    const read = createObjectiveReviewTool({ readAttempt: h.nativeRepository.readObjectiveAttempt, readExplanations: h.nativeRepository.readObjectiveExplanations, loadContent: async () => document, visibleId: () => attemptId })
+    const save = createObjectiveExplanationTool(h.native.saveObjectiveExplanation)
+    const input = { attemptId, section, questionId: 28, explanation: 'Compare the wording in the passage or script with the submitted response.' }
+    for (const invalid of [{ ...input, explanation: ' ' }, { ...input, questionId: 41 }, { ...input, expectedRevision: -1 }]) {
+      await expect(save.execute(invalid, options)).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_EXPLANATION' } })
+    }
+    await expect(save.execute({ ...input, attemptId: crypto.randomUUID() }, options)).resolves.toMatchObject({ ok: false, error: { code: 'ATTEMPT_NOT_CURRENT' } })
+    expect(await h.nativeRepository.readObjectiveExplanations(attemptId)).toEqual([])
+    const first = await save.execute(input, options)
+    expect(first).toMatchObject({ ok: true, data: { explanation: { revision: 1 } } })
+    await expect(save.execute(input, options)).resolves.toEqual(first)
+    await expect(save.execute({ ...input, explanation: 'Changed feedback.' }, options)).resolves.toMatchObject({ ok: false, error: { code: 'EVALUATION_REVISION_REQUIRED' } })
+    const revisions = await Promise.all([
+      save.execute({ ...input, expectedRevision: 1, explanation: 'Corrected explanation A.' }, options),
+      save.execute({ ...input, expectedRevision: 1, explanation: 'Corrected explanation B.' }, options),
+    ])
+    expect(revisions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ok: true, data: expect.objectContaining({ explanation: expect.objectContaining({ revision: 2 }) }) }),
+      expect.objectContaining({ ok: false, error: expect.objectContaining({ code: 'EVALUATION_REVISION_CONFLICT' }) }),
+    ]))
+    const [saved] = await h.nativeRepository.readObjectiveExplanations(attemptId)
+    await expect(read.execute({ section, part: 3 }, options)).resolves.toMatchObject({ data: { questions: expect.arrayContaining([expect.objectContaining({ questionId: 28, explanation: saved })]) } })
+    await h.navigate({ action: 'library' })
+    await expect(save.execute(input, options)).resolves.toMatchObject({ ok: false, error: { code: 'ATTEMPT_NOT_CURRENT' } })
+    await h.navigate({ action: 'result', kind: section, attemptId, location: { questionId: 28 } })
+    expect(h.workspace.native.review).toMatchObject({ explanations: [saved] })
+    expect(h.workspace.native).toMatchObject({ attemptId: draftId, writingDrafts: { 1: 'Unfinished work to preserve.' } })
+    expect(await h.nativeRepository.readObjectiveAttempt(attemptId)).toEqual(submission)
+    const before = structuredClone(h.workspace)
+    for (const location of [{ questionId: 41 }, { correctionId: 'wrong-kind' }]) await expect(navigation.execute({ action: 'result', kind: section, attemptId, location }, options)).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } })
+    expect(h.workspace).toEqual(before)
+    // The explanation and its revision are included in a real backup round trip.
+    let connected!: () => void
+    const ready = new Promise<void>(resolve => { connected = resolve })
+    const destination = new SQLocal({ databasePath: ':memory:', onConnect: connected })
+    try {
+      await ready
+      await migrateDatabase(destination)
+      await restoreBackup(database, destination)
+      expect(await createIeltsRepository(destination).readObjectiveExplanations(attemptId)).toEqual([saved])
+    } finally { await destination.destroy(true) }
+  })
+
+  it('focuses exact Writing corrections across tasks and rejects missing or ambiguous IDs without navigation', async () => {
+    const h = setup(); const attemptId = crypto.randomUUID()
+    const submission = await h.nativeRepository.saveWritingAttempt({ ...dates, attemptId, contentKey: writingDocument.contentKey,
+      tasks: [{ task: writingDocument.tasks[0], response: 'First response.', wordCount: 2 }, { task: writingDocument.tasks[1], response: 'Second response.', wordCount: 2 }] })
+    const task = { band: 6, taskAchievement: 6, coherenceCohesion: 6, lexicalResource: 6, grammaticalRange: 6, feedback: 'Develop this response.' }
+    await h.nativeRepository.saveWritingEvaluation({ attemptId, overallBand: 6, summary: 'Develop both responses.', evaluatedAt: dates.submittedAt,
+      task1: { ...task, annotations: [{ id: 'detail', taskNumber: 1, originalText: 'First response.', type: 'coherence', suggestion: 'Add evidence.', explanation: 'Support the claim.' }] },
+      task2: { ...task, annotations: [{ id: 'detail', taskNumber: 2, originalText: 'Second response.', type: 'coherence', suggestion: 'Give an example.', explanation: 'Make the argument concrete.' }, { id: 'unique', taskNumber: 2, originalText: 'Second response.', type: 'other', suggestion: 'Expand.', explanation: 'The essay is short.' }] } })
+    await h.navigate({ action: 'result', kind: 'writing', attemptId, location: { correctionId: 'unique' } })
+    expect(h.workspace.native.review).toMatchObject({ part: 2, selectedCorrectionId: 'unique' })
+    const before = structuredClone(h.workspace)
+    await expect(h.navigate({ action: 'result', kind: 'writing', attemptId, location: { correctionId: 'detail' } })).rejects.toMatchObject({ code: 'AMBIGUOUS_CORRECTION' })
+    await expect(h.navigate({ action: 'result', kind: 'writing', attemptId, location: { correctionId: 'missing' } })).rejects.toMatchObject({ code: 'REVIEW_LOCATION_NOT_FOUND' })
+    expect(h.workspace).toEqual(before)
+    h.native.setReviewLocation({ taskNumber: 1, correctionId: 'detail' })
+    expect(getPracticeContext(h.workspace.native, h.workspace.assessment).reviewLocation).toMatchObject({ taskNumber: 1, correctionId: 'detail' })
+    expect((await h.nativeRepository.readWritingAttempt(attemptId))?.submission).toEqual(submission)
+  })
+
+  it('opens a universal review at an item and respects the saved review policy', async () => {
+    const h = setup(); const attemptId = crypto.randomUUID()
+    const assessment = satPracticeAssessment
+    await h.assessmentRepository.saveAttempt({ ...dates, attemptId, packageId: assessment.packageId, package: assessment, responses: {}, result: gradeAssessment(assessment, {}) })
+    await h.navigate({ action: 'result', kind: 'assessment', attemptId, location: { itemId: 'math-1' } })
+    expect(h.workspace.assessment.review).toEqual({ filter: 'all', itemId: 'math-1' })
+    expect(getPracticeContext(h.workspace.native, h.workspace.assessment).reviewLocation).toMatchObject({ itemId: 'math-1' })
+    const before = structuredClone(h.workspace)
+    await expect(h.navigate({ action: 'result', kind: 'assessment', attemptId, location: { itemId: 'missing' } })).rejects.toMatchObject({ code: 'REVIEW_LOCATION_NOT_FOUND' })
+    expect(h.workspace).toEqual(before)
+    const hidden = { ...assessment, review: { mode: 'none' as const } }; const hiddenId = crypto.randomUUID()
+    await h.assessmentRepository.saveAttempt({ ...dates, attemptId: hiddenId, packageId: hidden.packageId, package: hidden, responses: {}, result: gradeAssessment(hidden, {}) })
+    await expect(h.navigate({ action: 'result', kind: 'assessment', attemptId: hiddenId, location: { itemId: 'math-1' } })).rejects.toMatchObject({ code: 'REVIEW_UNAVAILABLE' })
+    expect(h.workspace).toEqual(before)
+  })
   it('discovers the saved standalone Speaking plan while open, parked and restored', async () => {
     const h = setup()
     const navigate = createPracticeNavigation({ ...h.deps, canLeaveSpeaking: () => true })

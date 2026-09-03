@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   WritingAnnotation,
   WritingTaskEvaluation,
@@ -31,6 +31,9 @@ interface Props {
   overallBand?: number;
   evaluatedAt?: string;
   evaluationRevision?: number;
+  selectedCorrectionId?: string;
+  onCorrectionSelect?: (correctionId: string) => void;
+  focusRequest?: object;
   onClose: () => void;
   backLabel?: string;
   taskOptions?: Array<{
@@ -82,6 +85,9 @@ export const WritingReviewView: React.FC<Props> = ({
   overallBand,
   evaluatedAt,
   evaluationRevision,
+  selectedCorrectionId,
+  onCorrectionSelect,
+  focusRequest,
   onClose,
   backLabel = 'Back to results',
   taskOptions,
@@ -90,14 +96,20 @@ export const WritingReviewView: React.FC<Props> = ({
 }) => {
   const { response: essay, task, wordCount } = submittedTask;
   const isMobile = useIsMobile();
-  const [isDrawerOpen, setIsDrawerOpen] = useState(Boolean(evaluationSummary));
-  const [activeAnnotationIndex, setActiveAnnotationIndex] = useState<number | null>(null);
-  const [hoveredAnnotationIndex, setHoveredAnnotationIndex] = useState<number | null>(null);
+  const focusToken = focusRequest ?? selectedCorrectionId;
+  const [drawer, setDrawer] = useState<{ open: boolean; request?: object | string }>({ open: Boolean(evaluationSummary) });
+  const isDrawerOpen = Boolean(selectedCorrectionId && drawer.request !== focusToken) || drawer.open;
+  const setIsDrawerOpen = useCallback((open: boolean) => setDrawer({ open, request: focusToken }), [focusToken]);
+  const [localAnnotationIndex, setActiveAnnotationIndex] = useState<number | null>(null);
+  const [hovered, setHovered] = useState<{ index: number | null; correctionId?: string }>({ index: null });
+  const hoveredAnnotationIndex = hovered.correctionId === selectedCorrectionId ? hovered.index : null;
+  const setHoveredAnnotationIndex = useCallback((index: number | null) => setHovered({ index, correctionId: selectedCorrectionId }), [selectedCorrectionId]);
   const annotationRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const cardRefs = useRef<Record<number, HTMLElement | null>>({});
   const feedbackRef = useRef<HTMLDivElement | null>(null);
 
   const annotations = scoreData.annotations ?? EMPTY_WRITING_ANNOTATIONS;
+  const activeAnnotationIndex = onCorrectionSelect ? annotations.findIndex(annotation => annotation.id === selectedCorrectionId) : localAnnotationIndex;
 
   const { mapped } = useMemo(
     () => resolveAnnotationRanges(essay, annotations),
@@ -141,7 +153,8 @@ export const WritingReviewView: React.FC<Props> = ({
     : -1;
 
   const focusAnnotation = useCallback((annotationIndex: number) => {
-    setActiveAnnotationIndex(annotationIndex);
+    if (onCorrectionSelect) onCorrectionSelect(annotations[annotationIndex].id);
+    else setActiveAnnotationIndex(annotationIndex);
     setIsDrawerOpen(true);
     annotationRefs.current[annotationIndex]?.scrollIntoView({
       behavior: "smooth",
@@ -154,7 +167,18 @@ export const WritingReviewView: React.FC<Props> = ({
         block: "center",
       });
     }, 50);
-  }, []);
+  }, [onCorrectionSelect, annotations, setIsDrawerOpen]);
+
+  useEffect(() => {
+    if (!selectedCorrectionId) return;
+    const index = annotations.findIndex(annotation => annotation.id === selectedCorrectionId);
+    if (index < 0) return;
+    const target = annotationRefs.current[index] ?? cardRefs.current[index];
+    if (target && !(target instanceof HTMLButtonElement)) target.tabIndex = -1;
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({ block: 'center', behavior: 'auto' });
+    cardRefs.current[index]?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+  }, [selectedCorrectionId, annotations, focusRequest]);
 
   const jumpIssue = useCallback((direction: "prev" | "next") => {
     if (issues.length <= 1) return;
@@ -226,6 +250,7 @@ export const WritingReviewView: React.FC<Props> = ({
     focusAnnotation,
     focusedAnnotationIndex,
     mapped,
+    setHoveredAnnotationIndex,
   ]);
 
   const leftContent = (

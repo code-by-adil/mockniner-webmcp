@@ -2,6 +2,7 @@ import type { AttemptReader } from "@/application/attemptReader";
 import type { AttemptWriter } from "@/application/attemptWriter";
 import { getLocalDatabase } from "./client";
 import type { SQLocal } from "sqlocal";
+import { readObjectiveExplanations, saveObjectiveExplanation } from './objectiveExplanationRepository';
 import {
   readLearningSummary,
   readObjectiveAttempt,
@@ -26,6 +27,8 @@ export function createIeltsRepository(
   database: SQLocal,
 ): AttemptReader & AttemptWriter {
   return {
+    readObjectiveExplanations: id => readObjectiveExplanations(database, id),
+    saveObjectiveExplanation: input => saveObjectiveExplanation(database, input),
     readLearningSummary: (limit) => readLearningSummary(database, limit),
     readObjectiveAttempt: (id, section) => readObjectiveAttempt(database, id, section),
     readWritingAttempt: (id) => readWritingAttempt(database, id),

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { reviewLocationSchema } from '@/domain/reviewLocation'
 import { navigationSchema, practiceKind, type PracticeNavigationInput } from '@/application/practiceNavigation'
 import type { DiscoveryPage } from '@/infrastructure/database/practiceDiscovery'
 import { applicationFailure, getToolExecutionSignal, throwIfCancelled, toolFailure, zodIssues } from './toolResult'
@@ -27,11 +28,12 @@ export function createPracticeTools(deps: {
     })),
     {
       name: 'open_practice', title: 'Open practice or a saved result',
-      description: 'Open the library, an exact saved result, start installed practice, or resume an unfinished attempt. result requires kind and attemptId; resume requires kind (ielts/assessment) and attemptId; start requires kind and packageId for assessments, optional contentKey for native sets. full_ielts starts Listening first. Never answers or submits. Existing drafts are preserved; starting over or leaving live Speaking requires the learner.',
+      description: 'Open library, result, start or resume. result requires kind and attemptId; optional location selects questionId for Reading/Listening, taskNumber/correctionId for Writing, or itemId for assessments. Read IDs from submission/review tools. resume requires kind ielts/assessment and attemptId. start requires kind and packageId for assessments, optional native contentKey. full_ielts starts Listening. Preserves drafts; never answers or submits.',
       inputSchema: { type: 'object', properties: {
         action: { type: 'string', enum: ['library', 'result', 'start', 'resume'] },
         kind: { type: 'string', enum: ['ielts', 'listening', 'reading', 'writing', 'speaking', 'assessment', 'full_ielts'] },
         attemptId: { type: 'string', format: 'uuid' }, contentKey: { type: 'string' }, packageId: { type: 'string' },
+        location: z.toJSONSchema(reviewLocationSchema, { target: 'draft-07' }),
       }, required: ['action'], additionalProperties: false },
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute: async (input, options) => {

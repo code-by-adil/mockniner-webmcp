@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { ArrowLeft, ArrowRight, ChevronDown } from "lucide-react";
 import type { ObjectiveFooterPart } from "@/modules/exam-engine/footerParts";
 import { scrollIntoViewNearest } from "@/shared/ui/exam/scrollIntoViewNearest";
+import { findObjectiveQuestion } from '@/shared/ui/exam/findObjectiveQuestion';
 import {
   FooterActions,
   FOOTER_ICON_BUTTON_CLASS,
@@ -9,6 +10,8 @@ import {
   type FooterBaseProps,
 } from "./FooterActions";
 interface ObjectiveExamFooterProps extends FooterBaseProps {
+  selectedQuestionId?: number | null;
+  onQuestionSelect?: (questionId: number) => void;
   answers: Record<number, string>;
   parts: ObjectiveFooterPart[];
 }
@@ -34,11 +37,7 @@ function parseQuestionNumber(value: string | null | undefined): number | null {
 }
 
 function findQuestionElement(questionNumber: number): HTMLElement | null {
-  return (
-    document.getElementById(`question-${questionNumber}`) ??
-    document.getElementById(`q-group-${questionNumber}`) ??
-    document.getElementById(`question-input-${questionNumber}`)
-  );
+  return findObjectiveQuestion(document, questionNumber);
 }
 
 function getQuestionFromEventTarget(target: EventTarget | null): number | null {
@@ -99,6 +98,9 @@ function scrollToQuestion(questionNumber: number) {
         focusTarget.select();
       }
     });
+  } else {
+    element.tabIndex = -1;
+    element.focus({ preventScroll: true });
   }
 
   setTimeout(() => {
@@ -133,6 +135,8 @@ export function ObjectiveExamFooter({
   position = "contained",
   onSubmit,
   isSubmitting = false,
+  selectedQuestionId,
+  onQuestionSelect,
 }: ObjectiveExamFooterProps) {
   const totalParts = parts.length;
   const currentPartQuestions = useMemo(
@@ -150,7 +154,8 @@ export function ObjectiveExamFooter({
     [answers, parts],
   );
 
-  const [activeQuestion, setActiveQuestion] = useState<number | null>(null);
+  const [localActiveQuestion, setActiveQuestion] = useState<number | null>(null);
+  const activeQuestion = onQuestionSelect ? selectedQuestionId ?? null : localActiveQuestion;
   const [isMobileMinimized, setIsMobileMinimized] = useState(false);
   const visibleActiveQuestion =
     activeQuestion != null && currentPartQuestionSet.has(activeQuestion)
@@ -158,6 +163,7 @@ export function ObjectiveExamFooter({
       : null;
 
   useEffect(() => {
+    if (onQuestionSelect) return;
     const syncActiveQuestion = (event: Event) => {
       const questionNumber = getQuestionFromEventTarget(event.target);
       if (questionNumber == null || !currentPartQuestionSet.has(questionNumber))
@@ -173,7 +179,11 @@ export function ObjectiveExamFooter({
       window.removeEventListener("focusin", syncActiveQuestion);
       window.removeEventListener("pointerdown", syncActiveQuestion);
     };
-  }, [currentPartQuestionSet]);
+  }, [currentPartQuestionSet, onQuestionSelect]);
+
+  useEffect(() => {
+    if (onQuestionSelect && selectedQuestionId != null && currentPartQuestionSet.has(selectedQuestionId)) scrollToQuestion(selectedQuestionId);
+  }, [selectedQuestionId, currentPartQuestionSet, onQuestionSelect]);
 
   return (
     <footer
@@ -286,8 +296,8 @@ export function ObjectiveExamFooter({
                       aria-current={isActive ? "true" : undefined}
                       aria-label={`Question ${questionNumber}${isAnswered ? ", answered" : ", not answered"}`}
                       onClick={() => {
-                        setActiveQuestion(questionNumber);
-                        scrollToQuestion(questionNumber);
+                        if (onQuestionSelect) onQuestionSelect(questionNumber);
+                        else { setActiveQuestion(questionNumber); scrollToQuestion(questionNumber); }
                       }}
                       className={FOOTER_QUESTION_CHIP_CLASS}
                     >

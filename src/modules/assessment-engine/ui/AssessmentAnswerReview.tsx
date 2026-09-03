@@ -5,6 +5,7 @@ import { getAssessmentPartResources } from '@/domain/assessmentSelectors';
 import { AssessmentReviewContent } from './AssessmentReviewContext';
 import { AssessmentReviewAnswer } from './AssessmentReviewAnswer';
 import { AssessmentReviewFooter, type ReviewPart } from './AssessmentReviewFooter';
+import type { AssessmentReviewSelection } from '@/domain/assessmentReview';
 
 export type ReviewFilter = 'all' | 'incorrect' | 'unanswered';
 type ItemResult = AssessmentResult['itemResults'][number];
@@ -22,11 +23,14 @@ function statusFor(result: ItemResult, showAnswers: boolean) {
     : { label: 'Incorrect', Icon: X, classes: 'border-red-200 bg-red-50 text-red-800' };
 }
 
-export function AssessmentAnswerReview({ submission, evaluation, initialFilter = 'all', initialItemId }: {
+export function AssessmentAnswerReview({ submission, evaluation, initialFilter = 'all', initialItemId, selection, onSelectionChange }: {
   submission: AssessmentSubmission; evaluation?: AssessmentEvaluation; initialFilter?: ReviewFilter; initialItemId?: string;
+  selection?: AssessmentReviewSelection; onSelectionChange?: (selection: AssessmentReviewSelection) => void;
 }) {
-  const [filter, setFilter] = useState<ReviewFilter>(initialFilter);
-  const [selectedId, setSelectedId] = useState(initialItemId);
+  const [localFilter, setFilter] = useState<ReviewFilter>(initialFilter);
+  const [localSelectedId, setSelectedId] = useState(initialItemId);
+  const filter = selection?.filter ?? localFilter;
+  const selectedId = selection ? selection.itemId : localSelectedId;
   const headingRef = useRef<HTMLHeadingElement>(null);
   const focusSelection = useRef(false);
   const headingId = useId();
@@ -46,15 +50,16 @@ export function AssessmentAnswerReview({ submission, evaluation, initialFilter =
   ];
 
   useEffect(() => {
-    if (!focusSelection.current) return;
+    if (!selection && !focusSelection.current) return;
     focusSelection.current = false;
     headingRef.current?.focus({ preventScroll: true });
     headingRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [activeId]);
+  }, [activeId, selection]);
 
   function selectQuestion(id: string) {
     focusSelection.current = id !== activeId;
-    setSelectedId(id);
+    if (onSelectionChange) onSelectionChange({ filter, itemId: id });
+    else setSelectedId(id);
     if (id === activeId) headingRef.current?.focus({ preventScroll: true });
   }
 
@@ -74,7 +79,7 @@ export function AssessmentAnswerReview({ submission, evaluation, initialFilter =
     <div className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-neutral-200">
       <div role="group" aria-label="Filter questions" className="flex flex-wrap gap-4 sm:gap-6">
         {filters.map(option => <button type="button" key={option.id} aria-pressed={option.id === selectedFilter}
-          onClick={() => { setFilter(option.id); setSelectedId(undefined); }}
+          onClick={() => { if (onSelectionChange) onSelectionChange({ filter: option.id }); else { setFilter(option.id); setSelectedId(undefined); } }}
           className={`min-h-12 border-b-2 text-sm ${option.id === selectedFilter ? 'border-neutral-900 font-semibold text-neutral-950' : 'border-transparent text-neutral-600 hover:text-neutral-950'}`}>
           {option.label}<span className="ml-2 text-xs tabular-nums text-neutral-500">{entries.filter(entry => matchesFilter(entry.result, option.id)).length}</span>
         </button>)}

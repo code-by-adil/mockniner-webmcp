@@ -53,6 +53,7 @@ export type CompleteSpeakingAttemptInput = Omit<
 >;
 
 export type AttemptWriter = {
+  saveObjectiveExplanation: (input: import('@/domain/objectiveExplanation').ObjectiveExplanationInput) => Promise<import('@/domain/objectiveExplanation').ObjectiveExplanation>;
   saveObjectiveAttempt: (
     input: SaveObjectiveAttemptInput,
   ) => Promise<ObjectiveSubmission>;

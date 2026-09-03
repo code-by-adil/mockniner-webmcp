@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { ApplicationError } from '@/domain/errors'
+import { reviewLocationSchema } from '@/domain/reviewLocation'
 import { getIeltsDrafts, getResumableSection, findIeltsDraft, findContentBlockingDraft, type IeltsSession } from '@/domain/session'
 import type { AssessmentSession } from '@/domain/assessmentSession'
 import type { AssessmentPackage } from '@/domain/assessment'
@@ -12,7 +13,15 @@ export const practiceKind = z.enum(['listening', 'reading', 'writing', 'speaking
 const key = z.string().min(1).max(100)
 export const navigationSchema = z.discriminatedUnion('action', [
   z.strictObject({ action: z.literal('library') }),
-  z.strictObject({ action: z.literal('result'), kind: practiceKind, attemptId: z.uuid() }),
+  z.strictObject({ action: z.literal('result'), kind: practiceKind, attemptId: z.uuid(), location: reviewLocationSchema.optional() })
+    .superRefine((input, ctx) => {
+      const location = input.location
+      if (!location) return
+      const valid = input.kind === 'assessment' ? 'itemId' in location
+        : input.kind === 'writing' ? 'taskNumber' in location || 'correctionId' in location
+        : input.kind === 'reading' || input.kind === 'listening' ? 'questionId' in location : false
+      if (!valid) ctx.addIssue({ code: 'custom', path: ['location'], message: 'Use questionId for Reading/Listening, taskNumber/correctionId for Writing, or itemId for assessments.' })
+    }),
   z.strictObject({ action: z.literal('start'), kind: z.enum(['listening', 'reading', 'writing', 'speaking', 'assessment', 'full_ielts']), contentKey: key.optional(), packageId: key.optional() })
     .superRefine((input, ctx) => {
       if ((input.kind === 'assessment') !== Boolean(input.packageId)) ctx.addIssue({ code: 'custom', path: ['packageId'], message: 'packageId is required only for an assessment.' })
@@ -87,9 +96,9 @@ export function createPracticeNavigation(deps: {
       assertCanLeave()
       if (input.action === 'library') { await deps.native.goHome(); deps.assessment.goHome(); return { view: 'home' } }
       if (input.action === 'result') {
-        if (input.kind === 'assessment') { await deps.assessment.openAttempt(input.attemptId); await deps.native.goHome() }
-        else { await deps.native.openAttempt(input.attemptId, input.kind); deps.assessment.goHome() }
-        return { view: 'result', kind: input.kind, attemptId: input.attemptId }
+        if (input.kind === 'assessment') { await deps.assessment.openAttempt(input.attemptId, input.location && 'itemId' in input.location ? input.location.itemId : undefined); await deps.native.goHome() }
+        else { await deps.native.openAttempt(input.attemptId, input.kind, input.location); deps.assessment.goHome() }
+        return { view: 'result', kind: input.kind, attemptId: input.attemptId, ...(input.location ? { location: input.location } : {}) }
       }
       if (input.action === 'resume') {
         const draft = getResumablePractices(deps.getWorkspace()).find(d => d.kind === input.kind && d.attemptId === input.attemptId)

@@ -38,6 +38,8 @@ import type {
 import type { ContentStore } from "./contentStore";
 import type { AttemptReader } from "./attemptReader";
 import { ApplicationError } from "@/domain/errors";
+import { locateIeltsReview, reviewLocationSchema, type ReviewLocation } from '@/domain/reviewLocation';
+import { objectiveExplanationInputSchema, type ObjectiveExplanationInput, type ObjectiveExplanation } from '@/domain/objectiveExplanation';
 import { resolveWritingEvaluation } from "@/domain/writingAnnotations";
 import { findContentBlockingDraft, getIeltsDrafts, sessionReducer } from "@/domain/session";
 import { defaultSpeakingPlan, speakingPlanSchema, type SpeakingPlan } from '@/domain/speakingPlan';
@@ -87,7 +89,10 @@ export type IeltsCommands = {
   openAttempt: (
     attemptId: string,
     section: "listening" | "reading" | "writing" | "speaking",
+    location?: ReviewLocation,
   ) => Promise<void>;
+  setReviewLocation: (location: ReviewLocation) => void;
+  saveObjectiveExplanation: (input: ObjectiveExplanationInput) => Promise<ObjectiveExplanation>;
   closeReview: () => void;
   reset: () => void;
 };
@@ -145,12 +150,14 @@ export function createIeltsCommands({
     attemptId: string,
     section: "listening" | "reading" | "writing" | "speaking",
     returnTo: "home" | "result",
+    location?: ReviewLocation,
   ): Promise<void> => {
     const reader = await getRepository();
+    const showReview = (review: IeltsReview) => openReview(location ? locateIeltsReview(review, reviewLocationSchema.parse(location)) : review);
     if (section === 'speaking') {
       const stored = await reader.readSpeakingAttempt(attemptId);
       if (!stored) throw new ApplicationError('ATTEMPT_NOT_FOUND', `Speaking attempt ${attemptId} was not found.`, true);
-      openReview({ kind: 'speaking', section, submission: stored.submission, evaluation: stored.evaluation, part: 1, returnTo });
+      showReview({ kind: 'speaking', section, submission: stored.submission, evaluation: stored.evaluation, part: 1, returnTo });
       return;
     }
     if (section === "writing") {
@@ -158,7 +165,7 @@ export function createIeltsCommands({
       if (!stored) {
         throw new ApplicationError('ATTEMPT_NOT_FOUND', `Writing attempt ${attemptId} was not found.`, true);
       }
-      openReview({
+      showReview({
         kind: "writing",
         section,
         submission: stored.submission,
@@ -193,8 +200,9 @@ export function createIeltsCommands({
         `Content ${submission.contentKey} belongs to ${document.section}, not ${section}.`,
       );
     }
-    openReview({
+    showReview({
       kind: "objective",
+      explanations: await reader.readObjectiveExplanations(attemptId),
       section,
       submission,
       document,
@@ -204,6 +212,22 @@ export function createIeltsCommands({
   };
 
   return {
+    setReviewLocation(location) {
+      const state = getState();
+      if (state.view !== 'review' || !state.review) throw new ApplicationError('NO_VISIBLE_REVIEW', 'Open a submitted review first.', true);
+      openReview(locateIeltsReview(state.review, reviewLocationSchema.parse(location)));
+    },
+    async saveObjectiveExplanation(input) {
+      const parsed = objectiveExplanationInputSchema.parse(input);
+      const review = getState().review;
+      if (getState().view !== 'review' || review?.kind !== 'objective' || review.section !== parsed.section || review.submission.attemptId !== parsed.attemptId) {
+        throw new ApplicationError('ATTEMPT_NOT_CURRENT', 'Open this submitted Reading/Listening review before saving an explanation.', true);
+      }
+      const target = locateIeltsReview(review, { questionId: parsed.questionId });
+      const explanation = await (await getRepository()).saveObjectiveExplanation(parsed);
+      dispatch({ type: 'SAVE_OBJECTIVE_EXPLANATION', explanation, part: target.part });
+      return explanation;
+    },
     start(mode, requestedSection) {
       const section = mode === "full" ? "listening" : requestedSection;
       return commit({
@@ -433,8 +457,8 @@ export function createIeltsCommands({
         returnTo: "result",
       });
     },
-    async openAttempt(attemptId, section) {
-      await openStoredAttempt(attemptId, section, "home");
+    async openAttempt(attemptId, section, location) {
+      await openStoredAttempt(attemptId, section, "home", location);
     },
     closeReview() {
       dispatch({ type: "CLOSE_REVIEW" });

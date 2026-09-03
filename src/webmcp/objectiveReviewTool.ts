@@ -16,11 +16,12 @@ export function createObjectiveReviewTool(deps: {
   readAttempt: AttemptReader['readObjectiveAttempt']
   loadContent: (key: string) => Promise<PracticeContentDocument | null>
   visibleId: (section: 'listening' | 'reading') => string | undefined
+  readExplanations: AttemptReader['readObjectiveExplanations']
 }): WebMCP.ModelContextTool {
   return {
     name: 'get_ielts_objective_review',
     title: 'Read submitted Reading or Listening review',
-    description: 'Read one part of a submitted Reading/Listening attempt: original content with keys, saved responses and per-question correctness. Requires section; part defaults to 1. Omit IDs for the visible submission, or use attemptId/latest:true for history. Never reads drafts or navigates. Multiple-selection keys are unordered across their questionIds; correctness is the saved deterministic result. No authored explanations are stored.',
+    description: 'Read one submitted Reading/Listening part: original content with keys, saved responses, correctness and saved agent explanations with revisions. Requires section; part defaults to 1. Omit IDs for the visible submission or use attemptId/latest:true. Never reads drafts or navigates. Multiple-selection keys are unordered; correctness uses saved grading. Use open_practice result with location.questionId to show a question.',
     inputSchema: { ...z.toJSONSchema(inputSchema, { target: 'draft-07', io: 'input' }),
       properties: { ...submissionSelectionSchema.properties,
         section: { type: 'string', enum: ['listening', 'reading'] },
@@ -38,11 +39,11 @@ export function createObjectiveReviewTool(deps: {
           const submission = await deps.readAttempt(id, section)
           if (!submission) return null
           const document = await deps.loadContent(submission.contentKey)
-          return { submission, document }
+          return { submission, document, explanations: await deps.readExplanations(submission.attemptId) }
         }, () => deps.visibleId(section), signal)
         if (!selected.ok) return selected
         if (!selected.stored) return toolFailure('OBJECTIVE_SUBMISSION_NOT_FOUND', 'No submitted attempt matches. Read get_practice_history for a saved Reading/Listening attempt ID.', true)
-        const { submission, document } = selected.stored
+        const { submission, document, explanations } = selected.stored
         if (submission.section !== section || !document || document.section !== section || document.contentKey !== submission.contentKey) {
           return toolFailure('REVIEW_CONTENT_MISMATCH', 'The saved attempt and its original content do not match. No review was returned.', false)
         }
@@ -56,6 +57,7 @@ export function createObjectiveReviewTool(deps: {
           result: submission.result, availableParts, part: content,
           questions: content.blocks.flatMap(getObjectiveBlockQuestionIds).map(questionId => ({
             questionId, response: submission.answers[questionId] ?? '', correct: correct.has(questionId),
+            explanation: explanations.find(entry => entry.questionId === questionId) ?? null,
           })),
         } }
       } catch (error) {

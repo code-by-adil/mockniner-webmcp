@@ -307,6 +307,8 @@ function PracticeApp() {
         submission={assessmentApplication.state.submission}
         evaluation={assessmentApplication.state.evaluation}
         onHome={assessmentApplication.commands.goHome}
+        review={assessmentApplication.state.review ?? null}
+        onReviewChange={assessmentApplication.commands.setReview}
       />
     );
   }
@@ -369,6 +371,10 @@ function PracticeApp() {
         document={review.document}
         submission={review.submission}
         currentPart={review.part}
+        selectedQuestionId={review.selectedQuestionId}
+        onQuestionSelect={questionId => commands.setReviewLocation({ questionId })}
+        explanations={review.explanations}
+        focusRequest={review}
         onPartChange={(part) => commands.setPart('reading', part)}
         onExit={commands.closeReview}
         backLabel={review.returnTo === 'home' ? 'Back to practice' : 'Back to results'}
@@ -386,6 +392,9 @@ function PracticeApp() {
       onAnswerChange: (id: number, value: string) =>
         commands.setObjectiveAnswer(section, id, value),
       onPartChange: (part: number) => commands.setPart(section, part),
+      selectedReviewQuestionId: review?.selectedQuestionId,
+      onReviewQuestionSelect: isReviewMode ? (questionId: number) => commands.setReviewLocation({ questionId }) : undefined,
+      reviewExplanations: review?.explanations,
       onTick: () => commands.tick(section),
       onSubmit: isReviewMode ? undefined : () => commands.submitObjective(section),
     };
@@ -416,6 +425,9 @@ function PracticeApp() {
           submission={state.review.submission}
           evaluation={state.review.evaluation}
           currentPart={state.review.part === 2 ? 2 : 1}
+          selectedCorrectionId={state.review.selectedCorrectionId}
+          focusRequest={state.review}
+          onCorrectionSelect={correctionId => commands.setReviewLocation({ taskNumber: state.review?.part === 2 ? 2 : 1, correctionId })}
           onExit={commands.closeReview}
           onPartChange={(part) => commands.setPart("writing", part)}
         />

@@ -217,6 +217,17 @@ const migrations = [
       )`,
     ],
   },
+  {
+    version: 13,
+    statements: [
+      `CREATE TABLE objective_explanations (
+        attempt_id TEXT NOT NULL REFERENCES objective_submissions(attempt_id) ON DELETE CASCADE,
+        question_id INTEGER NOT NULL CHECK (question_id BETWEEN 1 AND 40),
+        explanation_json TEXT NOT NULL CHECK (json_valid(explanation_json)),
+        PRIMARY KEY (attempt_id, question_id)
+      )`,
+    ],
+  },
 ] as const
 
 export const DATABASE_VERSION = migrations.at(-1)!.version

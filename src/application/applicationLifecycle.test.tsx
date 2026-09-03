@@ -36,6 +36,7 @@ vi.mock('@/infrastructure/database/draftRepository', () => ({ getDraftRepository
 
 const repositories = vi.hoisted(() => ({
   ielts: {
+    readObjectiveExplanations: async () => [],
     readLearningSummary: vi.fn(),
     readObjectiveAttempt: vi.fn(async () => null),
     readWritingAttempt: vi.fn(async () => null),
@@ -43,6 +44,7 @@ const repositories = vi.hoisted(() => ({
     saveObjectiveAttempt: vi.fn(),
     saveWritingAttempt: vi.fn(),
     saveSpeakingAttempt: vi.fn(),
+    saveObjectiveExplanation: vi.fn(),
     saveWritingEvaluation: vi.fn(),
     saveSpeakingEvaluation: vi.fn(),
   },

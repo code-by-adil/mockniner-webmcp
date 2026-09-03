@@ -12,6 +12,7 @@ export function MultipleSelectionQuestionBlock({
     .filter((value): value is string => Boolean(value));
 
   return (
+    <div data-question-ids={block.questionIds.join(' ')}>
     <CheckboxGroup
       id={block.questionNumber ?? block.questionIds.join("-")}
       questionNumber={block.questionNumber ?? block.questionIds.join("-")}
@@ -27,5 +28,6 @@ export function MultipleSelectionQuestionBlock({
         });
       }}
     />
+    </div>
   );
 }

@@ -4,13 +4,17 @@ import { ResultAction, ResultBreakdown, ResultScore, ResultsLayout } from '@/sha
 import { AssessmentAnswerReview, type ReviewFilter } from './AssessmentAnswerReview';
 import { AssessmentEvaluationPanel } from './AssessmentEvaluationPanel';
 import { getAssessmentThemeStyle } from './assessmentTheme';
+import type { AssessmentReviewSelection } from '@/domain/assessmentReview';
 
-export function AssessmentResults(props: { submission: AssessmentSubmission; evaluation?: AssessmentEvaluation; onHome: () => void }) {
+type Props = { submission: AssessmentSubmission; evaluation?: AssessmentEvaluation; onHome: () => void; review?: AssessmentReviewSelection | null; onReviewChange?: (review: AssessmentReviewSelection | null) => void };
+export function AssessmentResults(props: Props) {
   return <AssessmentResultsView key={props.submission.attemptId} {...props} />;
 }
 
-function AssessmentResultsView({ submission, evaluation, onHome }: { submission: AssessmentSubmission; evaluation?: AssessmentEvaluation; onHome: () => void }) {
-  const [review, setReview] = useState<{ filter: ReviewFilter; itemId?: string } | null>(null);
+function AssessmentResultsView({ submission, evaluation, onHome, review: controlledReview, onReviewChange }: Props) {
+  const [localReview, setLocalReview] = useState<AssessmentReviewSelection | null>(null);
+  const review = onReviewChange ? controlledReview ?? null : localReview;
+  const setReview = onReviewChange ?? setLocalReview;
   const contentRef = useRef<HTMLDivElement>(null);
   const { result, package: assessment } = submission;
   const rubric = evaluation ? assessment.rubrics.find(entry => entry.id === evaluation.rubricId) : undefined;
@@ -36,7 +40,7 @@ function AssessmentResultsView({ submission, evaluation, onHome }: { submission:
     subtitle={review ? `${showAnswers ? 'Answer review' : 'Response review'} · ${result.totalItems} questions` : <><time dateTime={submission.submittedAt}>{new Date(submission.submittedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</time> · {assessment.parts.length} parts · {result.totalItems} questions</>}
     footer={assessment.metadata.disclaimer} compactHeading={review !== null}>
     <div ref={contentRef} tabIndex={-1} className="min-w-0 scroll-mt-6 outline-none">
-      {review && canReview ? <AssessmentAnswerReview submission={submission} evaluation={evaluation} initialFilter={review.filter} initialItemId={review.itemId} /> : <>
+      {review && canReview ? <AssessmentAnswerReview submission={submission} evaluation={evaluation} selection={review} onSelectionChange={setReview} /> : <>
         <div className={`grid min-w-0 gap-8 ${result.domains.length ? 'lg:grid-cols-[minmax(0,1fr)_240px] lg:gap-10' : ''}`}>
           <div className="min-w-0">
             <ResultScore label={percentage !== null ? 'Correct answers' : evaluation ? 'Evaluation score' : 'Submission saved'}

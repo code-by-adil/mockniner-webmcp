@@ -59,6 +59,27 @@ describe('saved Reading review', () => {
     await act(async () => button.click());
   }
 
+  it('follows shared question selection across passages and shows persisted plain-text explanations', async () => {
+    const submission = submittedAnswers()
+    const onQuestionSelect = vi.fn()
+    const explanation = { attemptId: submission.attemptId, section: 'reading' as const, questionId: 28, explanation: 'Compare the exact wording. <b>This is plain text.</b>', revision: 2, evaluatedAt: '2026-09-03T11:00:00Z' }
+    const renderTarget = async (part: number, questionId: number) => act(async () => root.render(<ReadingAttemptReview document={readingDocument} submission={submission} currentPart={part} selectedQuestionId={questionId} onQuestionSelect={onQuestionSelect} explanations={[explanation]} focusRequest={{ questionId }} onPartChange={vi.fn()} onExit={onExit} backLabel="Back to practice" />))
+    await renderTarget(3, 28)
+    expect(container.querySelector('[role="status"]')?.textContent).toContain('Question 28')
+    expect(container.querySelector('aside')?.textContent).toContain(explanation.explanation)
+    expect(container.querySelector('aside b')).toBeNull()
+    expect(document.activeElement?.closest('#question-28')).not.toBeNull()
+    await renderTarget(2, 14)
+    expect(container.querySelector('[role="status"]')?.textContent).toContain('Question 14')
+    expect(container.querySelector('aside')).toBeNull()
+    expect(document.activeElement?.closest('#question-14')).not.toBeNull()
+    await click('Question 15, correct')
+    expect(onQuestionSelect).toHaveBeenCalledWith(15)
+    await renderTarget(2, 20)
+    expect(document.activeElement?.getAttribute('data-question-ids')).toBe('19 20')
+    expect(container.querySelector('[role="status"]')?.textContent).toContain('Question 20')
+  })
+
   it('shows the saved score and read-only answers without live exam controls', async () => {
     const submission = submittedAnswers();
     await render(submission);

@@ -31,6 +31,12 @@ afterEach(async () => {
 const copyButton = () => [...host.querySelectorAll('button')].find(button => /Copy|Copied/.test(button.textContent ?? ''))!
 
 describe('pending Writing submission', () => {
+  it('focuses the requested task before feedback exists', async () => {
+    for (const selectedTask of [2, 1]) {
+      await act(async () => root.render(<PendingWritingReview submission={submission} selectedTask={selectedTask} focusRequest={{ selectedTask }} onExit={() => undefined} />))
+      expect(document.activeElement?.getAttribute('aria-labelledby')).toBe(`submitted-writing-task-${selectedTask}`)
+    }
+  })
   it('renders saved text literally and provides an empty-response state', () => {
     expect(host.querySelector('script')).toBeNull()
     expect(host.textContent).toContain('<script>alert(1)</script>\n\nSaved report.')

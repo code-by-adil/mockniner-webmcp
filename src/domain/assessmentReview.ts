@@ -1,5 +1,16 @@
 import { stripAssessmentAnswers } from './assessmentScoring'
 import type { AssessmentSubmission } from './assessmentSubmission'
+import { ApplicationError } from './errors'
+
+export type AssessmentReviewSelection = { filter: 'all' | 'incorrect' | 'unanswered'; itemId?: string }
+
+export function resolveAssessmentReview(submission: AssessmentSubmission, selection: AssessmentReviewSelection): AssessmentReviewSelection {
+  if (submission.package.review.mode === 'none') throw new ApplicationError('REVIEW_UNAVAILABLE', 'The saved assessment does not allow question review.', true)
+  const filter = selection.filter === 'incorrect' && submission.package.review.mode !== 'answers' ? 'all' : selection.filter
+  const items = submission.result.itemResults.filter(result => filter === 'incorrect' ? result.answered && result.correct === false : filter === 'unanswered' ? !result.answered : true)
+  if (selection.itemId && !items.some(item => item.itemId === selection.itemId)) throw new ApplicationError('REVIEW_LOCATION_NOT_FOUND', 'Choose an itemId from this submitted assessment and review filter.', true)
+  return { filter, itemId: selection.itemId ?? items[0]?.itemId }
+}
 
 // Project the immutable snapshot, never the currently installed package.
 // Rubric-scored responses remain available for evaluation even when objective

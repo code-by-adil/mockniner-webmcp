@@ -6,27 +6,35 @@ import { buildObjectiveFooterParts } from '@/modules/exam-engine/footerParts';
 import { ObjectivePartView } from '@/modules/ielts/objective/ui/ObjectivePartView';
 import { AssessmentLabBrand } from '@/shared/ui/global/AssessmentLabBrand';
 import { scrollIntoViewNearest } from '@/shared/ui/exam/scrollIntoViewNearest';
+import { ObjectiveExplanationPanel } from '@/modules/ielts/objective/ui/ObjectiveExplanationPanel';
+import type { ObjectiveExplanation } from '@/domain/objectiveExplanation';
+import { findObjectiveQuestion } from '@/shared/ui/exam/findObjectiveQuestion';
 
 const buttonClass = 'inline-flex min-h-9 items-center justify-center gap-2 rounded border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-40';
 
-export function ReadingAttemptReview({ document: content, submission, currentPart, onPartChange, onExit, backLabel }: {
+export function ReadingAttemptReview({ document: content, submission, currentPart, onPartChange, onExit, backLabel, selectedQuestionId, onQuestionSelect, explanations = [], focusRequest }: {
   document: ObjectiveContentDocument;
   submission: ObjectiveSubmission;
   currentPart: number;
   onPartChange: (part: number) => void;
   onExit: () => void;
   backLabel: string;
+  selectedQuestionId?: number | null;
+  onQuestionSelect?: (questionId: number) => void;
+  explanations?: ObjectiveExplanation[];
+  focusRequest?: object;
 }) {
   const { result, answers } = submission;
   const rootRef = useRef<HTMLDivElement>(null);
-  const [selection, setSelection] = useState<{ question: number } | null>(null);
+  const [localSelection, setSelection] = useState<number | null>(null);
+  const selection = onQuestionSelect ? selectedQuestionId ?? null : localSelection;
   const parts = useMemo(() => buildObjectiveFooterParts(content), [content]);
   const questions = useMemo(() => parts.flatMap(part => part.questionNumbers.map(question => ({ question, part: part.part }))), [parts]);
   const correct = new Set(result.correctQuestionIds);
   const mistakes = questions.filter(({ question }) => !correct.has(question));
   const part = content.parts.find(part => part.id === currentPart)!;
   const partQuestions = parts.find(part => part.part === currentPart)!.questionNumbers;
-  const selected = selection && partQuestions.includes(selection.question) ? selection.question : null;
+  const selected = selection && partQuestions.includes(selection) ? selection : null;
   const unanswered = result.total - result.answered;
   const incorrect = result.answered - result.raw;
 
@@ -35,9 +43,10 @@ export function ReadingAttemptReview({ document: content, submission, currentPar
   }
 
   function navigate(question: number) {
+    if (onQuestionSelect) { onQuestionSelect(question); return; }
     const target = questions.find(entry => entry.question === question)!;
     onPartChange(target.part);
-    setSelection({ question });
+    setSelection(question);
   }
 
   function jumpMistake(direction: 'previous' | 'next') {
@@ -49,9 +58,9 @@ export function ReadingAttemptReview({ document: content, submission, currentPar
   }
 
   useEffect(() => {
-    if (!selection || !partQuestions.includes(selection.question)) return;
-    const question = selection.question;
-    const node = rootRef.current?.querySelector<HTMLElement>(`#question-${question}, #q-group-${question}, #question-input-${question}`);
+    if (!selection || !partQuestions.includes(selection)) return;
+    const question = selection;
+    const node = rootRef.current ? findObjectiveQuestion(rootRef.current, question) : null;
     if (!node) return;
     const target = node instanceof HTMLInputElement && node.disabled ? node.parentElement! : node;
     target.tabIndex = -1;
@@ -59,7 +68,7 @@ export function ReadingAttemptReview({ document: content, submission, currentPar
     void scrollIntoViewNearest(target, { block: 'center', behavior: 'auto' });
     target.classList.add('target-highlight');
     return () => target.classList.remove('target-highlight');
-  }, [selection, partQuestions]);
+  }, [selection, partQuestions, focusRequest]);
 
   return <div ref={rootRef} className="flex h-dvh min-w-0 flex-col overflow-hidden bg-white text-neutral-900">
     <header className="shrink-0 border-b border-neutral-200 px-4 py-3 sm:px-6">
@@ -84,6 +93,7 @@ export function ReadingAttemptReview({ document: content, submission, currentPar
       </div>
       <p role="status" className="mt-2 text-xs text-neutral-600">{selected ? `Question ${selected} · ${status(selected)}` : mistakes.length ? 'Review incorrect and unanswered questions.' : 'All answers correct.'}</p>
     </section>
+    <ObjectiveExplanationPanel explanation={explanations.find(entry => entry.questionId === selected)} />
     <main aria-label="Saved Reading answers" className="relative min-h-0 flex-1">
       <ObjectivePartView part={part} section="reading" answers={answers} onAnswerChange={() => undefined} isReviewMode />
     </main>

@@ -32,6 +32,7 @@ const session: IeltsSession = {
 };
 const values = new Map<string, string>();
 const reader = {
+  readObjectiveExplanations: async () => [],
   readLearningSummary: vi.fn(),
   readObjectiveAttempt: vi.fn(),
   readSpeakingAttempt: vi.fn(),

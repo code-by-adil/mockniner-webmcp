@@ -56,6 +56,7 @@ function createHarness({
       saveWritingAttempt: async (input): Promise<WritingSubmission> => ({
         ...input,
       }),
+      saveObjectiveExplanation: vi.fn(),
       saveWritingEvaluation: persistEvaluation,
       saveSpeakingAttempt: saveSpeakingAttempt ?? (async (input): Promise<SpeakingSubmission> => ({
         attemptId: input.attemptId,
@@ -75,7 +76,8 @@ function createHarness({
       })),
       saveSpeakingEvaluation: persistSpeakingEvaluation,
       ...(attemptReader ?? {
-      readLearningSummary: async () => ({
+        readObjectiveExplanations: async () => [],
+        readLearningSummary: async () => ({
         totalAttempts: 0,
         sections: {
           listening: { attemptCount: 0, recentAverageBand: null, recent: [] },
@@ -236,6 +238,7 @@ describe('exam application commands', () => {
       storedContent: [oldDocument],
       attemptReader: {
         readSpeakingAttempt: vi.fn(),
+        readObjectiveExplanations: async () => [],
         readLearningSummary: vi.fn(),
         readObjectiveAttempt,
         readWritingAttempt: vi.fn(),
@@ -303,6 +306,7 @@ describe('exam application commands', () => {
     const harness = createHarness({
       attemptReader: {
         readSpeakingAttempt: vi.fn(),
+        readObjectiveExplanations: async () => [],
         readLearningSummary: vi.fn(),
         readObjectiveAttempt: vi.fn(),
         readWritingAttempt,

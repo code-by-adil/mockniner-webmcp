@@ -3,7 +3,7 @@ import { DATABASE_MIGRATION_VERSIONS, DATABASE_VERSION } from './migrations';
 
 const tables = [
   'app_schema_migrations', 'attempts', 'speaking_responses', 'objective_submissions',
-  'writing_submissions', 'writing_evaluations', 'content_documents', 'active_content',
+  'writing_submissions', 'writing_evaluations', 'objective_explanations', 'content_documents', 'active_content',
   'listening_audio_chunks', 'speaking_evaluations', 'assessment_packages',
   'assessment_attempts', 'assessment_evaluations', 'practice_activity',
   'practice_drafts', 'draft_recordings', 'storage_imports',
@@ -26,18 +26,22 @@ async function inspectTables(source: Connection, destination: Connection): Promi
     throw new BackupValidationError('This file contains unsupported database objects. Choose an unmodified practice backup.');
   }
   const names = objects.filter(object => object.type === 'table').map(object => object.name);
-  if (tables.some(name => !names.includes(name)) || names.some(name =>
+  if (tables.some(name => name !== 'objective_explanations' && !names.includes(name)) || names.some(name =>
     !tables.includes(name as typeof tables[number]) && !archives.includes(name) && name !== 'sqlite_sequence')) {
     throw new BackupValidationError('This is not a compatible practice backup. Export a new backup from the current app.');
   }
   const versions = await source.sql<{ version: number }>`SELECT version FROM app_schema_migrations`;
+  const preExplanations = DATABASE_VERSION === 13 && versions.some(row => row.version === 12) && !versions.some(row => row.version >= 13);
+  if (names.includes('objective_explanations') === preExplanations) {
+    throw new BackupValidationError('The explanation table does not match this backup version.');
+  }
   if (versions.some(row => row.version > DATABASE_VERSION)) {
     throw new BackupValidationError('This backup is from a newer app version. Update the app before importing it.');
   }
-  if (!versions.some(row => row.version === DATABASE_VERSION)) {
+  if (!preExplanations && !versions.some(row => row.version === DATABASE_VERSION)) {
     throw new BackupValidationError('This backup uses an older storage format that this app cannot import.');
   }
-  if (DATABASE_MIGRATION_VERSIONS.some(version => !versions.some(row => row.version === version))
+  if (DATABASE_MIGRATION_VERSIONS.filter(version => !preExplanations || version <= 12).some(version => !versions.some(row => row.version === version))
     || versions.some(row => !Number.isInteger(row.version) || row.version < 1)) {
     throw new BackupValidationError('This backup has an incomplete version history. Choose an unmodified practice backup.');
   }
@@ -100,6 +104,11 @@ export async function restoreBackup(source: Connection, destination: SQLocal): P
         }
         if (rows.length < 50) break;
       }
+    }
+    // Version 12 backups predate explanations; the destination already has the
+    // current, empty table. Preserve its migration marker for the next restart.
+    if (!imported.some(table => table.name === 'objective_explanations')) {
+      await tx.sql`INSERT INTO app_schema_migrations (version, applied_at) VALUES (13, ${new Date().toISOString()})`;
     }
     if ((await tx.sql`PRAGMA foreign_key_check`).length) throw new BackupValidationError('The backup contains broken record links. Import was cancelled.');
   });

@@ -16,6 +16,7 @@ export type PracticeContext = {
   view: IeltsSession['view'] | AssessmentSession['view']
   activeAttempt: { kind: VisibleSubmission['kind']; attemptId: string; packageId?: string } | null
   submissions: VisibleSubmission[]
+  reviewLocation?: { kind: VisibleSubmission['kind']; attemptId: string; part?: number; questionId?: number; taskNumber?: number; correctionId?: string; itemId?: string }
 }
 
 // Derive identity from the same view precedence used by App. Never fall back to
@@ -29,12 +30,16 @@ export function getPracticeContext(native: IeltsSession, assessment: AssessmentS
         ? { kind: 'assessment', attemptId: assessment.attemptId, packageId: assessment.packageId! } : null,
       submissions: submission ? [{ kind: 'assessment', attemptId: submission.attemptId,
         packageId: submission.packageId, evaluationStatus: getAssessmentEvaluationStatus(submission.result, assessment.evaluation) }] : [],
+      ...(submission && assessment.review ? { reviewLocation: { kind: 'assessment', attemptId: submission.attemptId, itemId: assessment.review.itemId } } : {}),
     }
   }
   if (native.view === 'home') return { practice: null, view: 'home', activeAttempt: null, submissions: [] }
   const context: PracticeContext = { practice: 'ielts', view: native.view, activeAttempt: null, submissions: [] }
   if (native.view === 'review') {
     const review = native.review
+    if (review) context.reviewLocation = { kind: review.section, attemptId: review.submission.attemptId,
+      part: review.part, ...(review.kind === 'objective' ? { questionId: review.selectedQuestionId }
+        : review.kind === 'writing' ? { taskNumber: review.part, correctionId: review.selectedCorrectionId } : {}) }
     if (review) context.submissions.push({ kind: review.section, attemptId: review.submission.attemptId,
       contentKey: review.submission.contentKey, evaluationStatus: review.kind === 'objective' ? 'not_required'
         : review.kind === 'speaking' && review.evaluation?.status === 'insufficient_evidence' ? 'insufficient_evidence'

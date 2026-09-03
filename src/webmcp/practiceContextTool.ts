@@ -5,7 +5,7 @@ import { getToolExecutionSignal, throwIfCancelled, toolFailure } from './toolRes
 export function createPracticeContextTool(read: () => PracticeContext): WebMCP.ModelContextTool {
   return {
     name: 'get_practice_context', title: 'Read visible practice context',
-    description: 'Read visible practice and attempt IDs, compact progress (part/item position, time remaining and answered counts), and Listening preparation status. Reading/Listening show the visible part’s question IDs. Speaking includes its phase, question count, preparationStage, error and recoveryAction. Progress is null outside an active exam. No draft answers, scripts or keys. Readiness is preparation, not playback.',
+    description: 'Read visible practice/attempt IDs, reviewLocation (selected question, task, correction or assessment item), active progress and Listening preparation. Reading/Listening progress includes visible question IDs. Speaking includes phase, preparationStage, error and recoveryAction. Progress is null outside an active exam. No draft answers, scripts or keys. Readiness is preparation, not playback.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     execute: async (input, options) => {

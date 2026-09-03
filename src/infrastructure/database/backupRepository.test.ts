@@ -29,6 +29,16 @@ beforeEach(async () => {
 afterEach(async () => { await source.destroy(true); await destination.destroy(true); vi.unstubAllGlobals(); });
 
 describe('local backup replacement', () => {
+  it('restores version 12 backups without inventing explanations or breaking the next migration', async () => {
+    await source.sql`DROP TABLE objective_explanations`;
+    await source.sql`DELETE FROM app_schema_migrations WHERE version = 13`;
+    await source.sql`INSERT INTO attempts VALUES ('legacy', 'reading', 'original', 'submitted', ${now}, ${now})`;
+    await restoreBackup(source, destination);
+    await migrateDatabase(destination);
+    expect(await destination.sql`SELECT id FROM attempts`).toEqual([{ id: 'legacy' }]);
+    expect(await destination.sql`SELECT * FROM objective_explanations`).toEqual([]);
+    expect(await source.sql`SELECT version FROM app_schema_migrations WHERE version = 13`).toEqual([]);
+  });
   it('round-trips drafts, pinned content, raw recordings, submissions, feedback, audio and activity without merging', async () => {
     let draft = sessionReducer(initialSession, { type: 'START', section: 'writing', mode: 'section', attemptId: crypto.randomUUID(), startedAt: now });
     draft = sessionReducer(draft, { type: 'SET_WRITING', task: 1, value: 'My unfinished essay.' });
@@ -72,7 +82,7 @@ describe('local backup replacement', () => {
     await destination.sql`CREATE TRIGGER fail_restore BEFORE INSERT ON attempts BEGIN SELECT RAISE(ABORT, 'injected quota failure'); END`;
     await expect(restoreBackup(source, destination)).rejects.toThrow('injected quota failure');
     expect(await destination.sql`SELECT id FROM attempts`).toEqual([{ id: 'keep-me' }]);
-    expect(await destination.sql`SELECT version FROM app_schema_migrations`).toHaveLength(10);
+    expect(await destination.sql`SELECT version FROM app_schema_migrations`).toHaveLength(11);
   });
 
   it.each(['trigger', 'view', 'extra table', 'missing table', 'altered columns', 'future version', 'missing migration'])('rejects %s before changing current data', async kind => {

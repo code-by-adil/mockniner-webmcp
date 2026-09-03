@@ -12,6 +12,9 @@ type Props = {
   onPartChange: (part: 1 | 2) => void
   onExit: () => void
   backLabel?: string
+  selectedCorrectionId?: string
+  onCorrectionSelect?: (correctionId: string) => void
+  focusRequest?: object
 }
 
 export function WritingAttemptReview({
@@ -21,6 +24,9 @@ export function WritingAttemptReview({
   onPartChange,
   onExit,
   backLabel,
+  selectedCorrectionId,
+  onCorrectionSelect,
+  focusRequest,
 }: Props) {
   const submittedTask = submission.tasks[currentPart - 1]
   const taskEvaluation = currentPart === 1 ? evaluation.task1 : evaluation.task2
@@ -34,6 +40,9 @@ export function WritingAttemptReview({
         overallBand={evaluation.overallBand}
         evaluatedAt={evaluation.evaluatedAt}
         evaluationRevision={evaluation.revision ?? 1}
+        selectedCorrectionId={selectedCorrectionId}
+        onCorrectionSelect={onCorrectionSelect}
+        focusRequest={focusRequest}
         onClose={onExit}
         backLabel={backLabel}
         taskOptions={[

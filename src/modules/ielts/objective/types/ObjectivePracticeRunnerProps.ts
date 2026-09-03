@@ -10,6 +10,9 @@ export type ObjectivePracticeRunnerProps = {
   secondsRemaining: number;
   onAnswerChange: (id: number, value: string) => void;
   onPartChange: (part: number) => void;
+  selectedReviewQuestionId?: number | null;
+  onReviewQuestionSelect?: (questionId: number) => void;
+  reviewExplanations?: import('@/domain/objectiveExplanation').ObjectiveExplanation[];
   onTick: () => void;
   onSubmit?: (() => unknown | Promise<unknown>) | undefined;
 };

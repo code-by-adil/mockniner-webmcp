@@ -11,6 +11,7 @@ import type { PracticeContext, VisibleSubmission } from '@/application/practiceC
 import { createPracticeContextTool } from './practiceContextTool';
 import { getPracticeProgress } from '@/application/practiceProgress';
 import { createObjectiveReviewTool } from './objectiveReviewTool';
+import { createObjectiveExplanationTool } from './objectiveExplanationTool';
 import { toolFailure } from './toolResult';
 import type { IeltsCommands } from "@/application/ieltsCommands";
 import type { AssessmentApplicationCommands } from "@/application/assessmentCommands";
@@ -85,10 +86,12 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
       return readPracticeActivity(await getLocalDatabase(), input);
     }));
     tools.push(createObjectiveReviewTool({
+      readExplanations: async id => (await getIeltsRepository()).readObjectiveExplanations(id),
       readAttempt: async (id, section) => (await getIeltsRepository()).readObjectiveAttempt(id, section),
       loadContent: key => latest.current.loadPracticeContent(key),
       visibleId: section => visibleAttemptId(section),
     }));
+    tools.push(createObjectiveExplanationTool(input => latest.current.commands.saveObjectiveExplanation(input)));
     const navigation = createPracticeNavigation({
       canLeaveSpeaking: interview.canLeave,
       getWorkspace: () => latest.current.workspace,

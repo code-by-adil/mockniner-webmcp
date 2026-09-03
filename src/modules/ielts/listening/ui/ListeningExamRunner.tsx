@@ -12,6 +12,7 @@ import type {
 } from "./listeningAudioTypes";
 import { useTimedSubmission } from "@/modules/exam-engine/useTimedSubmission";
 import type { ListeningAudioSession } from "@/application/useListeningAudio";
+import { ObjectiveExplanationPanel } from '@/modules/ielts/objective/ui/ObjectiveExplanationPanel';
 
 interface Props extends ObjectivePracticeRunnerProps {
   audioSession: ListeningAudioSession;
@@ -33,6 +34,9 @@ export const ListeningExamRunner: React.FC<Props> = ({
   onListeningPlaybackChange,
   onTick,
   onSubmit,
+  selectedReviewQuestionId,
+  onReviewQuestionSelect,
+  reviewExplanations,
 }) => {
   if (document.section !== "listening") {
     throw new Error("ListeningExamRunner requires Listening content.");
@@ -149,6 +153,7 @@ export const ListeningExamRunner: React.FC<Props> = ({
           </div>
         </div>
 
+        {isReviewMode ? <ObjectiveExplanationPanel explanation={reviewExplanations?.find(entry => entry.questionId === selectedReviewQuestionId)} /> : null}
         {/* Scrollable Content Area */}
         <div
           data-exam-scroll-container
@@ -177,6 +182,8 @@ export const ListeningExamRunner: React.FC<Props> = ({
         onPartChange={onPartChange}
         onSubmit={isReviewMode ? undefined : () => void handleSubmit()}
         isSubmitting={isSubmitting}
+        selectedQuestionId={selectedReviewQuestionId}
+        onQuestionSelect={onReviewQuestionSelect}
       />
     </div>
   );

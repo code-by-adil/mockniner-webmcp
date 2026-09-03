@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Check, Copy } from 'lucide-react'
 import { PracticeHeader } from '@/app/layouts/PracticeHeader'
 import type { WritingSubmission } from '@/domain/types'
@@ -41,11 +41,20 @@ function EvaluationRequest() {
   )
 }
 
-export function PendingWritingReview({ submission, onExit, backLabel = 'Back to practice' }: {
+export function PendingWritingReview({ submission, onExit, backLabel = 'Back to practice', selectedTask, focusRequest }: {
   submission: WritingSubmission
   onExit: () => void
+  selectedTask?: number
+  focusRequest?: object
   backLabel?: string
 }) {
+  const tasks = useRef<Record<number, HTMLElement | null>>({})
+  useEffect(() => {
+    if (!selectedTask) return
+    const target = tasks.current[selectedTask]
+    target?.focus({ preventScroll: true })
+    target?.scrollIntoView({ block: 'start' })
+  }, [selectedTask, focusRequest])
   return (
     <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
       <PracticeHeader />
@@ -62,7 +71,7 @@ export function PendingWritingReview({ submission, onExit, backLabel = 'Back to 
         <EvaluationRequest key={submission.attemptId} />
         <div className="mt-6 space-y-6">
           {submission.tasks.map(({ task, response, wordCount }) => (
-            <section key={`${submission.attemptId}-${task.id}`} aria-labelledby={`submitted-writing-task-${task.id}`} className="min-w-0 rounded-lg border border-neutral-200 bg-white">
+            <section ref={node => { tasks.current[task.id] = node }} tabIndex={-1} key={`${submission.attemptId}-${task.id}`} aria-labelledby={`submitted-writing-task-${task.id}`} className="min-w-0 rounded-lg border border-neutral-200 bg-white">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 px-5 py-4 sm:px-6">
                 <h2 id={`submitted-writing-task-${task.id}`} className="text-lg font-semibold">Task {task.id}</h2>
                 <p className="text-sm text-neutral-600">{wordCount} {wordCount === 1 ? 'word' : 'words'} <span className="text-neutral-500">/ {task.minimumWords} word minimum</span></p>

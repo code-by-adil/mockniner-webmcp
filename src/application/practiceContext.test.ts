@@ -23,6 +23,7 @@ describe('visible practice identity', () => {
   it('uses the historical Writing review, even when currentSection and retained submissions refer elsewhere', () => {
     const state: IeltsSession = { ...session, view: 'review', review: { kind: 'writing', section: 'writing', submission: writing, evaluation, part: 1, returnTo: 'home' } }
     expect(getPracticeContext(state, initialAssessmentSession)).toEqual({ practice: 'ielts', view: 'review', activeAttempt: null,
+      reviewLocation: { kind: 'writing', attemptId: 'older-writing', part: 1, taskNumber: 1, correctionId: undefined },
       submissions: [{ kind: 'writing', attemptId: 'older-writing', contentKey: 'writing', evaluationStatus: 'evaluated' }] })
     expect(getNativeToolSurfaces(state, initialAssessmentSession)).toEqual({ authoringEnabled: false, writing: 'results', speaking: 'none' })
   })

@@ -10,6 +10,7 @@ import type {
 import { SECTION_META, SECTION_ORDER } from './sections'
 import type { ObjectiveContentDocument } from './objectiveContent'
 import type { SpeakingPlan } from './speakingPlan'
+import type { ObjectiveExplanation } from './objectiveExplanation'
 
 export type IeltsMode = 'full' | 'section'
 type SessionView = 'home' | 'exam' | 'transition' | 'result' | 'review'
@@ -24,6 +25,8 @@ type ReviewReturnView = 'home' | 'result'
 export type IeltsReview =
   | {
       kind: 'objective'
+      selectedQuestionId?: number
+      explanations?: ObjectiveExplanation[]
       section: 'listening' | 'reading'
       submission: ObjectiveSubmission
       document: ObjectiveContentDocument
@@ -32,6 +35,8 @@ export type IeltsReview =
     }
   | {
       kind: 'writing'
+      focusTask?: boolean
+      selectedCorrectionId?: string
       section: 'writing'
       submission: WritingSubmission
       evaluation: WritingEvaluation | null
@@ -95,6 +100,7 @@ export type SessionAction =
   | { type: 'ATTACH_SPEAKING_EVALUATION'; evaluation: SpeakingEvaluation }
   | { type: 'CONTINUE'; startedAt: string; attemptId: string }
   | { type: 'OPEN_REVIEW'; review: IeltsReview }
+  | { type: 'SAVE_OBJECTIVE_EXPLANATION'; explanation: ObjectiveExplanation; part: number }
   | { type: 'CLOSE_REVIEW' }
   | { type: 'GO_HOME' }
   | { type: 'RESET' }
@@ -218,7 +224,8 @@ export function sessionReducer(state: IeltsSession, action: SessionAction): Ielt
         if (state.review?.section !== action.section) return state
         return {
           ...state,
-          review: { ...state.review, part: action.part },
+          review: { ...state.review, part: action.part,
+            ...(state.review.kind === 'objective' ? { selectedQuestionId: undefined } : state.review.kind === 'writing' ? { selectedCorrectionId: undefined } : {}) },
         }
       }
       return {
@@ -270,12 +277,19 @@ export function sessionReducer(state: IeltsSession, action: SessionAction): Ielt
         },
         action.submission.section,
       )
+    case 'SAVE_OBJECTIVE_EXPLANATION': {
+      const review = state.review
+      if (state.view !== 'review' || review?.kind !== 'objective' || review.submission.attemptId !== action.explanation.attemptId || review.section !== action.explanation.section) return state
+      return { ...state, review: { ...review, part: action.part, selectedQuestionId: action.explanation.questionId, explanations: [...(review.explanations ?? []).filter(entry => entry.questionId !== action.explanation.questionId), action.explanation] } }
+    }
     case 'COMPLETE_WRITING':
       if (state.attemptId !== action.submission.attemptId || state.currentSection !== 'writing' || state.completedSections.includes('writing')) return state
       return markComplete({ ...state, writingSubmission: action.submission }, 'writing')
-    case 'ATTACH_WRITING_EVALUATION':
+    case 'ATTACH_WRITING_EVALUATION': {
+      const selectedCorrectionId = state.review?.kind === 'writing' ? state.review.selectedCorrectionId : undefined
       if (state.view === 'review' && state.review?.kind === 'writing' && state.review.submission.attemptId === action.evaluation.attemptId) return {
-        ...state, review: { ...state.review, evaluation: action.evaluation },
+        ...state, review: { ...state.review, evaluation: action.evaluation,
+          selectedCorrectionId: action.evaluation[state.review.part === 2 ? 'task2' : 'task1'].annotations.some(annotation => annotation.id === selectedCorrectionId) ? selectedCorrectionId : undefined },
         ...(state.writingSubmission?.attemptId === action.evaluation.attemptId ? { writingEvaluation: action.evaluation } : {}),
       }
       if (state.writingSubmission?.attemptId !== action.evaluation.attemptId) return state
@@ -294,6 +308,7 @@ export function sessionReducer(state: IeltsSession, action: SessionAction): Ielt
         },
         view: 'review',
       }
+    }
     case 'COMPLETE_SPEAKING':
       if (state.attemptId !== action.submission.attemptId || state.currentSection !== 'speaking' || state.completedSections.includes('speaking')) return state
       return markComplete({ ...state, speakingSubmission: action.submission }, 'speaking')

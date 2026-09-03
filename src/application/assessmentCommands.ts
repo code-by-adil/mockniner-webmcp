@@ -18,6 +18,7 @@ import {
   type AssessmentSessionAction,
 } from "@/domain/assessmentSession";
 import { ApplicationError } from "@/domain/errors";
+import { resolveAssessmentReview } from '@/domain/assessmentReview';
 import type { AssessmentRepository } from "./assessmentRepository";
 
 export type AssessmentApplicationCommands = {
@@ -38,7 +39,8 @@ export type AssessmentApplicationCommands = {
   completePart: (partId: string) => void;
   expirePart: (partId: string) => void;
   submit: () => Promise<AssessmentSubmission>;
-  openAttempt: (attemptId: string) => Promise<void>;
+  openAttempt: (attemptId: string, itemId?: string) => Promise<void>;
+  setReview: (review: import('@/domain/assessmentReview').AssessmentReviewSelection | null) => void;
   attachEvaluation: (
     input: AssessmentEvaluationInput,
   ) => Promise<AssessmentEvaluation>;
@@ -268,7 +270,12 @@ export function createAssessmentCommands({
         submissions.delete(state.attemptId);
       }
     },
-    async openAttempt(attemptId) {
+    setReview(review) {
+      const state = getState();
+      if (state.view !== 'result' || !state.submission) throw new ApplicationError('NO_VISIBLE_REVIEW', 'Open a submitted assessment first.', true);
+      dispatch({ type: 'SET_REVIEW', review: review ? resolveAssessmentReview(state.submission, review) : null });
+    },
+    async openAttempt(attemptId, itemId) {
       const stored = await (await getRepository()).readAttempt(attemptId);
       if (!stored)
         throw new ApplicationError(
@@ -279,6 +286,7 @@ export function createAssessmentCommands({
         type: "OPEN_SUBMISSION",
         submission: stored.submission,
         evaluation: stored.evaluation,
+        review: itemId ? resolveAssessmentReview(stored.submission, { filter: 'all', itemId }) : undefined,
       });
     },
     async attachEvaluation(input) {

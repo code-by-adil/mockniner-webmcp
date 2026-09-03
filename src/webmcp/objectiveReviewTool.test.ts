@@ -9,7 +9,7 @@ function setup(section: 'reading' | 'listening' = 'reading') {
   const answers = { 1: 'Learner response', 14: 'Another response' }
   const submission = { attemptId: id, contentKey: document.contentKey, section, answers,
     result: gradeObjectiveDocument(document, answers), startedAt: '2026-09-03T10:00:00Z', submittedAt: '2026-09-03T10:10:00Z' }
-  const deps = { readAttempt: vi.fn(async () => submission), loadContent: vi.fn(async () => document), visibleId: vi.fn((): string | undefined => id) }
+  const deps = { readExplanations: vi.fn(async () => []), readAttempt: vi.fn(async () => submission), loadContent: vi.fn(async () => document), visibleId: vi.fn((): string | undefined => id) }
   return { ...deps, submission, document, tool: createObjectiveReviewTool(deps) }
 }
 const options = () => ({ signal: new AbortController().signal })
@@ -19,7 +19,7 @@ describe('submitted objective review', () => {
     const h = setup(section)
     const result = await h.tool.execute({ section, part: 2 }, options())
     expect(result).toMatchObject({ ok: true, data: { attemptId: id, part: h.document.parts[1],
-      selection: { mode: 'visible', isVisible: true }, questions: expect.arrayContaining([{ questionId: 14, response: 'Another response', correct: false }]) } })
+      selection: { mode: 'visible', isVisible: true }, questions: expect.arrayContaining([{ questionId: 14, response: 'Another response', correct: false, explanation: null }]) } })
     expect(result).not.toHaveProperty('data.audio')
     expect(JSON.stringify(result)).not.toContain('Learner response')
   })

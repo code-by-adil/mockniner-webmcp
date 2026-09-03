@@ -64,6 +64,7 @@ const writingEvaluation: WritingEvaluation = {
 }
 
 const reader = {
+  readObjectiveExplanations: async () => [],
   readLearningSummary: vi.fn(), readObjectiveAttempt: vi.fn(),
   readWritingAttempt: vi.fn(), readSpeakingAttempt: vi.fn(),
 }

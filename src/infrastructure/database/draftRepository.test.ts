@@ -171,6 +171,7 @@ describe('durable practice drafts', () => {
   });
 
   it('upgrades audio-only Speaking rows from before migration 10 without dropping audio', async () => {
+    await db.sql`DROP TABLE objective_explanations`;
     await db.sql`DELETE FROM app_schema_migrations WHERE version >= 10`;
     await db.sql`DROP TABLE draft_recordings`; await db.sql`DROP TABLE practice_drafts`; await db.sql`DROP TABLE storage_imports`; await db.sql`DROP TABLE practice_activity`;
     await db.sql`DROP TABLE speaking_responses`;
