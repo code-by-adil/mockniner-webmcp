@@ -1,30 +1,32 @@
 import type { ReactElement } from "react";
-import { Sparkles } from "lucide-react";
 import type { AssessmentEvaluation, AssessmentRubric } from "@/domain/assessment";
 
 export function AssessmentEvaluationPanel({
   evaluation,
   rubric,
+  itemLabels,
+  onReviewItem,
 }: {
   evaluation: AssessmentEvaluation;
   rubric?: AssessmentRubric;
+  itemLabels?: Record<string, string>;
+  onReviewItem?: (itemId: string) => void;
 }): ReactElement {
   const criterionById = new Map(
     rubric?.criteria.map((criterion) => [criterion.id, criterion] as const) ?? [],
   );
 
   return (
-    <section className="mt-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+    <section className="mt-8 border-t border-neutral-200 pt-6">
       <div className="flex items-center gap-2">
-        <Sparkles size={18} className="text-[var(--exam-accent)]" />
-        <h2 className="text-lg font-bold">Agent evaluation</h2>
+        <h2 className="text-lg font-semibold">Agent evaluation</h2>
       </div>
       <p className="mt-3 text-sm leading-6 text-neutral-700">{evaluation.summary}</p>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         {evaluation.criteria.map((criterion) => (
           <div
             key={criterion.criterionId}
-            className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"
+            className="border-l-2 border-neutral-200 py-2 pl-4"
           >
             <div className="font-semibold text-neutral-900">
               {criterionById.get(criterion.criterionId)?.label ?? criterion.criterionId}
@@ -33,7 +35,7 @@ export function AssessmentEvaluationPanel({
             </div>
             <p className="mt-1 text-sm leading-6 text-neutral-600">{criterion.feedback}</p>
             {criterion.evidence.length ? (
-              <ul className="mt-3 space-y-1 text-xs leading-5 text-neutral-500">
+              <ul className="mt-3 space-y-1 text-sm leading-6 text-neutral-600">
                 {criterion.evidence.map((evidence) => (
                   <li key={evidence}>“{evidence}”</li>
                 ))}
@@ -52,7 +54,7 @@ export function AssessmentEvaluationPanel({
           </ul>
         </div>
         <div>
-          <h3 className="text-sm font-bold text-amber-800">Next improvements</h3>
+          <h3 className="text-sm font-bold text-neutral-800">Next improvements</h3>
           <ul className="mt-2 space-y-1 text-sm leading-6 text-neutral-600">
             {evaluation.improvements.map((improvement) => (
               <li key={improvement}>• {improvement}</li>
@@ -67,15 +69,14 @@ export function AssessmentEvaluationPanel({
             {evaluation.annotations.map((annotation, index) => (
               <div
                 key={`${annotation.itemId}-${index}`}
-                className="rounded-xl border border-neutral-200 p-4 text-sm"
+                className="border-l-2 border-neutral-200 pl-4 text-sm leading-6"
               >
-                <div className="font-semibold text-neutral-800">
-                  {annotation.itemId}: “{annotation.originalText}”
-                </div>
+                {onReviewItem ? <button type="button" className="mb-2 min-h-9 text-sm font-semibold underline underline-offset-4" onClick={() => onReviewItem(annotation.itemId)}>{itemLabels?.[annotation.itemId] ?? 'Review response'}</button> : null}
+                <blockquote className="text-neutral-700">{annotation.originalText}</blockquote>
                 <div className="mt-1 text-neutral-700">
                   Suggestion: {annotation.suggestion}
                 </div>
-                <div className="mt-1 text-neutral-500">{annotation.explanation}</div>
+                <div className="mt-1 text-neutral-600">{annotation.explanation}</div>
               </div>
             ))}
           </div>

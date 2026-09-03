@@ -1,97 +1,87 @@
-import type { ReactElement } from "react";
-import { ArrowLeft, Check, ClipboardCheck } from "lucide-react";
-import type { AssessmentEvaluation, AssessmentSubmission } from "@/domain/assessment";
-import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
-import { AssessmentAnswerReview } from "./AssessmentAnswerReview";
-import { AssessmentEvaluationPanel } from "./AssessmentEvaluationPanel";
-import { getAssessmentThemeStyle } from "./assessmentTheme";
-import { StorageButton } from '@/app/WorkspaceStorage';
+import { useRef, useState } from 'react';
+import type { AssessmentEvaluation, AssessmentSubmission } from '@/domain/assessment';
+import { ResultAction, ResultBreakdown, ResultScore, ResultsLayout } from '@/shared/ui/results/ResultsLayout';
+import { AssessmentAnswerReview, type ReviewFilter } from './AssessmentAnswerReview';
+import { AssessmentEvaluationPanel } from './AssessmentEvaluationPanel';
+import { getAssessmentThemeStyle } from './assessmentTheme';
 
-export function AssessmentResults({
-  submission,
-  evaluation,
-  onHome,
-}: {
-  submission: AssessmentSubmission;
-  evaluation?: AssessmentEvaluation;
-  onHome: () => void;
-}): ReactElement {
+export function AssessmentResults(props: { submission: AssessmentSubmission; evaluation?: AssessmentEvaluation; onHome: () => void }) {
+  return <AssessmentResultsView key={props.submission.attemptId} {...props} />;
+}
+
+function AssessmentResultsView({ submission, evaluation, onHome }: { submission: AssessmentSubmission; evaluation?: AssessmentEvaluation; onHome: () => void }) {
+  const [review, setReview] = useState<{ filter: ReviewFilter; itemId?: string } | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const { result, package: assessment } = submission;
-  const percentage = result.maximumScore
-    ? Math.round(result.rawScore / result.maximumScore * 100)
-    : null;
-  const evaluationRubric = evaluation
-    ? assessment.rubrics.find((rubric) => rubric.id === evaluation.rubricId)
-    : undefined;
-  const style = getAssessmentThemeStyle(assessment.presentation.accent);
-  return (
-    <div style={style} className="min-h-screen bg-neutral-100 text-neutral-950">
-      <header className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-4 sm:px-8">
-          <AssessmentLabBrand />
-          <StorageButton />
-          <button type="button" onClick={onHome} className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"><ArrowLeft size={15} /> Assessment library</button>
+  const rubric = evaluation ? assessment.rubrics.find(entry => entry.id === evaluation.rubricId) : undefined;
+  const awaitingFeedback = !evaluation && result.awaitingEvaluationCount > 0;
+  const canReview = assessment.review.mode !== 'none';
+  const showAnswers = assessment.review.mode === 'answers';
+  const reviewLabel = showAnswers ? 'Review answers' : 'Review responses';
+  const percentage = result.maximumScore ? Math.round(result.rawScore / result.maximumScore * 100) : null;
+  const incorrect = result.itemResults.filter(item => item.answered && item.correct === false).length;
+  const unanswered = result.totalItems - result.answeredCount;
+  const resultById = new Map(result.itemResults.map(item => [item.itemId, item]));
+
+  function openReview(filter: ReviewFilter = 'all', itemId?: string) {
+    setReview({ filter, itemId });
+    requestAnimationFrame(() => { contentRef.current?.focus({ preventScroll: true }); window.scrollTo({ top: 0 }); });
+  }
+  function closeReview() {
+    setReview(null);
+    requestAnimationFrame(() => { contentRef.current?.focus({ preventScroll: true }); window.scrollTo({ top: 0 }); });
+  }
+
+  return <ResultsLayout title={assessment.title} onBack={review ? closeReview : onHome} backLabel={review ? 'Back to results' : 'Back to practice'} style={getAssessmentThemeStyle(assessment.presentation.accent)}
+    subtitle={review ? `${showAnswers ? 'Answer review' : 'Response review'} · ${result.totalItems} questions` : <><time dateTime={submission.submittedAt}>{new Date(submission.submittedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</time> · {assessment.parts.length} parts · {result.totalItems} questions</>}
+    footer={assessment.metadata.disclaimer} compactHeading={review !== null}>
+    <div ref={contentRef} tabIndex={-1} className="min-w-0 scroll-mt-6 outline-none">
+      {review && canReview ? <AssessmentAnswerReview submission={submission} evaluation={evaluation} initialFilter={review.filter} initialItemId={review.itemId} /> : <>
+        <div className={`grid min-w-0 gap-8 ${result.domains.length ? 'lg:grid-cols-[minmax(0,1fr)_240px] lg:gap-10' : ''}`}>
+          <div className="min-w-0">
+            <ResultScore label={percentage !== null ? 'Correct answers' : evaluation ? 'Evaluation score' : 'Submission saved'}
+              score={percentage !== null ? result.rawScore : evaluation ? evaluation.overallScore : <span className="text-3xl">{awaitingFeedback ? 'Ready for feedback' : 'Responses saved'}</span>}
+              maximum={percentage !== null ? result.maximumScore : rubric?.scale.maximum}
+              detail={percentage !== null ? `${percentage}% correct across objective questions` : undefined}
+              metrics={[
+                { label: 'Answered', value: result.answeredCount },
+                { label: 'Unanswered', value: unanswered },
+                ...(showAnswers && result.maximumScore > 0 ? [{ label: 'Incorrect', value: incorrect }] : []),
+                ...(evaluation && percentage !== null ? [{ label: 'Evaluation score', value: `${evaluation.overallScore}${rubric ? ` / ${rubric.scale.maximum}` : ''}` }] : []),
+                ...(awaitingFeedback ? [{ label: 'Awaiting feedback', value: result.awaitingEvaluationCount }] : []),
+              ]}
+              actions={canReview ? <>
+                <ResultAction onClick={() => openReview()}>{reviewLabel}</ResultAction>
+                {showAnswers && incorrect > 0 ? <button type="button" onClick={() => openReview('incorrect')} className="min-h-11 px-2 text-sm font-medium text-neutral-700 hover:text-neutral-950">Review mistakes</button> : unanswered > 0 ? <button type="button" onClick={() => openReview('unanswered')} className="min-h-11 px-2 text-sm font-medium text-neutral-700 hover:text-neutral-950">Review unanswered</button> : null}
+              </> : undefined} />
+            <ResultBreakdown title="Results by part" rows={assessment.parts.map(part => {
+              const items = part.items.flatMap(item => resultById.get(item.id) ?? []);
+              return { id: part.id, label: [part.groupTitle, part.title].filter(Boolean).join(' · '), detail: `${part.items.length} questions`,
+                total: items.length, correct: showAnswers ? items.filter(item => item.correct === true).length : undefined, unanswered: items.filter(item => !item.answered).length,
+                unscored: items.filter(item => item.correct === null).length,
+                pending: evaluation ? 0 : items.filter(item => item.correct === null).length,
+                onReview: canReview ? () => openReview('all', part.items[0].id) : undefined };
+            })} />
+          </div>
+          {result.domains.length ? <aside aria-label="Performance by domain" className="min-w-0 lg:border-l lg:border-neutral-200 lg:pl-7">
+            <details className="result-disclosure lg:hidden"><summary>Performance by domain</summary><DomainList submission={submission} /></details>
+            <div className="hidden lg:block"><h2 className="mb-5 text-sm font-semibold">Performance by domain</h2><DomainList submission={submission} /></div>
+          </aside> : null}
         </div>
-      </header>
-      <main className="mx-auto max-w-[1100px] px-4 py-10 sm:px-8">
-        <div className="mb-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800"><Check size={14} /> Attempt saved locally</div>
-          <h1 className="mt-4 text-3xl font-extrabold tracking-tight">{assessment.title}</h1>
-          <p className="mt-2 text-sm text-neutral-500">These results use your saved answers.</p>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-wider text-neutral-400">Objective score</div>
-            <div className="mt-2 text-3xl font-extrabold">{result.rawScore}<span className="text-lg font-semibold text-neutral-400">/{result.maximumScore}</span></div>
-            <div className="mt-1 text-xs text-neutral-500">{percentage === null ? "No deterministic items" : `${percentage}% correct`}</div>
-          </div>
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-wider text-neutral-400">Answered</div>
-            <div className="mt-2 text-3xl font-extrabold">{result.answeredCount}<span className="text-lg font-semibold text-neutral-400">/{result.totalItems}</span></div>
-            <div className="mt-1 text-xs text-neutral-500">Across all assessment parts</div>
-          </div>
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-wider text-neutral-400">Evaluation</div>
-            <div className="mt-2 text-2xl font-extrabold">{evaluation ? `${evaluation.overallScore}${evaluationRubric ? `/${evaluationRubric.scale.maximum}` : ""}` : result.awaitingEvaluationCount ? "Pending" : "Not needed"}</div>
-            <div className="mt-1 text-xs text-neutral-500">{evaluation ? "Structured feedback attached" : result.awaitingEvaluationCount ? `${result.awaitingEvaluationCount} subjective response${result.awaitingEvaluationCount === 1 ? "" : "s"}` : "All items scored locally"}</div>
-          </div>
-        </div>
-
-        {assessment.metadata.disclaimer ? (
-          <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-950">
-            {assessment.metadata.disclaimer}
-          </div>
-        ) : null}
-
-        {result.domains.length ? (
-          <section className="mt-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold">Performance by domain</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {result.domains.map((domain) => (
-                <div key={domain.domain} className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                  <div className="flex items-center justify-between gap-4 text-sm">
-                    <span className="font-semibold text-neutral-800">{domain.domain}</span>
-                    <span className="font-bold tabular-nums">{domain.correct}/{domain.total}</span>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-200"><div className="h-full rounded-full bg-[var(--exam-accent)]" style={{ width: `${domain.total ? domain.correct / domain.total * 100 : 0}%` }} /></div>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {evaluation ? (
-          <AssessmentEvaluationPanel evaluation={evaluation} rubric={evaluationRubric} />
-        ) : result.awaitingEvaluationCount ? (
-          <section className="mt-8 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-            <ClipboardCheck className="mt-0.5 text-[var(--exam-accent)]" size={20} />
-            <div><h2 className="font-bold">Ready for agent evaluation</h2><p className="mt-1 text-sm leading-6 text-neutral-600">Ask your agent to evaluate this assessment submission. The tool returns the exact rubric and accepts structured feedback for this immutable attempt.</p></div>
-          </section>
-        ) : null}
-
-        {assessment.review.mode === "none" ? null : <AssessmentAnswerReview submission={submission} />}
-      </main>
+        {awaitingFeedback ? <section className="mt-8 border-l-2 border-neutral-300 pl-4">
+          <h2 className="text-base font-semibold">Get feedback on your responses</h2><p className="mt-1 text-sm leading-6 text-neutral-600">Ask your agent to evaluate this submission. Your feedback will appear here.</p>
+        </section> : null}
+        {evaluation ? <AssessmentEvaluationPanel evaluation={evaluation} rubric={rubric}
+          itemLabels={Object.fromEntries(assessment.parts.flatMap(part => part.items.map((item, index) => [item.id, `Review ${[part.groupTitle, part.title].filter(Boolean).join(' · ')} · Question ${index + 1}`])))}
+          onReviewItem={canReview ? itemId => openReview('all', itemId) : undefined} /> : null}
+        {!canReview ? <p className="mt-6 text-sm text-neutral-600">Question review is not available for this assessment.</p> : null}
+      </>}
     </div>
-  );
+  </ResultsLayout>;
+}
+
+function DomainList({ submission }: { submission: AssessmentSubmission }) {
+  return <dl className="space-y-4 py-3 lg:py-0">{submission.result.domains.map(domain => <div key={domain.domain} className="flex items-start justify-between gap-4 text-sm leading-5">
+    <dt className="text-neutral-600 [overflow-wrap:anywhere]">{domain.domain}</dt><dd className="shrink-0 font-medium tabular-nums">{domain.correct}<span className="text-neutral-500"> / {domain.total}</span></dd>
+  </div>)}</dl>;
 }

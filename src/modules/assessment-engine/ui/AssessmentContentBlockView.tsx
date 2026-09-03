@@ -1,7 +1,8 @@
 import type { ReactElement } from "react";
 import type { AssessmentContentBlock } from "@/domain/assessment";
 
-export function AssessmentContentBlockView({ block }: { block: AssessmentContentBlock }): ReactElement {
+export function AssessmentContentBlockView({ block, variant = 'exam' }: { block: AssessmentContentBlock; variant?: 'exam' | 'review' }): ReactElement {
+  const isReview = variant === 'review';
   switch (block.type) {
     case "text": {
       const classes = block.variant === "title"
@@ -15,10 +16,10 @@ export function AssessmentContentBlockView({ block }: { block: AssessmentContent
     }
     case "passage":
       return (
-        <article className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-5">
+        <article className={isReview ? 'border-l-2 border-neutral-200 pl-5' : 'rounded-xl border border-neutral-200 bg-neutral-50/70 p-5'}>
           {block.title ? <h3 className="mb-3 font-bold text-neutral-950">{block.title}</h3> : null}
           <div className="space-y-3 text-[15px] leading-7 text-neutral-800">
-            {block.paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+            {block.paragraphs.map((paragraph, index) => <p key={index} className="whitespace-pre-line">{paragraph}</p>)}
           </div>
         </article>
       );
@@ -26,7 +27,7 @@ export function AssessmentContentBlockView({ block }: { block: AssessmentContent
       return (
         <div
           aria-label={block.accessibleLabel ?? block.expression}
-          className="whitespace-pre-line rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4 text-center font-serif text-xl tracking-wide text-neutral-950"
+          className={`whitespace-pre-line bg-neutral-50 px-5 py-5 text-center font-serif text-xl tracking-wide text-neutral-950 ${isReview ? 'rounded-md' : 'rounded-xl border border-neutral-200'}`}
         >
           {block.expression}
         </div>
@@ -52,7 +53,7 @@ export function AssessmentContentBlockView({ block }: { block: AssessmentContent
     case "bar_chart": {
       const maximum = Math.max(...block.bars.map((bar) => Math.abs(bar.value)), 1);
       return (
-        <figure className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-5">
+        <figure className={isReview ? 'py-2' : 'rounded-xl border border-neutral-200 bg-neutral-50/70 p-5'}>
           <figcaption className="mb-4 font-semibold text-neutral-900">{block.title}</figcaption>
           <div className="space-y-3">
             {block.bars.map((bar) => (
@@ -70,4 +71,3 @@ export function AssessmentContentBlockView({ block }: { block: AssessmentContent
     }
   }
 }
-

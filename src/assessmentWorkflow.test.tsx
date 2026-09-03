@@ -213,10 +213,10 @@ describe("mixed universal assessment workflow", () => {
         onHome={() => undefined}
       />,
     );
-    expect(html).toContain("7<span");
-    expect(html).toContain("/7");
-    expect(html).toContain("4/6");
-    expect(html).toContain("Structured feedback attached");
+    const renderedText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    expect(renderedText).toContain('Correct answers 7 / 7');
+    expect(renderedText).toContain('Evaluation score 4 / 6');
+    expect(html).toContain('Agent evaluation');
     expect(html).toContain("A focused argument with a relevant qualification");
     expect(html).toContain("identify weak assumptions before implementation");
     expect(html).toContain("not an ETS score or percentile");

@@ -15,6 +15,8 @@ import { ReadingExamRunner } from "@/modules/ielts/reading/ui/ReadingExamRunner"
 import { WritingExamRunner } from "@/modules/ielts/writing/ui/WritingExamRunner";
 import { WritingAttemptReview } from "@/modules/ielts/writing/ui/WritingAttemptReview";
 import { PendingAttemptReview } from '@/app/PendingAttemptReview';
+import { ObjectiveResults } from '@/app/ObjectiveResults';
+import type { ObjectiveContentDocument } from '@/domain/objectiveContent';
 import { getListeningAudioStatus } from '@/application/listeningAudioStatus';
 import { SpeakingExamRunner } from "@/modules/ielts/speaking/ui/SpeakingExamRunner";
 import { SpeakingAttemptReview } from "@/modules/ielts/speaking/ui/SpeakingAttemptReview";
@@ -135,11 +137,19 @@ export function Results({
   session,
   onHome,
   onReview,
+  objectiveContent,
 }: {
   session: IeltsSession;
   onHome: () => void;
   onReview: (section: Section) => void;
+  objectiveContent?: Partial<Record<'reading' | 'listening', ObjectiveContentDocument>>;
 }) {
+  const completedObjective = session.mode === 'section' && session.completedSections.length === 1
+    ? session.completedSections[0] : undefined;
+  if (completedObjective === 'reading' || completedObjective === 'listening') {
+    const submission = session.objectiveSubmissions[completedObjective];
+    if (submission) return <ObjectiveResults submission={submission} document={objectiveContent?.[completedObjective]} onHome={onHome} onReview={() => onReview(completedObjective)} />;
+  }
   return (
     <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
       <AppHeader />
@@ -348,7 +358,7 @@ function PracticeApp() {
   }
 
   if (state.view === "result") {
-    return <Results session={state} onHome={uiCommands.goHome} onReview={commands.openReview} />;
+    return <Results session={state} objectiveContent={content} onHome={uiCommands.goHome} onReview={commands.openReview} />;
   }
 
   if (section === "listening" || section === "reading") {

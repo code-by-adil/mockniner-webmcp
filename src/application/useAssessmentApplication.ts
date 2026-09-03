@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { satPracticeAssessment } from "@/content/sat";
+import { builtInAssessments } from "@/content/builtInAssessments";
 import type {
   AssessmentHistoryEntry,
   AssessmentPackage,
@@ -36,9 +36,7 @@ export function useAssessmentApplication() {
     assessmentSessionReducer,
     initialAssessmentSession,
   );
-  const [assessments, setAssessments] = useState<AssessmentPackage[]>([
-    satPracticeAssessment,
-  ]);
+  const [assessments, setAssessments] = useState<AssessmentPackage[]>(builtInAssessments);
   const [assessmentReady, setAssessmentReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [history, setHistory] = useState<AssessmentHistoryEntry[]>([]);

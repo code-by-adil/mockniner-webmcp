@@ -8,6 +8,11 @@ helpers, and related models were adapted from that reference implementation.
 Assessment Lab owns its branding, application state, local persistence, WebMCP
 tools, universal assessment engine, and assessment content.
 
+The shared results layout adapts the reference's result shell, score hierarchy,
+part breakdown and separate answer-review flow. Assessment Lab's version uses
+exam-independent score labels and local submission data, with a focused question
+navigator and response renderers for universal assessments.
+
 The built-in questions, museum map, favicon, Listening script, and generated
 Listening recording are original project assets. No commercial assets, private
 data, credentials, or application-owned cloud model services are included.
@@ -15,6 +20,12 @@ data, credentials, or application-owned cloud model services are included.
 The IELTS and SAT-style authoring examples are separate original project
 content, not copies of playable built-in questions or bundled audio scripts.
 They demonstrate valid package structure and are not full-length calibrated exams.
+
+SAT-Style Practice Test 1 contains 98 original questions using the published
+digital SAT module counts and timings. Its fictional scenarios, passages, data,
+and math problems were written for this project. It is fixed-form practice with
+raw-score review, not a calibrated or adaptive College Board test. Content notes
+and source links are in `src/content/satFullLength/README.md`.
 
 Speaking recognition uses the public OpenAI Whisper base.en model, converted
 to ONNX by the ONNX Community, through Transformers.js. It is downloaded from

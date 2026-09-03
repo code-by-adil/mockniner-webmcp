@@ -1,0 +1,29 @@
+import { choice, numeric } from './helpers';
+const a = 'Algebra';
+const m = 'Advanced Math';
+const p = 'Problem-Solving and Data Analysis';
+const g = 'Geometry and Trigonometry';
+export const math1 = [
+  choice('sat-m1-01', a, 'Linear equations in one variable', '', 'What value of x satisfies the equation 4x − 9 = 27?', ['4.5', '9', '18', '36'], 'b', [{ type: 'math', expression: '4x − 9 = 27' }]),
+  choice('sat-m1-02', a, 'Linear functions', 'The table shows three values of a linear function f. For every increase of 1 in x, the value of f(x) increases by the same amount.', 'What is the rate of change of f with respect to x?', ['2', '6', '3', '11'], 'c', [{ type: 'table', columns: ['x', 'f(x)'], rows: [['2', '11'], ['4', '17'], ['6', '23']] }]),
+  numeric('sat-m1-03', a, 'Linear equations in one variable', 'A tool rental company charges a one-time fee of $25 plus $6 for each hour a tool is rented. There are no other charges. What is the total cost, in dollars, of renting a tool for 7 hours?', 67),
+  choice('sat-m1-04', a, 'Linear inequalities', '', 'A volunteer has $44 to purchase a $12 supply kit and several identical notebooks costing $4 each. What is the greatest number of notebooks the volunteer can purchase without exceeding $44?', ['8', '11', '14', '32'], 'a'),
+  choice('sat-m1-05', a, 'Systems of two linear equations', 'A café sold 26 drinks consisting only of tea and smoothies. Tea cost $2 per drink, and smoothies cost $5 per drink. The total revenue from these drinks was $85.', 'How many teas did the café sell?', ['9', '11', '13', '15'], 'd'),
+  choice('sat-m1-06', a, 'Linear functions', 'A tank initially contains water, and a pump adds water at a constant rate. The volume V, in liters, after the pump has run for t minutes is given by V = 120 + 8t.', 'What does the number 120 represent in this model?', ['The number of liters added each minute', 'The initial volume of water in the tank', 'The maximum capacity of the tank', 'The time needed to fill the tank'], 'b'),
+  numeric('sat-m1-07', a, 'Systems of two linear equations', 'A bakery sold 30 boxes of pastries. Small boxes cost $9 each, and large boxes cost $12 each. The bakery collected $306 from the sales. How many large boxes did it sell?', 12),
+  numeric('sat-m1-08', a, 'Linear equations with constants', 'For what value of the constant a does the equation (a + 2)x + 9 = 5x + 9 have infinitely many solutions?', 3, [{ type: 'math', expression: '(a + 2)x + 9 = 5x + 9' }]),
+  choice('sat-m1-09', m, 'Nonlinear equations', '', 'Which pair lists both solutions of x² − 7x + 12 = 0?', ['−3 and −4', '−3 and 4', '3 and 4', '2 and 6'], 'c', [{ type: 'math', expression: 'x² − 7x + 12 = 0' }]),
+  choice('sat-m1-10', m, 'Nonlinear functions', 'The number of subscribers to a newsletter is modeled by N(t) = 200(1.5)ᵗ, where t is the number of months after the newsletter began.', 'According to this model, by what percentage does the number of subscribers increase each month?', ['50%', '1.5%', '15%', '150%'], 'a'),
+  choice('sat-m1-11', m, 'Equivalent expressions', '', 'For x ≠ −3, which expression is equivalent to (x² − 9)/(x + 3)?', ['x + 3', 'x² − 3', 'x − 9', 'x − 3'], 'd', [{ type: 'math', expression: '(x² − 9)/(x + 3)' }]),
+  choice('sat-m1-12', m, 'Quadratic functions', '', 'The function f is defined by f(x) = (x − 4)² + 7. What is the minimum value of f(x)?', ['4', '7', '11', '23'], 'b', [{ type: 'math', expression: 'f(x) = (x − 4)² + 7' }]),
+  numeric('sat-m1-13', m, 'Radical equations', 'What is the solution of √(x + 5) = x − 1?', 4, [{ type: 'math', expression: '√(x + 5) = x − 1' }]),
+  choice('sat-m1-14', m, 'Exponential functions', 'A sample initially contains 240 milligrams of a substance. At the end of each hour, 80% of the amount present at the start of that hour remains.', 'How many milligrams remain after 3 hours?', ['192', '153.6', '122.88', '120'], 'c'),
+  numeric('sat-m1-15', m, 'Equivalent expressions', 'The expression x² + kx + 36 is the square of a binomial of the form x + c, where c is positive. What is the value of k?', 12),
+  choice('sat-m1-16', p, 'One-variable data', 'Ten students reported the number of books they read during a month. Their responses are summarized in the table.', 'What is the mean number of books read by these students?', ['3.8', '4', '4.2', '5'], 'a', [{ type: 'table', columns: ['Books read', 'Number of students'], rows: [['2', '3'], ['4', '5'], ['6', '2']] }]),
+  choice('sat-m1-17', p, 'Percentages', '', 'A jacket with an original price of $80 is discounted by 25%. A sales tax of 10% is then applied to the discounted price. What is the final price, including tax?', ['$60', '$66', '$68', '$72'], 'b'),
+  numeric('sat-m1-18', p, 'Probability', 'A bag contains 5 red counters, 3 blue counters, and 2 green counters. One counter is selected at random. What is the probability that the selected counter is not blue? Enter a decimal or a fraction.', 0.7),
+  choice('sat-m1-19', p, 'Inference from sample statistics', 'A random sample of adults in a town was used to estimate the mean number of minutes spent walking each day. The estimate was 24 minutes, with a margin of error of 3 minutes.', 'Which interval is obtained by adding and subtracting the margin of error from the estimate?', ['3 to 24 minutes', '12 to 36 minutes', '24 to 27 minutes', '21 to 27 minutes'], 'd'),
+  choice('sat-m1-20', g, 'Right triangles', '', 'A right triangle has legs of lengths 6 and 8. What is the length of its hypotenuse?', ['7', '8', '10', '14'], 'c'),
+  choice('sat-m1-21', g, 'Area and volume', '', 'A right circular cylinder has radius 3 centimeters and height 8 centimeters. What is its volume, in cubic centimeters?', ['72π', '24π', '48π', '144π'], 'a', [{ type: 'math', expression: 'V = πr²h' }]),
+  choice('sat-m1-22', g, 'Circles', '', 'A sector of a circle has a central angle of 90° and a radius of 6. What is the area of the sector?', ['3π', '6π', '18π', '9π'], 'd'),
+];

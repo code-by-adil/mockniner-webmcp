@@ -1,0 +1,24 @@
+body:has(.results-page) { min-width: 0; }
+.results-page button:focus-visible,
+.results-page summary:focus-visible {
+  outline: 2px solid #171717;
+  outline-offset: 4px;
+}
+.results-page .result-disclosure { min-width: 0; overflow-wrap: anywhere; }
+.results-page .result-disclosure > summary {
+  min-height: 40px;
+  padding-block: 8px;
+  color: #525252;
+  font-size: 14px;
+  line-height: 24px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.results-page .result-disclosure > summary::marker { color: #737373; }
+.review-question-button[aria-current="true"] {
+  outline: 2px solid #171717;
+  outline-offset: 2px;
+}
+
+.results-page select:focus-visible { outline: 2px solid #171717; outline-offset: 3px; }
+.review-footer summary::-webkit-details-marker { display: none; }

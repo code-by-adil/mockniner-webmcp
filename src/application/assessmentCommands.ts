@@ -1,4 +1,4 @@
-import { satPracticeAssessment } from "@/content/sat";
+import { builtInAssessments } from "@/content/builtInAssessments";
 import {
   assessmentEvaluationInputSchema,
   getAssessmentEvaluationStatus,
@@ -47,11 +47,9 @@ export type AssessmentApplicationCommands = {
 export function mergeAssessmentPackages(
   installed: AssessmentPackage[],
 ): AssessmentPackage[] {
-  const packages = new Map([
-    [satPracticeAssessment.packageId, satPracticeAssessment],
-  ]);
+  const packages = new Map(builtInAssessments.map(assessment => [assessment.packageId, assessment]));
   installed.forEach((assessment) => {
-    if (assessment.packageId !== satPracticeAssessment.packageId)
+    if (!builtInAssessments.some(builtIn => builtIn.packageId === assessment.packageId))
       packages.set(assessment.packageId, assessment);
   });
   return [...packages.values()];
@@ -105,7 +103,7 @@ export function createAssessmentCommands({
         ...parseAssessmentAuthoringPackage(input),
         source: "agent",
       };
-      if (assessment.packageId === satPracticeAssessment.packageId)
+      if (builtInAssessments.some(builtIn => builtIn.packageId === assessment.packageId))
         throw new ApplicationError(
           "ASSESSMENT_INSTALL_CONFLICT",
           `Assessment package ID ${assessment.packageId} is reserved for built-in content.`,
