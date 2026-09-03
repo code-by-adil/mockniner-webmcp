@@ -124,7 +124,7 @@ describe("universal assessment result review policy", () => {
 
   it("shows grouped-choice labels instead of internal IDs", () => {
     const responses = {
-      "verbal-text-completion": { "blank-1": "blank-1-b", "blank-2": "blank-2-a" },
+      "gre-v1-completion-3": { "blank-1": "b1-b", "blank-2": "b2-a" },
     };
     const submission: AssessmentSubmission = {
       attemptId: "44444444-4444-4444-8444-444444444444",
@@ -137,12 +137,12 @@ describe("universal assessment result review policy", () => {
     };
 
     const html = renderToStaticMarkup(
-      <AssessmentAnswerReview submission={submission} selection={{ filter: 'all', itemId: 'verbal-text-completion' }} onSelectionChange={() => undefined} />,
+      <AssessmentAnswerReview submission={submission} selection={{ filter: 'all', itemId: 'gre-v1-completion-3' }} onSelectionChange={() => undefined} />,
     );
     expect(html).toContain('aria-label="Blank 1"');
-    expect(html).toContain("inconclusive");
+    expect(html).toContain("circumspect");
     expect(html).toContain('aria-label="Blank 2"');
-    expect(html).toContain("cautious");
-    expect(html).not.toContain("blank-1-b");
+    expect(html).toContain("unequivocal");
+    expect(html).not.toContain("b1-b");
   });
 });

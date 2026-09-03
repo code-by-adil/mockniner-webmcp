@@ -12,7 +12,12 @@ recording are original project assets. The M9 logo and wordmark reuse the
 author's original MockNiner branding, with crimson accents for this app. The
 favicon uses the same M9 paths with heavier strokes for small sizes. The
 authoring examples are separate original content that illustrate the supported
-assessment formats.
+assessment formats. The complete Listening authoring example was developed
+from this project's original Harbour Workshops and City Sound demonstration
+script and questions. It is separate from the bundled Listening recording.
+The SAT and GRE authoring examples contain original passages and questions.
+Fictional studies are marked as imagined examples; exam-owner questions have
+not been copied. See [exam format sources](./docs/EXAM_AUTHORING.md).
 
 SAT-style practice test 1 contains 98 original questions with module counts and
 timings based on College Board's published test structure. Its passages,

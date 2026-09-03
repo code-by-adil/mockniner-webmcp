@@ -10,11 +10,13 @@ import { getBundledListeningSources } from '@/infrastructure/media/bundledListen
 const museumScript = readFileSync(new URL('../../scripts/audio/part-2.txt', import.meta.url), 'utf8')
 // Question-range instructions and "check your answers" are normal exam narration.
 // Individual question numbers and answer letters must not leak into the guide's speech.
-const answerAnnouncements = /\b(?:choice|choose|option|marked)\s+[A-F]\b|\b(?:question|number)\s+(?:\d+|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b|\b(?:correct answer|answer is|answer to question)\b/i
+const answerLetters = /\b(?:[Cc]hoice|[Cc]hoose|[Oo]ption|[Mm]arked)\s+[A-F]\b/
+const answerAnnouncements = /\b(?:question|number)\s+(?:\d+|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b|\b(?:correct answer|answer is|answer to question)\b/i
 
 describe('Listening narration', () => {
   it('the museum guide gives facts without announcing question numbers or answer choices', () => {
     expect(museumScript).not.toMatch(answerAnnouncements)
+    expect(museumScript).not.toMatch(answerLetters)
   })
 
   it('keeps all ten museum answers supported in question order', () => {
@@ -46,7 +48,10 @@ describe('Listening narration', () => {
     const example = getIeltsExample('listening')
     if (example.section !== 'listening' || example.audio.type !== 'kokoro') throw new Error('Expected generated Listening example')
     for (const part of example.audio.parts) for (const segment of part.segments) {
-      if (segment.type === 'speech') expect(segment.text).not.toMatch(answerAnnouncements)
+      if (segment.type === 'speech') {
+        expect(segment.text).not.toMatch(answerAnnouncements)
+        expect(segment.text).not.toMatch(answerLetters)
+      }
     }
   })
 

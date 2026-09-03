@@ -61,19 +61,22 @@ Use the universal tools for other assessments:
 
 1. Call `get_assessment_authoring_kit` with the closest template.
 2. Read the returned coverage notes. Do not imitate an unsupported behavior.
-3. Use the schema to build a package. When `examplesIncluded` is true, you can
+3. Use the complete example to build a package. Request `includeSchema: true`
+   when you need the full schema. When `examplesIncluded` is true, you can
    adapt `examplePackage` with a new ID, title, content, answer keys, and rubric.
 4. Keep `schemaVersion` set to `4`. Do not add `source`; the application records
    authorship.
 5. Declare only the tools that the learner needs. Empty `tools` and `resources`
    arrays are valid.
-6. Pass the whole package to `install_assessment`.
+6. Pass the whole package to `install_assessment`. It opens practice by default.
+   Set `openAfterInstall: false` only to save for later. Check `opened` in the result.
 7. If installation fails, repair the paths in `error.issues` and submit the
    whole package again.
 
 Installation is atomic. Invalid input does not change state or storage. A
-successful installation appears in the assessment library before the tool
-returns.
+successful save is followed by opening the practice. Saving and opening are
+separate operations: `opened: false` with `openingError` means the saved package
+exists but needs a subsequent `open_practice` call. Drafts remain protected.
 
 The available templates are:
 
@@ -144,7 +147,7 @@ validation.
 }
 ```
 
-The tool's input schema is the source of truth. This example exists to make the
+The kit's optional full package schema and the canonical runtime parser define the contract. This example exists to make the
 shape easy to read.
 
 ## Trusted content and interactions

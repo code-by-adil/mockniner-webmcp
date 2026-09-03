@@ -52,8 +52,8 @@ describe('canonical practice history', () => {
 
   it('reads pending and completed rubric-only scores from the immutable submission', async () => {
     const assessment = parseAssessmentPackage({ ...greStyleAssessment, packageId: 'writing-only', title: 'Analytical writing',
-      parts: greStyleAssessment.parts.filter(part => part.id === 'analytical-writing') });
-    const responses = { 'analytical-writing-issue': 'Public evidence helps people assess policy decisions.' };
+      parts: greStyleAssessment.parts.filter(part => part.id === 'issue') });
+    const responses = { 'gre-issue': 'Public evidence helps people assess policy decisions.' };
     const submission = await saveAssessmentAttempt(database, { attemptId: crypto.randomUUID(), assessment, responses,
       result: gradeAssessment(assessment, responses), startedAt, submittedAt: '2026-09-01T11:00:00.000Z' });
     expect((await readHistoryPage(database, { limit: 6, offset: 0 })).items[0]).toMatchObject({

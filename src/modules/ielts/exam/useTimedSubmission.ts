@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type TimedSubmissionOptions = {
   secondsRemaining: number;
   disabled?: boolean;
+  timerPaused?: boolean;
   onTick: () => void;
   onSubmit?: () => unknown | Promise<unknown>;
   fallbackError: string;
@@ -11,6 +12,7 @@ type TimedSubmissionOptions = {
 export function useTimedSubmission({
   secondsRemaining,
   disabled = false,
+  timerPaused = false,
   onTick,
   onSubmit,
   fallbackError,
@@ -27,10 +29,10 @@ export function useTimedSubmission({
   }, [onSubmit, onTick]);
 
   useEffect(() => {
-    if (disabled || isSubmitting) return;
+    if (disabled || timerPaused || isSubmitting) return;
     const timer = window.setInterval(() => tickRef.current(), 1_000);
     return () => window.clearInterval(timer);
-  }, [disabled, isSubmitting]);
+  }, [disabled, timerPaused, isSubmitting]);
 
   const submit = useCallback(async () => {
     if (disabled || isSubmitting || !submitRef.current) return;
@@ -45,10 +47,10 @@ export function useTimedSubmission({
   }, [disabled, fallbackError, isSubmitting]);
 
   useEffect(() => {
-    if (disabled || secondsRemaining > 0 || timeoutHandledRef.current) return;
+    if (disabled || timerPaused || secondsRemaining > 0 || timeoutHandledRef.current) return;
     timeoutHandledRef.current = true;
     void submit();
-  }, [disabled, secondsRemaining, submit]);
+  }, [disabled, timerPaused, secondsRemaining, submit]);
 
   return { isSubmitting, submissionError, submit };
 }

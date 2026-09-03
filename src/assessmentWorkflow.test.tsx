@@ -25,14 +25,14 @@ const essay =
   "Public institutions should publish evidence before major decisions because people need to understand the reasons for policies that affect them. Early disclosure also lets independent experts identify weak assumptions. Emergency decisions may require temporary confidentiality, but the institution should explain that limit and publish the evidence as soon as the immediate risk passes.";
 
 const responses = {
-  "verbal-reading-main-point": "c",
-  "verbal-text-completion": { "blank-1": "blank-1-b", "blank-2": "blank-2-a" },
-  "verbal-sentence-equivalence": ["b", "d"],
-  "quant-comparison": "d",
-  "quant-multiple-selection": ["a", "b"],
-  "quant-numeric-entry": "1800",
-  "quant-data-interpretation": "c",
-  "analytical-writing-issue": essay,
+  "gre-v1-reading-1": "b",
+  "gre-v1-completion-3": { "blank-1": "b1-b", "blank-2": "b2-a" },
+  "gre-v1-equivalence-1": ["b", "d"],
+  "gre-q1-compare-2": "d",
+  "gre-q1-multiple-2": ["d", "e"],
+  "gre-q1-numeric-1": "25",
+  "gre-q2-choice-6": "b",
+  "gre-issue": essay,
 };
 
 const evaluationInput: AssessmentEvaluationInput = {
@@ -51,7 +51,7 @@ const evaluationInput: AssessmentEvaluationInput = {
       evidence: ["independent experts identify weak assumptions"],
     },
     {
-      criterionId: "control",
+      criterionId: "communication",
       score: 4,
       feedback: "The response is concise and easy to follow.",
       evidence: ["publish the evidence as soon as the immediate risk passes"],
@@ -62,7 +62,7 @@ const evaluationInput: AssessmentEvaluationInput = {
   improvements: ["Develop one example in more detail"],
   annotations: [
     {
-      itemId: "analytical-writing-issue",
+      itemId: "gre-issue",
       originalText: "identify weak assumptions",
       suggestion: "identify weak assumptions before implementation",
       explanation: "This makes the practical benefit more explicit.",
@@ -142,14 +142,14 @@ describe("mixed universal assessment workflow", () => {
         evaluationStatus: "awaiting_evaluation",
         canAttachEvaluation: true,
         submission: {
-          responses: { "analytical-writing-issue": essay },
+          responses: { "gre-issue": essay },
           package: { rubric: expect.objectContaining({ criteria: expect.any(Array) }) },
         },
       },
     });
     expect(submission.result).toMatchObject({
       rawScore: 7,
-      maximumScore: 7,
+      maximumScore: 54,
       answeredCount: 8,
       awaitingEvaluationCount: 1,
     });
@@ -184,7 +184,7 @@ describe("mixed universal assessment workflow", () => {
     expect(duplicate).toEqual(attached);
 
     const restored = await readAssessmentAttempt(database, attemptId);
-    expect(restored?.submission.responses["analytical-writing-issue"]).toBe(essay);
+    expect(restored?.submission.responses["gre-issue"]).toBe(essay);
     expect(restored?.evaluation).toMatchObject(evaluationInput);
     expect((await readHistoryPage(database, { kind: 'assessment', limit: 10, offset: 0 })).items).toEqual([
       expect.objectContaining({ attemptId, evaluationStatus: "evaluated" }),
@@ -197,8 +197,8 @@ describe("mixed universal assessment workflow", () => {
     });
     const immutableAttempt = await readAssessmentAttempt(database, attemptId);
     expect(immutableAttempt?.submission.package).toMatchObject({
-      revision: 2,
-      title: "GRE-Style Diagnostic",
+      revision: 1,
+      title: "GRE-style full practice example",
     });
 
     const html = renderToStaticMarkup(
@@ -211,11 +211,11 @@ describe("mixed universal assessment workflow", () => {
       />,
     );
     const renderedText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-    expect(renderedText).toContain('Correct answers 7 / 7');
+    expect(renderedText).toContain('Correct answers 7 / 54');
     expect(renderedText).toContain('Evaluation score 4 / 6');
     expect(html).toContain('Agent evaluation');
     expect(html).toContain("A focused argument with a relevant qualification");
     expect(html).toContain("identify weak assumptions before implementation");
-    expect(html).toContain("not an ETS score or percentile");
+    expect(html).toContain("not ETS scores or percentiles");
   });
 });

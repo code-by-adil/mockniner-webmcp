@@ -20,7 +20,7 @@ type ContinuingPractice = {
   title: string;
   progress: string;
   startedAt?: string;
-  disabled?: boolean;
+  audioPreparing?: boolean;
   resume: () => void;
 };
 
@@ -41,7 +41,7 @@ export function ContinuePractice({ session, content, listeningReady, onResume, a
       : section === 'speaking' ? 'Speaking interview · In progress'
       : `${SECTION_META[section].label} · ${section === 'writing' ? 'Task' : section === 'reading' ? 'Passage' : 'Part'} ${draft.partBySection[section]}`;
     return { attemptId: draft.attemptId!, kind: section, title, progress,
-      startedAt: draft.startedAt, disabled: section === 'listening' && !listeningReady,
+      startedAt: draft.startedAt, audioPreparing: section === 'listening' && !listeningReady,
       resume: () => onResume(draft.attemptId!) };
   });
 
@@ -84,10 +84,10 @@ export function ContinuePractice({ session, content, listeningReady, onResume, a
               {practice.startedAt ? <p className="text-xs text-neutral-500">Started <time dateTime={practice.startedAt}>
                 {new Date(practice.startedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
               </time></p> : null}
-              {practice.disabled ? <p className="text-xs text-neutral-600">Listening audio is not ready. Check its status in the library below.</p> : null}
+              {practice.audioPreparing ? <p className="text-xs text-neutral-600">Resume to see audio preparation. Your timer pauses while audio is unavailable.</p> : null}
             </div>
           </div>
-          <button type="button" onClick={practice.resume} disabled={practice.disabled} aria-label={`Resume ${practice.title}`}
+          <button type="button" onClick={practice.resume} aria-label={`Resume ${practice.title}`}
             className={`inline-flex min-h-10 items-center justify-center gap-3 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${index === 0
               ? 'bg-[var(--exam-accent)] text-white hover:bg-[var(--exam-accent-hover)]'
               : 'border border-neutral-200 text-neutral-800 hover:bg-neutral-50'}`}>

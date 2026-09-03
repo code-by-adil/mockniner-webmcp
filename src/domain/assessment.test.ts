@@ -125,31 +125,29 @@ describe("assessment domain", () => {
 
   it("grades the complete GRE-style example and leaves its essay for evaluation", () => {
     const result = gradeAssessment(greStyleAssessment, {
-      "verbal-reading-main-point": "c",
-      "verbal-text-completion": { "blank-1": "blank-1-b", "blank-2": "blank-2-a" },
-      "verbal-sentence-equivalence": ["d", "b"],
-      "quant-comparison": "d",
-      "quant-multiple-selection": ["b", "a"],
-      "quant-numeric-entry": "1800",
-      "quant-data-interpretation": "c",
-      "analytical-writing-issue": "Public institutions should publish their evidence before acting.",
+      "gre-v1-reading-1": "b",
+      "gre-v1-completion-3": { "blank-1": "b1-b", "blank-2": "b2-a" },
+      "gre-v1-equivalence-1": ["d", "b"],
+      "gre-q1-compare-2": "d",
+      "gre-q1-multiple-2": ["e", "d"],
+      "gre-q1-numeric-1": "25",
+      "gre-q2-choice-6": "b",
+      "gre-issue": "Public institutions should publish their evidence before acting.",
     });
 
     expect(result).toMatchObject({
       rawScore: 7,
-      maximumScore: 7,
+      maximumScore: 54,
       answeredCount: 8,
-      totalItems: 8,
+      totalItems: 55,
       awaitingEvaluationCount: 1,
     });
     expect(greStyleAssessment.parts[0]!.tools).not.toContainEqual(
       expect.objectContaining({ type: "calculator" }),
     );
-    expect(greStyleAssessment.parts[1]!.tools).toEqual(expect.arrayContaining([
-      { type: "calculator" },
-      { type: "reference_document", resourceId: "quantitative-reference" },
-    ]));
-    expect(greStyleAssessment.parts[2]!.tools).toEqual([]);
+    expect(greStyleAssessment.parts[2]!.tools).toContainEqual({ type: "calculator" });
+    expect(greStyleAssessment.parts[2]!.tools.some(tool => tool.type === 'reference_document')).toBe(false);
+    expect(greStyleAssessment.parts[0]!.tools).toEqual([]);
   });
 
   it("rejects duplicate item IDs and invalid references", () => {

@@ -14,7 +14,7 @@ import {
 import { createHomeToolDefinitions } from "./homeTools";
 
 function homeTools() {
-  return createHomeToolDefinitions({
+  return createHomeToolDefinitions({ openPractice: vi.fn(async () => ({ view: 'exam' })),
     installContent: vi.fn(),
     installAssessment: vi.fn(),
     readLearningSummary: vi.fn(),
@@ -52,7 +52,7 @@ describe("home authoring WebMCP contracts", () => {
     for (const section of IELTS_AUTHORING_SECTIONS) {
       const kit = getIeltsAuthoringKit(section);
       expect(kit.section).toBe(section);
-      expect(kit.documentSchema.properties?.section).toMatchObject({ const: section });
+      expect(kit.documentSchema!.properties?.section).toMatchObject({ const: section });
     }
 
     const listeningSchema = JSON.stringify(

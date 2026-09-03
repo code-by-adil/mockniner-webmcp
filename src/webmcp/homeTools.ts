@@ -7,6 +7,7 @@ import { createIeltsAuthoringToolDefinitions } from "./ieltsAuthoringTools";
 import type { ListeningAudioStatus } from '@/application/listeningAudioStatus';
 
 type HomeAuthoringToolDependencies = {
+  openPractice: import('./installedPractice').OpenInstalledPractice;
   installContent: IeltsCommands["installContent"];
   installAssessment: AssessmentApplicationCommands["installAssessment"];
   readLearningSummary: (recentLimit: number) => Promise<LearningSummary>;
@@ -16,14 +17,15 @@ type HomeAuthoringToolDependencies = {
 
 export function createHomeToolDefinitions({
   installContent,
+  openPractice,
   installAssessment,
   readLearningSummary,
   readListeningAudio,
   includeAuthoringExamples,
 }: HomeAuthoringToolDependencies): WebMCP.ModelContextTool[] {
   return [
-    ...createIeltsAuthoringToolDefinitions({ installContent, readListeningAudio, includeAuthoringExamples }),
+    ...createIeltsAuthoringToolDefinitions({ installContent, openPractice, readListeningAudio, includeAuthoringExamples }),
     ...createLearningToolDefinitions({ readLearningSummary }),
-    ...createAssessmentAuthoringToolDefinitions({ installAssessment, includeAuthoringExamples }),
+    ...createAssessmentAuthoringToolDefinitions({ installAssessment, openPractice, includeAuthoringExamples }),
   ];
 }

@@ -1,9 +1,12 @@
-import type { ListeningContentDocument, ObjectiveContentBlock, ReadingContentDocument } from '@/domain/objectiveContent'
+import { readingSupplement } from './ieltsReadingSupplement'
+import { listeningContentDocumentSchema } from '@/domain/objectiveContent'
+import listeningExample from './ieltsListeningExample.json'
+import type { ObjectiveContentBlock, ReadingContentDocument } from '@/domain/objectiveContent'
 import type { WritingContentDocument } from '@/domain/writingContent'
 
 // Original authoring-only examples, never registered as built-in practice.
 // Do not import playable documents or bundled scripts: that exposes their keys.
-// These compact examples teach the complete contract, not full exam difficulty.
+// Original practice examples teach exam structure without claiming calibration.
 type Notes = Array<[prompt: string, answer: string]>
 function noteBlocks(title: string, start: number, notes: Notes): ObjectiveContentBlock[] {
   return [
@@ -56,71 +59,62 @@ const readingPassages: Array<{ title: string; paragraphs: string[]; notes: Notes
   },
 ]
 
+function readingQuestions(index: number, passage: typeof readingPassages[number]): ObjectiveContentBlock[] {
+  if (index === 0) return [
+    ...noteBlocks(passage.title, 1, passage.notes.slice(0, 7)),
+    { type: 'group_header', title: 'Questions 8-13', instruction: 'Do the statements agree with the passage? Choose TRUE, FALSE or NOT GIVEN.' },
+    { type: 'true_false_not_given_questions', questions: [
+      { questionId: 8, questionText: 'The collection retained only the better result when it repeated a germination test.', answer: 'FALSE' },
+      { questionId: 9, questionText: 'The collection replaced local variety names with its own definitive labels.', answer: 'FALSE' },
+      { questionId: 10, questionText: 'Every donor remembered the year in which the seeds had been harvested.', answer: 'FALSE' },
+      { questionId: 11, questionText: 'Growing a variety in several gardens reduced the risk of losing its entire living stock.', answer: 'TRUE' },
+      { questionId: 12, questionText: 'The workshops were held on the first Sunday of every month.', answer: 'NOT GIVEN' },
+      { questionId: 13, questionText: 'The founders thought a currently unpopular characteristic might become useful under different conditions.', answer: 'TRUE' },
+    ] },
+  ]
+  if (index === 1) return [
+    ...noteBlocks(passage.title, 14, passage.notes.slice(0, 7)),
+    { type: 'group_header', title: 'Questions 21-23', instruction: 'Choose the correct heading for each indicated paragraph. There are more headings than questions.' },
+    { type: 'heading_matching_questions', options: ['Comparing readings under similar conditions', 'Choosing a practical sensor arrangement', 'Checking the instruments themselves', 'Replacing the bridge completely', 'The cost of a new railway'], questions: [
+      { questionId: 21, paragraphIndex: 3, label: 'Paragraph 4', answer: 'Comparing readings under similar conditions' },
+      { questionId: 22, paragraphIndex: 4, label: 'Paragraph 5', answer: 'Choosing a practical sensor arrangement' },
+      { questionId: 23, paragraphIndex: 5, label: 'Paragraph 6', answer: 'Checking the instruments themselves' },
+    ] },
+    { type: 'group_header', title: 'Questions 24-26', instruction: 'Choose the correct letter, A, B, C or D.' },
+    { type: 'mcq_questions', questions: [
+      { questionId: 24, questionText: 'Why did the engineers keep visual inspections?', options: opts(['They distrusted every sensor reading.', 'Some physical damage may be visible before vibration changes.', 'The sensors worked only during daylight.', 'Visual inspections needed no trained staff.']), answer: 'B' },
+      { questionId: 25, questionText: 'What was a concern about public communication?', options: opts(['Residents could interpret monitoring as a guarantee against failure.', 'Residents refused to use any monitored bridge.', 'Only researchers could read the published report.', 'The council had stopped responding to warnings.']), answer: 'A' },
+      { questionId: 26, questionText: 'What did the council recommend after the trial?', options: opts(['Removing engineering oversight', 'Closing the bridge permanently', 'Using monitoring to complement other observations', 'Installing a sensor at every possible location']), answer: 'C' },
+    ] },
+  ]
+  return [
+    ...noteBlocks(passage.title, 27, passage.notes.slice(0, 7)),
+    { type: 'group_header', title: 'Questions 34-37', instruction: "Do the statements agree with the writer's views? Choose YES, NO or NOT GIVEN." },
+    { type: 'yes_no_not_given_questions', questions: [
+      { questionId: 34, questionText: 'A usable donation should always be accepted regardless of storage and repair costs.', answer: 'NO' },
+      { questionId: 35, questionText: 'Punishing every equipment failure could discourage borrowers from reporting damage.', answer: 'YES' },
+      { questionId: 36, questionText: 'Every loan can safely be counted as one prevented purchase.', answer: 'NO' },
+      { questionId: 37, questionText: 'The association should open a second branch in the next year.', answer: 'NOT GIVEN' },
+    ] },
+    { type: 'group_header', title: 'Questions 38-40', instruction: 'Choose the correct letter, A, B, C or D.' },
+    { type: 'mcq_questions', questions: [
+      { questionId: 38, questionText: 'Why did volunteers ask borrowers about their intended task?', options: opts(['To charge different prices for each project', 'To carry out the work themselves', 'To collect advertising information', 'To help borrowers choose appropriate equipment']), answer: 'D' },
+      { questionId: 39, questionText: 'Why were environmental savings difficult to calculate exactly?', options: opts(['Transport used no resources.', 'Borrowers could not always know what they would otherwise have done.', 'No equipment needed repairs.', 'The association refused to gather information.']), answer: 'B' },
+      { questionId: 40, questionText: 'What is the main point of the final paragraph?', options: opts(["Several kinds of evidence are needed to describe the project's results.", 'Loan counts are the only meaningful measure.', 'Financial accounts should be abandoned.', 'Only frequently borrowed equipment has value.']), answer: 'A' },
+    ] },
+  ]
+}
+function opts(labels: string[]) { return labels.map((label, i) => ({ value: String.fromCharCode(65 + i), label })) }
+
 const reading: ReadingContentDocument = {
-  schemaVersion: 1, section: 'reading', contentKey: 'example-ielts-reading', name: 'Seeds, Bridges and Lending — Authoring Example',
+  schemaVersion: 1, section: 'reading', contentKey: 'example-ielts-reading', name: 'Seeds, bridges and lending, authoring example',
   parts: readingPassages.map((passage, index) => ({
-    id: index + 1, label: `Passage ${index + 1}`, instructionText: 'Read the passage and complete the notes.',
-    blocks: [{ type: 'passage', title: passage.title, paragraphs: passage.paragraphs }, ...noteBlocks(passage.title, index * 13 + 1, passage.notes)],
+    id: index + 1, label: `Passage ${index + 1}`, instructionText: 'Read the passage and answer the questions. Follow the instructions for each group.',
+    blocks: [{ type: 'passage', title: passage.title, paragraphs: [...passage.paragraphs, ...readingSupplement[index]!] }, ...readingQuestions(index, passage)],
   })),
 }
 
-const listeningParts: Array<{ title: string; turns: Array<[speakerId: string, text: string]>; notes: Notes }> = [
-  {
-    title: 'Booking a pottery class',
-    turns: [
-      ['adviser', 'Good afternoon, Meadow Arts. Which class would you like to book?'],
-      ['customer', 'The pottery class, please. My surname is Nolan. I would prefer Saturday.'],
-      ['adviser', 'That class starts at eleven. It costs twenty-four pounds and takes place in the annex. Please bring an apron.'],
-      ['customer', 'Is clay included? I would like to make a bowl, and I have never tried pottery before.'],
-      ['adviser', 'Yes, clay is included. I will book you into the beginner group. Your tutor is Rosa. Please pay by card when you arrive.'],
-      ['customer', 'Thank you. I will bring my apron and arrive before the class begins.'],
-    ],
-    notes: [['Class subject', 'pottery'], ['Customer surname', 'Nolan'], ['Day chosen', 'Saturday'], ['Starting hour', '11'], ['Fee in pounds', '24'],
-      ['Location', 'annex'], ['Item to bring', 'apron'], ['Material included', 'clay'], ['Tutor name', 'Rosa'], ['Payment method', 'card']],
-  },
-  {
-    title: 'Visiting a community observatory',
-    turns: [['adviser', 'Welcome to the hilltop observatory. Our public evenings run on Fridays. The main gate opens at eight, and visitors gather in the foyer. The talk lasts twenty minutes. After that, a volunteer takes you to the telescope. Please use the red torches provided; white light makes it harder to see faint objects. The roof is reached by stairs, so tell us if you need step-free access to the ground-floor viewing station. Warm blankets are available at reception. We cancel roof visits during thunderstorms, but indoor activities continue. Children must remain with an adult. Before leaving, please return your visitor badge to the box beside the exit.']],
-    notes: [['Day of public evenings', 'Fridays'], ['Gate opening hour', '8'], ['Initial meeting area', 'foyer'], ['Talk length in minutes', '20'],
-      ['Instrument used for viewing', 'telescope'], ['Colour of provided torches', 'red'], ['Route to the roof', 'stairs'], ['Warm items available', 'blankets'],
-      ['Weather that cancels roof visits', 'thunderstorms'], ['Item returned on leaving', 'badge']],
-  },
-  {
-    title: 'Planning a student field study',
-    turns: [
-      ['customer', 'For our geography project, I suggest studying erosion along the cliff path. We could work in October, before the winter storms.'],
-      ['adviser', 'Good idea. We need permission from the council, and we should mark our measurement sites on a map. A tape will be more useful than estimating distances.'],
-      ['customer', 'Let us visit weekly. We can record rainfall as well, since water may explain changes in the path.'],
-      ['adviser', 'For safety we must stay behind the fence. The college can lend us helmets for the supervised visit to the lower beach.'],
-      ['customer', 'We can present the results as a graph. Shall we send our proposal to the tutor on Monday?'],
-      ['adviser', 'Yes. We should also explain what we will do if the path is closed.'],
-    ],
-    notes: [['Process being studied', 'erosion'], ['Month proposed', 'October'], ['Organisation granting permission', 'council'], ['Document showing sites', 'map'],
-      ['Instrument for distance measurements', 'tape'], ['Visit frequency', 'weekly'], ['Weather measurement to record', 'rainfall'],
-      ['Barrier students must stay behind', 'fence'], ['Protective equipment supplied by college', 'helmets'], ['Format for presenting results', 'graph']],
-  },
-  {
-    title: 'How desert animals manage heat',
-    turns: [['customer', 'Today we will discuss adaptations to desert heat. Many small mammals are nocturnal, avoiding the hottest hours. During daylight they shelter in burrows. Large ears can help some species lose heat, because blood flows close to the surface. Pale fur reflects more sunlight than dark fur. Water is another challenge. Some animals obtain much of their moisture from seeds. Their kidneys produce concentrated urine, limiting water loss. Reptiles often seek shade rather than maintaining a constant body temperature. Researchers attach tiny sensors to track these movements. Such studies show that behaviour is as important as anatomy. Conservation plans must protect shelter, not merely count the animals.']],
-    notes: [['Activity pattern of many small mammals', 'nocturnal'], ['Daytime shelters', 'burrows'], ['Body parts that can release heat', 'ears'],
-      ['Light-coloured covering that reflects sunlight', 'fur'], ['Food supplying moisture', 'seeds'], ['Organs limiting water loss', 'kidneys'],
-      ['Cooler locations sought by reptiles', 'shade'], ['Devices researchers attach', 'sensors'], ['Factor as important as anatomy', 'behaviour'],
-      ['Habitat feature conservation must protect', 'shelter']],
-  },
-]
-
-const listening: ListeningContentDocument = {
-  schemaVersion: 1, section: 'listening', contentKey: 'example-ielts-listening', name: 'Classes, Stars and Fieldwork — Authoring Example',
-  parts: listeningParts.map((part, index) => ({ id: index + 1, label: `Part ${index + 1}`,
-    instructionText: 'Listen and complete the notes.', blocks: noteBlocks(part.title, index * 10 + 1, part.notes) })),
-  audio: { type: 'kokoro', speakers: [{ id: 'adviser', voice: 'bf_emma' }, { id: 'customer', voice: 'bm_george' }],
-    parts: listeningParts.map((part, index) => ({ partId: index + 1, segments: [
-      { type: 'silence', durationMs: 30_000, purpose: 'question_time' },
-      ...part.turns.map(([speakerId, text]) => ({ type: 'speech' as const, speakerId, text })),
-      { type: 'silence', durationMs: 20_000, purpose: 'part_transition' },
-    ] })),
-  },
-}
+const listening = listeningContentDocumentSchema.parse(listeningExample)
 
 const writing: WritingContentDocument = {
   schemaVersion: 1, section: 'writing', contentKey: 'example-ielts-writing', name: 'Travel and Shared Facilities — Authoring Example',

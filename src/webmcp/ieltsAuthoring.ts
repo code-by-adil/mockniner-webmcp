@@ -1,3 +1,4 @@
+import { examProfiles, authoringWorkflow } from '@/content/examProfiles';
 import { z } from "zod";
 import {
   KOKORO_LISTENING_AUTHORING_GUIDANCE,
@@ -36,15 +37,18 @@ const rules: Record<IeltsAuthoringSection, string[]> = {
   ],
 };
 
-export function getIeltsAuthoringKit(section: IeltsAuthoringSection, includeExamples = true) {
+export function getIeltsAuthoringKit(section: IeltsAuthoringSection, includeExamples = true, includeSchema = true) {
   return {
     section,
+    examFormat: examProfiles[section],
+    workflow: authoringWorkflow,
     rules: rules[section],
-    documentSchema: z.toJSONSchema(schemas[section], { target: "draft-07" }),
+    schemaIncluded: includeSchema || !includeExamples,
+    ...((includeSchema || !includeExamples) ? { documentSchema: z.toJSONSchema(schemas[section], { target: "draft-07" }) } : {}),
     examplesIncluded: includeExamples,
     ...(includeExamples ? { exampleDocument: getIeltsExample(section) } : {}),
     nextAction: includeExamples ?
-      "Use exampleDocument as a compact, complete structural example, not a full-length calibrated exam. It is separate from built-in practice. Choose a fresh contentKey and descriptive name, replace its content for new practice, and validate against documentSchema before calling install_ielts_practice_set. Listening returns preparation status; follow get_practice_context.listeningAudio until readyToPlay."
+      "Use the complete exampleDocument directly for example practice, or replace its content for new practice. Choose a fresh contentKey and call install_ielts_practice_set. Installation opens the exam, including Listening preparation. The returned opened flag confirms the handoff. The application validates the document; repair returned paths if needed."
       : "Examples are omitted while unfinished practice exists to protect answer keys. Create original content using the rules and documentSchema, with a fresh contentKey. Open the library before installing; content used by an unfinished attempt cannot be replaced.",
   };
 }

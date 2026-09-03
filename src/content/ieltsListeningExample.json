@@ -1,0 +1,968 @@
+{
+  "schemaVersion": 1,
+  "contentKey": "example-ielts-listening",
+  "section": "listening",
+  "name": "Harbour workshops and city sound, authoring example",
+  "parts": [
+    {
+      "id": 1,
+      "label": "Part 1",
+      "instructionText": "You will hear a caller booking a weekend course. Answer questions 1–10.",
+      "blocks": [
+        {
+          "type": "group_header",
+          "title": "Questions 1–6",
+          "instruction": "Complete the booking form. Write ONE WORD AND/OR A NUMBER for each answer."
+        },
+        {
+          "type": "completion_questions",
+          "completionType": "form_completion",
+          "title": "Harbour Craft Centre: course booking",
+          "presentation": {
+            "layout": "list"
+          },
+          "items": [
+            {
+              "questionId": 1,
+              "prefix": "Customer's surname:",
+              "answer": "Mercer",
+              "suffix": ""
+            },
+            {
+              "questionId": 2,
+              "prefix": "Chosen course:",
+              "answer": "woodwork",
+              "suffix": ""
+            },
+            {
+              "questionId": 3,
+              "prefix": "Course date:",
+              "answer": [
+                "18",
+                "18th",
+                "eighteenth"
+              ],
+              "suffix": "October"
+            },
+            {
+              "questionId": 4,
+              "prefix": "Total course fee: £",
+              "answer": [
+                "65",
+                "sixty-five"
+              ],
+              "suffix": ""
+            },
+            {
+              "questionId": 5,
+              "prefix": "Dietary requirement:",
+              "answer": "vegetarian",
+              "suffix": ""
+            },
+            {
+              "questionId": 6,
+              "prefix": "Item the customer must bring:",
+              "answer": "apron",
+              "suffix": ""
+            }
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 7–10",
+          "instruction": "Choose the correct letter, A, B or C."
+        },
+        {
+          "type": "mcq_questions",
+          "questions": [
+            {
+              "questionId": 7,
+              "questionText": "Why does the caller choose this course?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "To obtain a qualification"
+                },
+                {
+                  "value": "B",
+                  "label": "To make something useful at home"
+                },
+                {
+                  "value": "C",
+                  "label": "To prepare for a new job"
+                }
+              ],
+              "answer": "B"
+            },
+            {
+              "questionId": 8,
+              "questionText": "How will the caller travel to the centre?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "By bus"
+                },
+                {
+                  "value": "B",
+                  "label": "By bicycle"
+                },
+                {
+                  "value": "C",
+                  "label": "By car"
+                }
+              ],
+              "answer": "A"
+            },
+            {
+              "questionId": 9,
+              "questionText": "Where should participants meet?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "In the café"
+                },
+                {
+                  "value": "B",
+                  "label": "In the main workshop"
+                },
+                {
+                  "value": "C",
+                  "label": "At reception"
+                }
+              ],
+              "answer": "C"
+            },
+            {
+              "questionId": 10,
+              "questionText": "What will the centre send after payment?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "A list of tools to buy"
+                },
+                {
+                  "value": "B",
+                  "label": "A booking confirmation with a gate code"
+                },
+                {
+                  "value": "C",
+                  "label": "A printed course textbook"
+                }
+              ],
+              "answer": "B"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "label": "Part 2",
+      "instructionText": "You will hear a welcome talk for new volunteers at a community centre. Answer questions 11–20.",
+      "blocks": [
+        {
+          "type": "group_header",
+          "title": "Questions 11–14",
+          "instruction": "Choose the correct letter, A, B or C."
+        },
+        {
+          "type": "mcq_questions",
+          "questions": [
+            {
+              "questionId": 11,
+              "questionText": "What is the main purpose of today's session?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "To assign everyone a permanent role"
+                },
+                {
+                  "value": "B",
+                  "label": "To introduce the centre before volunteers choose roles"
+                },
+                {
+                  "value": "C",
+                  "label": "To assess volunteers' existing skills"
+                }
+              ],
+              "answer": "B"
+            },
+            {
+              "questionId": 12,
+              "questionText": "Why was the former station building selected?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "It was convenient for people without cars"
+                },
+                {
+                  "value": "B",
+                  "label": "It had the largest indoor hall"
+                },
+                {
+                  "value": "C",
+                  "label": "It needed very little repair"
+                }
+              ],
+              "answer": "A"
+            },
+            {
+              "questionId": 13,
+              "questionText": "What should a volunteer do if unable to attend a shift?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "Find a replacement using social media"
+                },
+                {
+                  "value": "B",
+                  "label": "Leave a note at reception"
+                },
+                {
+                  "value": "C",
+                  "label": "Telephone the duty coordinator"
+                }
+              ],
+              "answer": "C"
+            },
+            {
+              "questionId": 14,
+              "questionText": "What must volunteers do before taking photographs?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "Ask only the centre manager"
+                },
+                {
+                  "value": "B",
+                  "label": "Get permission from the people shown"
+                },
+                {
+                  "value": "C",
+                  "label": "Wait until the centre is closed"
+                }
+              ],
+              "answer": "B"
+            }
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 15–20",
+          "instruction": "Match each area with its MAIN volunteer task. Select the corresponding option. Each option is used once."
+        },
+        {
+          "type": "feature_matching_questions",
+          "title": "Volunteer tasks around the centre",
+          "options": [
+            "A — Check donated items for damage",
+            "B — Help visitors complete online forms",
+            "C — Sort materials by colour",
+            "D — Record how many visitors attend",
+            "E — Label plants with their names",
+            "F — Set up chairs for performances",
+            "G — Prepare refreshments",
+            "H — Repair electrical equipment"
+          ],
+          "questions": [
+            {
+              "questionId": 15,
+              "label": "Welcome desk",
+              "answer": "D — Record how many visitors attend"
+            },
+            {
+              "questionId": 16,
+              "label": "Digital room",
+              "answer": "B — Help visitors complete online forms"
+            },
+            {
+              "questionId": 17,
+              "label": "Exchange room",
+              "answer": "A — Check donated items for damage"
+            },
+            {
+              "questionId": 18,
+              "label": "Garden terrace",
+              "answer": "E — Label plants with their names"
+            },
+            {
+              "questionId": 19,
+              "label": "Textile studio",
+              "answer": "C — Sort materials by colour"
+            },
+            {
+              "questionId": 20,
+              "label": "Assembly hall",
+              "answer": "F — Set up chairs for performances"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "label": "Part 3",
+      "instructionText": "You will hear two students discussing a research project with their tutor. Answer questions 21–30.",
+      "blocks": [
+        {
+          "type": "group_header",
+          "title": "Questions 21–24",
+          "instruction": "Choose the correct letter, A, B or C."
+        },
+        {
+          "type": "mcq_questions",
+          "questions": [
+            {
+              "questionId": 21,
+              "questionText": "Why did the students abandon their original project?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "They could not access reliable records"
+                },
+                {
+                  "value": "B",
+                  "label": "Another group had already chosen the topic"
+                },
+                {
+                  "value": "C",
+                  "label": "The tutor thought the topic was too simple"
+                }
+              ],
+              "answer": "A"
+            },
+            {
+              "questionId": 22,
+              "questionText": "What will their revised project investigate?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "The cheapest food sold on campus"
+                },
+                {
+                  "value": "B",
+                  "label": "Students' reasons for choosing reusable cups"
+                },
+                {
+                  "value": "C",
+                  "label": "The effect of signs on returning reusable cups"
+                }
+              ],
+              "answer": "C"
+            },
+            {
+              "questionId": 23,
+              "questionText": "What does the tutor identify as the main weakness of their pilot?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "The signs were too small to read"
+                },
+                {
+                  "value": "B",
+                  "label": "The observation periods were not comparable"
+                },
+                {
+                  "value": "C",
+                  "label": "There were too few types of cup"
+                }
+              ],
+              "answer": "B"
+            },
+            {
+              "questionId": 24,
+              "questionText": "How will the students reduce observer bias?",
+              "options": [
+                {
+                  "value": "A",
+                  "label": "Ask café staff to guess the results"
+                },
+                {
+                  "value": "B",
+                  "label": "Rely entirely on participants' memories"
+                },
+                {
+                  "value": "C",
+                  "label": "Use the same written counting rules"
+                }
+              ],
+              "answer": "C"
+            }
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 25–26",
+          "instruction": "Choose TWO letters, A–E."
+        },
+        {
+          "type": "multiple_selection_question",
+          "questionNumber": "25–26",
+          "questionIds": [
+            25,
+            26
+          ],
+          "questionText": "Which TWO changes does the tutor recommend for the questionnaire?",
+          "maxSelections": 2,
+          "options": [
+            {
+              "value": "A",
+              "label": "Remove the question about age"
+            },
+            {
+              "value": "B",
+              "label": "Add a question about the return point's location"
+            },
+            {
+              "value": "C",
+              "label": "Ask respondents for their full names"
+            },
+            {
+              "value": "D",
+              "label": "Replace written questions with interviews"
+            },
+            {
+              "value": "E",
+              "label": "Allow respondents to give a reason in their own words"
+            }
+          ],
+          "answers": [
+            "B",
+            "E"
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 27–30",
+          "instruction": "Complete the sentences. Write ONE WORD ONLY for each answer."
+        },
+        {
+          "type": "completion_questions",
+          "completionType": "sentence_completion",
+          "title": "Final research arrangements",
+          "presentation": {
+            "layout": "list"
+          },
+          "items": [
+            {
+              "questionId": 27,
+              "prefix": "Written permission must come from the café",
+              "answer": "manager",
+              "suffix": "."
+            },
+            {
+              "questionId": 28,
+              "prefix": "During observations, the students will also record the",
+              "answer": "weather",
+              "suffix": "."
+            },
+            {
+              "questionId": 29,
+              "prefix": "Before analysis, responses will be stored in a",
+              "answer": "spreadsheet",
+              "suffix": "."
+            },
+            {
+              "questionId": 30,
+              "prefix": "The final presentation will end with practical",
+              "answer": "recommendations",
+              "suffix": "."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "label": "Part 4",
+      "instructionText": "You will hear a lecture about studying sound in urban public spaces. Answer questions 31–40.",
+      "blocks": [
+        {
+          "type": "group_header",
+          "title": "Questions 31–35",
+          "instruction": "Complete the notes. Write ONE WORD ONLY for each answer."
+        },
+        {
+          "type": "completion_questions",
+          "completionType": "note_completion",
+          "title": "Understanding urban soundscapes",
+          "presentation": {
+            "layout": "list"
+          },
+          "items": [
+            {
+              "questionId": 31,
+              "prefix": "A soundscape includes people's",
+              "answer": "perceptions",
+              "suffix": "of the sounds around them."
+            },
+            {
+              "questionId": 32,
+              "prefix": "Identical sounds may be evaluated differently depending on the",
+              "answer": "context",
+              "suffix": "."
+            },
+            {
+              "questionId": 33,
+              "prefix": "The example study compared three public",
+              "answer": "squares",
+              "suffix": "."
+            },
+            {
+              "questionId": 34,
+              "prefix": "The researchers balanced participant groups by age and",
+              "answer": "familiarity",
+              "suffix": "with each location."
+            },
+            {
+              "questionId": 35,
+              "prefix": "Alongside sound measurements, observers counted",
+              "answer": "pedestrians",
+              "suffix": "."
+            }
+          ]
+        },
+        {
+          "type": "group_header",
+          "title": "Questions 36–40",
+          "instruction": "Complete the flow chart. Write ONE WORD ONLY for each answer."
+        },
+        {
+          "type": "completion_questions",
+          "completionType": "flow_chart_completion",
+          "title": "From recordings to design proposals",
+          "presentation": {
+            "layout": "flowchart"
+          },
+          "items": [
+            {
+              "questionId": 36,
+              "prefix": "Make recordings using identical",
+              "answer": "microphones",
+              "suffix": "at every site."
+            },
+            {
+              "questionId": 37,
+              "prefix": "Remove samples affected by strong",
+              "answer": "wind",
+              "suffix": "."
+            },
+            {
+              "questionId": 38,
+              "prefix": "Invite participants to mark a route on a",
+              "answer": "map",
+              "suffix": "."
+            },
+            {
+              "questionId": 39,
+              "prefix": "Compare numerical ratings with comments from",
+              "answer": "interviews",
+              "suffix": "."
+            },
+            {
+              "questionId": 40,
+              "prefix": "Test a temporary design before recommending a",
+              "answer": "permanent",
+              "suffix": "change."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "audio": {
+    "type": "kokoro",
+    "speakers": [
+      {
+        "id": "adviser",
+        "voice": "bf_emma"
+      },
+      {
+        "id": "caller",
+        "voice": "bm_george"
+      },
+      {
+        "id": "coordinator",
+        "voice": "af_heart"
+      },
+      {
+        "id": "maya",
+        "voice": "bf_emma"
+      },
+      {
+        "id": "leo",
+        "voice": "am_fenrir"
+      },
+      {
+        "id": "tutor",
+        "voice": "bm_george"
+      },
+      {
+        "id": "lecturer",
+        "voice": "bf_emma"
+      }
+    ],
+    "parts": [
+      {
+        "partId": 1,
+        "segments": [
+          {
+            "type": "silence",
+            "durationMs": 30000,
+            "purpose": "question_time"
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "Good morning, Harbour Craft Centre. This is Anna speaking. How can I help?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "caller",
+            "text": "Hello. I picked up your weekend course leaflet at the library, and I'd like to book a place. I haven't used the centre before, so could you explain how the booking works?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "Of course. I'll take a few details first, check the available dates, and then send you a payment link. Could I have your surname?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "caller",
+            "text": "It's Mercer. That's M, E, R, C, E, R. My first name is Daniel. People sometimes put an extra letter in my surname, so thanks for checking."
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "Thank you, Daniel. We have several courses this autumn. The pottery sessions are nearly full, but there are still places in printmaking and woodwork. Were you interested in one of those?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "caller",
+            "text": "Woodwork, please. I enjoyed pottery at school, but this time I'd like to learn to work with timber. I don't have any experience with the machines, though."
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "That's fine. The introductory course uses hand tools, and the tutor demonstrates everything first. Now, the leaflet lists the eleventh of October, but that date has filled up. We added another session on the eighteenth of October."
+          },
+          {
+            "type": "speech",
+            "speakerId": "caller",
+            "text": "The eighteenth is actually better for me. I'll be visiting my sister the previous weekend. Is it a full-day course?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "Yes. It begins at half past nine, with a break for lunch, and finishes at four. The price in the old leaflet is sixty pounds, but the current total is sixty-five pounds. That includes all the timber and the use of our tools; there isn't a separate materials charge."
+          },
+          {
+            "type": "speech",
+            "speakerId": "caller",
+            "text": "Sixty-five is fine. Does it include lunch too, or should I bring something?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "A light lunch is included. We ask everyone about dietary requirements when they book so our café can prepare enough food."
+          },
+          {
+            "type": "speech",
+            "speakerId": "caller",
+            "text": "Could you put me down for vegetarian, please? I eat dairy products, so there's no need for a special milk or anything like that."
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "Certainly. We'll provide safety glasses and work gloves. The only extra item you need to bring is an apron. Any ordinary kitchen one will do; it's mainly to protect your clothes from glue."
+          },
+          {
+            "type": "speech",
+            "speakerId": "caller",
+            "text": "I've got one at home. I nearly bought gloves yesterday, so I'm glad I rang first."
+          },
+          {
+            "type": "silence",
+            "durationMs": 25000,
+            "purpose": "question_time"
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "Can I ask what attracted you to the course? It helps the tutor understand what participants hope to achieve."
+          },
+          {
+            "type": "speech",
+            "speakerId": "caller",
+            "text": "Well, I work in an office and I'm not planning to change careers. I noticed that some longer courses offer a certificate, but that isn't important to me either. We have an awkward little space beside our sofa, and I want to make a small shelf that actually fits. It would be satisfying to produce something we can use every day."
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "That sounds like a sensible first project. You won't build the whole shelf during this session, but you'll practise measuring and joining pieces. Have you worked out how you'll get here?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "caller",
+            "text": "I usually cycle across town, but my bicycle is being repaired. My partner needs the car that day, so I'll take the bus. Does the route fourteen stop nearby?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "Yes, ask for Harbour Road. The stop is just beyond our entrance, so you'll walk back a little. Some online maps show the old entrance by the café, but that gate is now for deliveries."
+          },
+          {
+            "type": "speech",
+            "speakerId": "caller",
+            "text": "Right. Once I'm inside, should I head straight to the workshop?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "Please wait at reception. The workshop needs to remain empty while the tutor sets up. There's seating at reception, and she'll collect everyone together. The café opens later, so don't arrange to meet there."
+          },
+          {
+            "type": "speech",
+            "speakerId": "caller",
+            "text": "Understood. And what happens after I use the payment link?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "You'll receive a booking confirmation by email, with the gate code. Keep that message on your phone so you can enter if reception staff are helping someone elsewhere. You don't need to buy any tools, and there isn't a textbook to collect. We'll give you a few practice sheets during the session."
+          },
+          {
+            "type": "speech",
+            "speakerId": "caller",
+            "text": "That's clear, thank you. I'll pay this evening when I'm home and can check my diary properly."
+          },
+          {
+            "type": "speech",
+            "speakerId": "adviser",
+            "text": "No problem. We'll hold your place until tomorrow afternoon. We look forward to seeing you."
+          },
+          {
+            "type": "silence",
+            "durationMs": 20000,
+            "purpose": "part_transition"
+          }
+        ]
+      },
+      {
+        "partId": 2,
+        "segments": [
+          {
+            "type": "silence",
+            "durationMs": 30000,
+            "purpose": "question_time"
+          },
+          {
+            "type": "speech",
+            "speakerId": "coordinator",
+            "text": "Hello, everyone, and welcome to Riverside Community Centre. I'm Elena, the volunteer coordinator. Thank you for giving up part of your Saturday to visit us. Some of you have volunteered elsewhere for years, while others are thinking about trying it for the first time. Today's visit isn't an interview or a skills test, and you won't leave with a permanent job that you've had no chance to consider. The aim is to show you how the centre works before you choose a role. At the end, you'll be able to sign up for a short trial session in an area that interests you.\n\nYou might recognise this building as the former railway station. When the council offered us a choice of properties, there was a much larger hall on the edge of town. That would have given us more space, but people without their own transport would have struggled to reach it. This building is close to several bus routes and within walking distance of two residential neighbourhoods. That accessibility was the deciding factor. It certainly wasn't ready to use immediately: repairing the roof took several months.\n\nBefore we look around, there are two procedures I need to explain. Once you agree to a shift, we rely on you to be here. Of course, people get ill and family arrangements change. If you can't attend, telephone the duty coordinator. You'll find the number on your volunteer card. A note left at reception might not be seen until after your shift has begun. Please don't try to recruit an unfamiliar replacement through social media either, because all volunteers need an introduction to our procedures.\n\nThe other point concerns photographs. We love showing the work that takes place here, but a visitor may have a good reason not to appear in a public picture. Before taking a photograph, get permission from the people who will be shown. A manager's general approval isn't a substitute for that individual consent. This applies during evening events as well as daytime activities."
+          },
+          {
+            "type": "silence",
+            "durationMs": 25000,
+            "purpose": "question_time"
+          },
+          {
+            "type": "speech",
+            "speakerId": "coordinator",
+            "text": "Now let me describe six areas where you could help. We begin at the welcome desk, just beside the entrance. People often assume that volunteers there spend the day making tea. Our paid café team handles refreshments. The main volunteer task at the desk is recording attendance: a simple count of how many visitors come through. We don't ask you to collect everyone's personal details, but accurate totals help us plan opening hours.\n\nNext is the digital room. We have computers for visitors who don't have internet access at home. The equipment is maintained by a contractor, so you won't be repairing electrical devices. Volunteers sit alongside visitors and help them complete online forms, perhaps for a library membership or a local activity. You explain what a field is asking for; the visitor enters any private information themselves.\n\nAcross the corridor is the exchange room, where residents leave household items they no longer need. Before an item goes on a shelf, volunteers check it for damage. A cracked mug or a chair with a loose leg should be set aside, even if it looks attractive. We have a separate team to decide what can be repaired. Your initial inspection prevents unsafe items from being taken home.\n\nThrough those glass doors is the garden terrace. A gardening club does the watering and the heavier seasonal work. Our volunteers' main responsibility is making and attaching labels with the names of plants. Visitors often want to know what they could grow in a small space, so a clearly named example is much more helpful than a bed of anonymous leaves.\n\nUpstairs, the textile studio receives bags of leftover fabric. Unlike a shop, we don't arrange everything by price or manufacturer. Volunteers sort the material by colour, so workshop leaders can quickly find what they need for a group project. Don't worry if you can't identify different fibres yet; that isn't required for this task.\n\nFinally, we have the assembly hall. It hosts drama, music, and community celebrations. The stage equipment is handled by trained staff. Volunteers set up chairs for performances, following a plan that keeps the aisles clear. The layout changes between events, so please use that day's plan rather than copying what you remember from the previous week.\n\nWe'll now walk through the building in the same order. Please ask questions as we go. You can choose a trial in more than one area, and you're welcome to come back another day before making a decision."
+          },
+          {
+            "type": "silence",
+            "durationMs": 20000,
+            "purpose": "part_transition"
+          }
+        ]
+      },
+      {
+        "partId": 3,
+        "segments": [
+          {
+            "type": "silence",
+            "durationMs": 30000,
+            "purpose": "question_time"
+          },
+          {
+            "type": "speech",
+            "speakerId": "tutor",
+            "text": "Come in, Maya and Leo. I've read your revised outline. Before we discuss it, tell me what happened to the original proposal about food waste."
+          },
+          {
+            "type": "speech",
+            "speakerId": "maya",
+            "text": "We planned to compare the café's waste records from this year and last year. But when we spoke to the staff, we found that the old figures mixed food waste with packaging. Several weeks were missing as well. We couldn't get reliable records, so a comparison would have been misleading."
+          },
+          {
+            "type": "speech",
+            "speakerId": "leo",
+            "text": "Another group is studying food choices, but that wasn't why we changed. Our topics wouldn't have overlapped much. We still wanted a project based in the café, because we can observe something happening in a real setting."
+          },
+          {
+            "type": "speech",
+            "speakerId": "tutor",
+            "text": "That's a reasonable response to the problem. What exactly are you proposing now? The outline mentions reusable cups, but there are several different questions you could ask about those."
+          },
+          {
+            "type": "speech",
+            "speakerId": "leo",
+            "text": "At first we thought of asking why people choose them, perhaps comparing their price with disposable cups. Then we noticed that people sometimes leave reusable cups on ordinary tables instead of taking them back. We want to find out whether signs affect how often the cups are returned to the proper point."
+          },
+          {
+            "type": "speech",
+            "speakerId": "maya",
+            "text": "We'll compare the return rate with the current sign and with a new sign showing a clear picture of the return point. We won't change the deposit or the price of drinks during the project. Otherwise, it would be hard to know which change caused any difference."
+          },
+          {
+            "type": "speech",
+            "speakerId": "tutor",
+            "text": "Good. You ran a small pilot last week. Was anything unexpected?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "maya",
+            "text": "The new sign seemed much more successful. We counted returns on Monday morning with the old sign, then tried the new one on Thursday lunchtime. But Leo thought we might be comparing different groups of customers."
+          },
+          {
+            "type": "speech",
+            "speakerId": "tutor",
+            "text": "He's right. The main weakness is that your observation periods weren't comparable. At lunchtime, people may sit longer or move around differently. The number of cup designs isn't the problem, and from your photograph both signs are large enough. Match the periods as closely as you can before drawing conclusions."
+          },
+          {
+            "type": "speech",
+            "speakerId": "leo",
+            "text": "We can observe the same time of day across several weekdays and alternate the signs. There's another problem: we sometimes disagree about what counts as a return. If someone puts a cup beside the tray instead of in it, Maya counts that and I don't."
+          },
+          {
+            "type": "speech",
+            "speakerId": "tutor",
+            "text": "Then write counting rules that you both use. Define the boundary of the return point and decide how you'll treat unusual cases before collecting the main data. You can't remove every possible source of bias, but applying the same written rules will reduce the influence of personal judgement. Asking staff to guess what happened wouldn't solve it."
+          },
+          {
+            "type": "silence",
+            "durationMs": 25000,
+            "purpose": "question_time"
+          },
+          {
+            "type": "speech",
+            "speakerId": "maya",
+            "text": "Could we also get your advice on the questionnaire? We kept it short because people won't want to stop for long. It asks their age group, whether they've used the café before, and how easy the system was to use."
+          },
+          {
+            "type": "speech",
+            "speakerId": "tutor",
+            "text": "The age-group question is fine as it stands. You don't need exact ages. I would add a question about where the return point is located. Someone might understand the sign but still find the point inconvenient on their way out."
+          },
+          {
+            "type": "speech",
+            "speakerId": "leo",
+            "text": "So ask whether the location was convenient, rather than whether they liked the sign. We also wondered about collecting names, in case we wanted to ask a follow-up question."
+          },
+          {
+            "type": "speech",
+            "speakerId": "tutor",
+            "text": "Don't collect full names for this small anonymous survey. There's no need. The other change I'd recommend is an open question where people can explain a reason in their own words. Your current tick boxes may leave out something you haven't thought of. You can keep the written questionnaire; replacing the whole thing with interviews would create too much work."
+          },
+          {
+            "type": "speech",
+            "speakerId": "maya",
+            "text": "That makes sense. A short blank space at the end should be enough, and we can say it's optional. We don't want people to feel they have to write a paragraph."
+          },
+          {
+            "type": "speech",
+            "speakerId": "tutor",
+            "text": "Exactly. Now let's make sure the practical arrangements are settled before you begin."
+          },
+          {
+            "type": "silence",
+            "durationMs": 20000,
+            "purpose": "question_time"
+          },
+          {
+            "type": "speech",
+            "speakerId": "leo",
+            "text": "We spoke informally to someone serving drinks, and she thought the café would be happy to help. Is that enough permission?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "tutor",
+            "text": "No. Get written permission from the café manager. A member of the serving team can't approve a project on behalf of the whole operation. Send the manager your proposed dates and explain that you won't block the counter or photograph individual customers."
+          },
+          {
+            "type": "speech",
+            "speakerId": "maya",
+            "text": "We'll do that today. Apart from the time and the number of cups, is there anything else we should record during each session?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "tutor",
+            "text": "Record the weather. On a wet day, people may remain indoors, while in sunshine they might carry drinks outside and return them later. You don't need detailed measurements; consistent categories and a brief note will be enough."
+          },
+          {
+            "type": "speech",
+            "speakerId": "leo",
+            "text": "I'll add that to our observation sheet. We planned to put the paper questionnaires straight into separate folders for each day, then do the calculations at the end."
+          },
+          {
+            "type": "speech",
+            "speakerId": "tutor",
+            "text": "Keep the originals, but enter the responses into a spreadsheet before you start the analysis. Give each response a number, and check a sample of the entries against the paper forms. That will make mistakes easier to catch and let you compare the different observation periods."
+          },
+          {
+            "type": "speech",
+            "speakerId": "maya",
+            "text": "For the presentation, we'll explain the method, show the return rates, and discuss the limitations. Should we finish by describing a bigger research project?"
+          },
+          {
+            "type": "speech",
+            "speakerId": "tutor",
+            "text": "Mention future research briefly if you wish, but end with practical recommendations for the café. Those should follow from your evidence. If your results are inconclusive, you might recommend a longer trial rather than claiming that one sign definitely works better."
+          },
+          {
+            "type": "speech",
+            "speakerId": "leo",
+            "text": "All right. We'll revise the questionnaire and the counting rules, then send you the final plan once the manager has approved the dates."
+          },
+          {
+            "type": "silence",
+            "durationMs": 20000,
+            "purpose": "part_transition"
+          }
+        ]
+      },
+      {
+        "partId": 4,
+        "segments": [
+          {
+            "type": "silence",
+            "durationMs": 45000,
+            "purpose": "question_time"
+          },
+          {
+            "type": "speech",
+            "speakerId": "lecturer",
+            "text": "Today we're going to examine how researchers study sound in urban public spaces. When people discuss the acoustic quality of a city, they often begin with a question about loudness: how many decibels were measured, and whether the level exceeded a particular target. Measurements are useful, but they don't tell the whole story. The term soundscape includes people's perceptions of the sounds around them, not merely the physical signals that a recording device captures. That distinction matters because planning decisions are ultimately about places where people live, work, and spend time.\n\nImagine hearing conversation from a nearby group. In one situation, it may make a place feel welcoming and lively. In another, it may interrupt a task that requires concentration. The sound itself could be very similar, yet the evaluation changes with the context. For that reason, a study that asks only whether a sound is pleasant or unpleasant, without considering what participants are doing, risks producing an oversimplified answer. Nor should researchers assume that silence is everyone's ideal. A completely quiet public place may feel peaceful to one person and uncomfortable to another.\n\nTo make the methods more concrete, I will use an illustrative study designed for this lecture. It isn't a published experiment, and the details are fictional, but it shows the decisions a research team would need to make. In this example, the team compared three public squares within the same city. They did not include enclosed shopping centres or residential streets, because those spaces serve different functions. The chosen sites varied in layout and nearby activity, but each allowed people to sit, pass through, or meet others without buying anything."
+          },
+          {
+            "type": "speech",
+            "speakerId": "lecturer",
+            "text": "Participant selection came next. Simply stopping the first twenty people at each location would have been convenient, but it could have created very different groups. The team therefore balanced the groups by age and by familiarity with each location. Someone who crosses a square every morning may interpret a recurring sound differently from a first-time visitor. Asking whether people knew the location also helped the researchers avoid treating surprise as a permanent response to the environment. Income was not used as a balancing category in this particular exercise.\n\nThe field observations combined several kinds of information. Alongside sound measurements, observers counted pedestrians. This gave the team a record of how busy each place was during a recording. A burst of conversation during a crowded lunch period could then be considered alongside the number of people present, rather than being interpreted as a fixed property of the square. Vehicle movements were described in brief notes, but pedestrians were the group counted systematically. The observers also recorded the time so that comparisons could be made between reasonably similar periods.\n\nLet's now move through the workflow from collecting recordings to making design proposals. The first requirement was to make recordings using identical microphones at every site. If one device emphasised certain frequencies more strongly than another, apparent differences between sites might partly reflect the equipment. The team kept the recording settings and the height of the devices consistent as well. This did not make the locations identical; it made the method used to document them more comparable.\n\nAfter collection, the recordings were checked. Samples affected by strong wind were removed. Wind moving across the recording equipment can create interference that does not represent what a person normally notices while standing in the square. This exclusion rule had to be set out clearly and applied to every site. Researchers should not discard a sample simply because its contents fail to support an idea they hoped to demonstrate. Transparent rules are especially important when judgement is involved."
+          },
+          {
+            "type": "speech",
+            "speakerId": "lecturer",
+            "text": "The next stage linked what was recorded to people's movement through the place. Participants were invited to mark a route on a map. They could indicate where they entered, where they paused, and which area they preferred to avoid. A single rating for an entire square might hide a large difference between a sheltered seating area and a busy edge. The marked route gave the researchers a way to discuss particular locations without expecting participants to remember technical names for them.\n\nParticipants then gave numerical ratings for their experience. But the team did not treat those numbers as self-explanatory. They compared the ratings with comments from interviews. For example, two people might choose the same low rating for different reasons: one could find a sound intrusive, while the other could think the place felt deserted. An average score alone would conceal that distinction. The interviews also provided an opportunity to check whether participants understood the rating question in the way the researchers intended.\n\nFinally, the study team considered possible changes. Their task was not simply to remove whichever sound had received the most negative comments. They needed to consider how a change might affect other uses of the square and whether it would move a problem elsewhere. They proposed testing a temporary design before recommending a permanent change. Moveable seating, for instance, could be tried in a different position before a city committed to rebuilding an area. The same observation methods could then be used to examine the trial.\n\nThe general lesson is that measurements, descriptions, and people's accounts answer different questions. None should automatically replace the others. A careful study states what was measured, explains how participants were selected, and keeps its conclusions within the limits of its evidence. When planners can see both the pattern in the data and the reasons people give, they are better placed to decide what to test next."
+          },
+          {
+            "type": "silence",
+            "durationMs": 45000,
+            "purpose": "part_transition"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -144,6 +144,6 @@ export function getAssessmentAuthoringKit(
   return {
     ...structuredClone(getAssessmentAuthoringGuide(templateId)),
     examplePackage: structuredClone(examplePackage),
-    nextAction: "Edit examplePackage, then pass the complete object to install_assessment.",
+    nextAction: "Use examplePackage as the complete format model. For new practice replace its content and choose a fresh packageId. Pass the complete object to install_assessment, which validates, saves and opens it. Check opened in the result; if false, follow openAction and openingError. Set openAfterInstall:false only for a save-for-later request.",
   };
 }

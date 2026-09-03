@@ -14,6 +14,7 @@ export type ListeningAudioBarProps = {
 };
 
 export type ListeningAudioUiStatus = {
+  needsUserStart?: boolean;
   state: "loading" | "playing" | "paused" | "error" | "unavailable";
   audioPart: number | null;
   isInSilence: boolean;

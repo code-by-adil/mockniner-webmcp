@@ -7,7 +7,7 @@ const inputSchema = z.strictObject({ contentKey: z.string().min(1).max(100) })
 export function createListeningAudioRetryTool(read: () => ListeningAudioStatus, retry: () => void): WebMCP.ModelContextTool {
   return {
     name: 'retry_ielts_listening_audio', title: 'Retry Listening audio preparation',
-    description: 'Restart failed audio preparation for the active Listening contentKey, reusing saved chunks. Read listeningAudio in get_practice_context first. Returns immediately with current status; generation continues locally. Does not restart the test, change answers or start playback. Retry is available only after a generation error.',
+    description: 'Restart failed audio preparation for the active Listening contentKey, reusing saved chunks. Read listeningAudio in get_practice_context first. Returns immediately with current status; generation continues locally. Keeps the current attempt and answers. In an open exam, playback can resume as saved or new chunks become available. Retry is available only after a generation error.',
     inputSchema: z.toJSONSchema(inputSchema, { target: 'draft-07' }),
     annotations: { readOnlyHint: false, untrustedContentHint: true },
     execute: async (input, options) => {

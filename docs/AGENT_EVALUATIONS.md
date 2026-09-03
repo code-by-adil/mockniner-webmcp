@@ -12,7 +12,7 @@ The model suite runs as development tooling, separately from the application.
 
 ## What is evaluated
 
-The source manifest is `agent-evals/authoring-cases.json`. It contains six user
+The source manifest is `agent-evals/authoring-cases.json`. It contains nine user
 requests and one focused recovery case:
 
 1. a ten-question GRE verbal diagnostic with a passage and two three-blank Text
@@ -21,8 +21,11 @@ requests and one focused recovery case:
 3. a biology quiz without references or a calculator;
 4. a writing assessment with four rubric criteria;
 5. native IELTS Reading practice;
-6. an unsupported request to select a sentence directly in a passage;
-7. repair of an invalid package using a returned `error.issues` path.
+6. a short request for a complete IELTS Listening test;
+7. a short request for a full SAT test;
+8. a short request for a full GRE test;
+9. an unsupported request to select a sentence directly in a passage;
+10. repair of an invalid package using a returned `error.issues` path.
 
 The fixture generator calls the same production home-tool composer as the
 runtime. That composer supplies the native IELTS authoring kit and installation,
@@ -30,11 +33,13 @@ the compact IELTS learning summary, the universal authoring kit, and universal
 installation. The evaluation layer does not keep its own tool catalog. Static
 fixtures cover this authoring subset. Live browser runs discover the full
 registered catalog. Each tool checks the current practice state before allowing
-an action.
+an action. The default kit examples and optional full schemas come from
+production code. Static mocks cannot establish browser navigation success.
 
 The first four requests must call the relevant universal authoring kit and then
-`install_assessment`. IELTS Reading must call `get_ielts_authoring_kit` for Reading
-and then `install_ielts_practice_set`. Read-only context, library, history,
+`install_assessment`. IELTS Reading and Listening must call `get_ielts_authoring_kit` for the requested
+section and then `install_ielts_practice_set`. Successful installation must
+report `opened: true`; saving alone is not a completed handoff. Read-only context, library, history,
 activity, learning-summary and installed-content calls are allowed around those
 steps. Wrong-family writes, extra mutations and incorrect ordering fail.
 Passage-text selection must read the GRE-style kit and explain the unsupported
@@ -47,7 +52,8 @@ against the application schema. It also checks the request-specific contract:
 - passage and data-table presence;
 - calculator and reference scope;
 - four writing criteria and agent scoring;
-- valid native IELTS Reading structure;
+- valid native IELTS Reading and Listening structure;
+- full SAT and GRE question counts and current section timings;
 - repair of the rejected package;
 - no positive claim of official GRE or ETS scoring.
 
@@ -100,7 +106,8 @@ Set `AGENT_EVAL_URL` to test another local or deployed URL. The script uses the
 pinned upstream browser runner with application result assertions. Every call
 must return `ok: true`; an `{ ok: false, error }` response stops that journey.
 The first page reads the learning summary and authoring kits, then installs one
-universal assessment and one native IELTS Writing set. A fresh page in the same
+universal assessment and one native IELTS Writing set with `openAfterInstall: false`
+to isolate the save-and-readback journey. A fresh page in the same
 temporary browser profile reads back the complete universal package and the
 saved Writing library entry, including its active selection.
 
@@ -202,3 +209,19 @@ tool-schema mapping, browser launch flags, trajectory matching, and report forma
 The checks follow [Chrome's evaluation guidance](https://developer.chrome.com/docs/ai/webmcp/evals)
 for tool outputs, visible changes, failures and multi-step user journeys. Browser
 transport completion alone is not an application success assertion.
+
+
+## Short-prompt handoff checks
+
+The Listening, full SAT and full GRE cases use ordinary short prompts without
+schema or workflow instructions. Their expected install results include
+`opened: true`, and the package validator checks full question counts and timing.
+These are model evaluations when run with a configured backend, not evidence
+that a model passed merely because the fixtures compile.
+
+Deterministic tests cover default opening, explicit save-only requests,
+cancellation after a committed save, opening errors with saved-content recovery,
+and Listening timer suspension during preparation and buffering. Browser checks
+must separately observe the exam, the saved attempt after reload, and locally
+continuing audio. Do not claim question-generation latency from a timed
+installation call; that call receives content the model has already written.

@@ -1,3 +1,4 @@
+import { openAfterInstallSchema, readInstallRequest, openInstalledPractice, type OpenInstalledPractice } from './installedPractice'
 import { z } from "zod";
 import { assessmentReadFields, readAssessmentSubmission } from '@/domain/assessmentRead';
 import { readSelectedSubmission, submissionSelectionSchema } from './submissionSelection';
@@ -27,6 +28,7 @@ import {
 const getAuthoringKitInputSchema = {
   type: "object",
   properties: {
+    includeSchema: { type: "boolean", default: false, description: "Include the full package JSON Schema for structures beyond the complete example." },
     template: {
       type: "string",
       enum: ASSESSMENT_AUTHORING_TEMPLATE_IDS,
@@ -54,20 +56,21 @@ type AssessmentToolDependencies = {
 
 export function createAssessmentAuthoringToolDefinitions({
   installAssessment,
+  openPractice,
   includeAuthoringExamples = () => true,
-}: { installAssessment: AssessmentApplicationCommands["installAssessment"]; includeAuthoringExamples?: () => boolean }): WebMCP.ModelContextTool[] {
+}: { openPractice: OpenInstalledPractice; installAssessment: AssessmentApplicationCommands["installAssessment"]; includeAuthoringExamples?: () => boolean }): WebMCP.ModelContextTool[] {
   return [
     {
       name: "get_assessment_authoring_kit",
       title: "Get universal assessment authoring kit",
       description:
-        "Return universal engine capabilities, limits, rules and package schema. Includes one complete example package only when no unfinished practice exists; otherwise returns guidance without examples to protect answer keys. Choose the closest template for the requested practice.",
+        "Return universal engine capabilities and a complete original example: sat-style has 98 questions in four modules; gre-style has an Issue essay and 54 questions in five sections. Exam-owner format facts, timings and question rules are included. Use the matching kit directly for routine SAT/GRE authoring without web research. Use minimal-objective or writing-with-rubric for custom practice; research uncovered formats when needed. install_assessment saves and opens by default. Full schema is opt-in with includeSchema:true. Examples are hidden during unfinished practice.",
       inputSchema: getAuthoringKitInputSchema,
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async (input, options) => {
         const signal = getToolExecutionSignal(options);
         throwIfCancelled(signal);
-        const parsed = z.object({ template: z.enum(ASSESSMENT_AUTHORING_TEMPLATE_IDS) }).strict().safeParse(input);
+        const parsed = z.object({ template: z.enum(ASSESSMENT_AUTHORING_TEMPLATE_IDS), includeSchema: z.boolean().default(false) }).strict().safeParse(input);
         if (!parsed.success) {
           return toolFailure(
             "INVALID_AUTHORING_TEMPLATE",
@@ -83,7 +86,8 @@ export function createAssessmentAuthoringToolDefinitions({
             nextAction: "Examples are omitted while unfinished practice exists to protect answer keys. Build original content using the rules and packageSchema. Open the library before calling install_assessment.",
           }),
           examplesIncluded,
-          packageSchema: getAssessmentPackageJsonSchema(),
+          schemaIncluded: parsed.data.includeSchema || !examplesIncluded,
+          ...((parsed.data.includeSchema || !examplesIncluded) ? { packageSchema: getAssessmentPackageJsonSchema() } : {}),
         } };
       },
     },
@@ -91,15 +95,24 @@ export function createAssessmentAuthoringToolDefinitions({
       name: "install_assessment",
       title: "Install universal assessment",
       description:
-        "Validate and install one complete universal assessment package built from get_assessment_authoring_kit. Installation is atomic, and a successful package appears in the assessment library immediately.",
-      inputSchema: getAssessmentPackageJsonSchema(),
+        "Save and open a complete SAT, GRE or custom assessment from get_assessment_authoring_kit. Opens immediately and starts its timer by default. Set openAfterInstall:false only when the user asks to save for later. Check opened and openingError before handing over. If saved but not opened, use the returned openAction with open_practice, not another installation. The learner answers and submits.",
+      inputSchema: {
+        type: 'object', properties: {
+          schemaVersion: { type: 'number', const: 4 }, packageId: { type: 'string' }, revision: { type: 'integer', minimum: 1 },
+          title: { type: 'string' }, description: { type: 'string' }, metadata: { type: 'object' }, presentation: { type: 'object' },
+          resources: { type: 'array' }, review: { type: 'object' }, rubric: { type: 'object' },
+          parts: { type: 'array', description: 'Complete timed parts with items, interactions and scoring. Follow the selected authoring kit example.' },
+          openAfterInstall: openAfterInstallSchema,
+        }, required: ['schemaVersion', 'packageId', 'revision', 'title', 'parts'], additionalProperties: true,
+      },
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: async (input, options) => {
         const signal = getToolExecutionSignal(options);
         throwIfCancelled(signal);
         try {
-          const assessment = await installAssessment(input);
-          throwIfCancelled(signal);
+          const request = readInstallRequest(input);
+          const assessment = await installAssessment(request.document);
+          const opening = await openInstalledPractice(openPractice, { action: 'start', kind: 'assessment', packageId: assessment.packageId }, request.openAfterInstall, signal);
           return {
             ok: true,
             data: {
@@ -108,8 +121,9 @@ export function createAssessmentAuthoringToolDefinitions({
               title: assessment.title,
               itemCount: getAssessmentItemCount(assessment),
               installed: true,
+              ...opening,
             },
-            sideEffect: { type: "assessment_installed", visibleView: "assessment_library" },
+            sideEffect: { type: "assessment_installed", visibleView: opening.opened ? "assessment" : "assessment_library" },
           };
         } catch (error) {
           if (error instanceof z.ZodError) {

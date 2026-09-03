@@ -124,6 +124,7 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     // Paused drafts and drafts hidden behind history need the same protection.
     tools.push(
       ...createHomeToolDefinitions({
+        openPractice: navigation,
         includeAuthoringExamples: () => includeAuthoringExamples(latest.current.workspace),
         installContent: (input) => latest.current.commands.installContent(input),
         readListeningAudio,

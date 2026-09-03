@@ -87,9 +87,11 @@ Speaking setup can be left safely, preserving the configured questions. Once the
 interview starts, navigation is blocked (`SPEAKING_IN_PROGRESS`) because the
 learner must finish or use Exit test to pause. Completed answers are saved
 before the next question. An unfinished recording is not saved. Listening and
-Full IELTS respect audio readiness. Selecting a different Listening set
-activates it and returns `audio_preparing`; retry start after
-`listeningAudio.readyToPlay` becomes true. Full IELTS resumes through the
+Full IELTS open during audio preparation. Selecting a different Listening set
+activates it and opens the exam, returning `view: "exam"` and
+`status: "audio_preparing"` while needed. No second start call is required.
+The existing player shows preparation and retry controls. The timer pauses
+while audio is unavailable; playback begins when ready if the browser permits it. Full IELTS resumes through the
 existing ordered-section logic. Its next section receives its own attempt ID,
 reported in the returned context.
 
@@ -105,16 +107,20 @@ Saved Writing and Speaking attempts can be opened before evaluation. The screen
 shows that feedback is pending and updates when the agent attaches it. A fresh
 agent can discover and open those attempts after reload, without clicking
 through the UI. To create follow-up practice from a result, read the feedback,
-open the library, get the appropriate authoring kit, install, and start. Tools
+open the library, get the appropriate authoring kit, then install. Installation
+opens practice by default. Tools
 never answer questions, submit attempts, discard drafts, or expose active answer
 keys.
 
 Universal assessment tools:
 
 - `get_assessment_authoring_kit` returns current capabilities, coverage limits,
-  authoring rules and `packageSchema`, plus an example package when no draft exists.
-- `install_assessment` validates, persists, and immediately exposes a complete
-  package in the human assessment library.
+  authoring rules and a complete example when no draft exists. SAT has 98 questions;
+  GRE has one Issue essay and 54 objective questions. Exam formats include
+  source links and current timings. Request `includeSchema: true` for the full
+  `packageSchema`; it is also included when examples are withheld.
+- `install_assessment` validates, persists, and opens a complete package by
+  default. `openAfterInstall: false` saves it for later without starting a timer.
 - `get_assessment_content` retrieves the currently installed universal package
   by `packageId`, including its revision. `view: "summary"` returns part/item IDs
   without prompts or keys; the default `full` read includes authoring content.
@@ -168,14 +174,15 @@ Native IELTS tools:
   explanation, pass its current `explanation.revision` as `expectedRevision`;
   stale revisions are rejected. Explanations persist across reloads and backups.
 
-- `get_ielts_authoring_kit` returns one section's authoring rules and complete
-  schema, plus a valid `exampleDocument` when no draft exists. Examples are original,
-  authoring-only content, separate from the playable built-in tests. They are
-  compact structural examples, not calibrated full-length exams. The Listening example includes
-  all four Kokoro scripts and speaker-to-voice assignments; it needs no bundled
-  audio file. Choose a fresh content key and name when adapting an example.
-- `install_ielts_practice_set` validates and activates a complete Listening,
-  Reading, or Writing document.
+- `get_ielts_authoring_kit` returns one section's format facts, workflow and
+  full example. Listening has 40 questions and roughly 3,300 spoken words;
+  Academic Reading has 40 questions and three passages totaling over 2,150
+  words; Academic Writing has both tasks. Examples are original authoring
+  content, separate from playable built-ins. `includeSchema: true` adds the
+  full `documentSchema`, which also accompanies kits with withheld examples.
+- `install_ielts_practice_set` validates, saves and opens the requested section.
+  Listening opens while its audio prepares. Set `openAfterInstall: false` only
+  for a save-for-later request. The tool-only flag is not saved in the document.
 - `get_ielts_learning_summary`
 - `retry_ielts_listening_audio`
 - `get_ielts_writing_submission`
@@ -207,10 +214,32 @@ rubric, score, evidence, and annotation checks still apply. The submitted tasks,
 responses, timing, and objective results remain immutable. The application keeps
 the current evaluation, not a history of previous feedback text.
 
+## Authoring and handoff
+
+A short request such as "Make me IELTS Listening practice" should work from
+page tools alone. The kits carry the guidance; project-local agent files are
+not part of the learner's contract. For routine IELTS, SAT and GRE authoring,
+use the included example and sourced format facts. Research is appropriate for
+uncovered exams, externally sourced subject matter, changed rules, or explicit
+requests for verification. Existing suitable practice can be opened directly
+from `get_practice_library`.
+
+Both installation tools return `opened`, `status` and `nextAction`. A committed
+save can succeed while opening fails, for example because another assessment
+draft is protected. In that case `opened: false`, `openingError` and
+`openAction` identify recovery. Use `open_practice` with that action after
+resolving the blocker. Do not reinstall or claim the exam is open. Cancellation
+after saving likewise leaves the saved set available without opening it.
+
+The compact installation schemas introduce the payload. The application
+validates the full document with its canonical parser and returns error paths.
+An agent does not need to build its own validator. Full schemas remain available
+on demand. See [exam examples and format sources](./EXAM_AUTHORING.md).
+
 ## Listening preparation and readiness
 
-Installing Listening saves and activates its document; audio preparation runs
-asynchronously. The installation response includes `listeningAudio`, and the
+Installing Listening saves and activates its document, then opens the exam by
+default. Audio preparation runs asynchronously. The installation response includes `listeningAudio`, and the
 context and library tools expose the same live status used by the interface:
 
 ```json
@@ -236,8 +265,8 @@ set `readyToPlay: false` and expose the error and retry state.
 When `canRetry` is true, call `retry_ielts_listening_audio` with that exact
 `contentKey`. It restarts preparation using validated saved chunks, returns
 immediately, and leaves answers and playback position intact. A stale key or
-retry while generation is already running is rejected. Check status again when
-the learner wants to start practice. The UI displays each active IELTS set's
+retry while generation is already running is rejected. In an open exam,
+playback continues when chunks become available; the agent need not keep polling. The UI displays each active IELTS set's
 name, audio progress, and failure details with the same retry action.
 
 ## Attempt identity and selection

@@ -6,6 +6,14 @@ Listening JSON document. The application turns that script into audio locally;
 the agent does not send audio files and the application does not call a TTS
 server.
 
+Installation opens the exam immediately by default, showing the existing
+preparation or retry controls. The timer pauses while audio is unavailable or the browser is waiting for the
+learner to press Play.
+Playback can begin with the first durable speech buffer while later chunks
+continue generating. The agent does not need to wait for every chunk, keep a
+polling call alive, or ask the learner to request opening a second time.
+`openAfterInstall: false` preserves the explicit save-for-later workflow.
+
 ## JSON contract
 
 A generated Listening document uses the same 4-part, 40-question schema as the

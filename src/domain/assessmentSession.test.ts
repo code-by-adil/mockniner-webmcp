@@ -115,20 +115,20 @@ describe("assessment session", () => {
       startedAt: new Date(nowMs).toISOString(),
       nowMs,
     });
-    state = { ...state, itemId: "verbal-text-completion" };
+    state = { ...state, partId: "verbal-1", itemId: "gre-v1-completion-3" };
     state = assessmentSessionReducer(state, {
       type: "SET_RESPONSE",
-      itemId: "verbal-text-completion",
-      response: { "blank-1": "blank-1-b", "blank-2": "blank-2-a" },
+      itemId: "gre-v1-completion-3",
+      response: { "blank-1": "b1-b", "blank-2": "b2-a" },
     });
     state = assessmentSessionReducer(state, {
       type: "TOGGLE_ELIMINATION",
       assessment: greStyleAssessment,
-      itemId: "verbal-text-completion",
-      optionId: "blank-1-b",
+      itemId: "gre-v1-completion-3",
+      optionId: "b1-b",
     });
 
-    expect(state.responses["verbal-text-completion"]).toEqual({ "blank-2": "blank-2-a" });
+    expect(state.responses["gre-v1-completion-3"]).toEqual({ "blank-2": "b2-a" });
   });
 
   it("derives remaining time from an absolute deadline", () => {

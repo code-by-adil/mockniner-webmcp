@@ -44,7 +44,7 @@ export function getToolAvailability(
     open_practice: leaveBlocker ? blocked(leaveBlocker.code, speaking.phase === 'loading'
       ? 'The saved Speaking draft is loading. Wait for loading to finish, then read get_practice_context before navigating.'
       : leaveBlocker.message)
-      : conditional('library and saved results are available. For start/resume, read get_practice_library for target IDs, startability, drafts and audio readiness.'),
+      : conditional('library and saved results are available. Use IDs returned by installation or get_practice_library for start/resume. Listening can open during preparation. Drafts remain protected.'),
     install_ielts_practice_set: home
       ? !unlockedSections.length
         ? blocked('ACTIVE_ATTEMPT', 'Unfinished practice locks content installation for Listening, Reading and Writing. Finish the blocking drafts first; get_practice_library lists their resume IDs. Authoring schemas remain available.')

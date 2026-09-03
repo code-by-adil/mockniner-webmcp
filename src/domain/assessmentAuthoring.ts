@@ -1,3 +1,4 @@
+import { examProfiles, authoringWorkflow } from '@/content/examProfiles';
 const ASSESSMENT_CONTENT_BLOCKS = ["text", "passage", "math", "table", "bar_chart"] as const;
 const ASSESSMENT_INTERACTIONS = [
   "single_choice",
@@ -57,7 +58,7 @@ const ASSESSMENT_AUTHORING_TEMPLATES: readonly AssessmentAuthoringTemplate[] = [
   },
   {
     id: "sat-style",
-    title: "SAT-style diagnostic",
+    title: "SAT-style full practice",
     useWhen: "Use for original SAT-style Reading and Writing and Math practice.",
     coverage: {
       supported: ["timed parts", "passage questions", "single choice", "numeric entry", "calculator", "reference document"],
@@ -77,7 +78,7 @@ const ASSESSMENT_AUTHORING_TEMPLATES: readonly AssessmentAuthoringTemplate[] = [
   },
   {
     id: "gre-style",
-    title: "GRE-style diagnostic",
+    title: "GRE-style full practice",
     useWhen: "Use for original GRE-style Verbal Reasoning, Quantitative Reasoning, and analytical writing practice.",
     coverage: {
       supported: [
@@ -120,6 +121,8 @@ export function getAssessmentAuthoringGuide(templateId: AssessmentAuthoringTempl
   return {
     contractVersion: 4,
     template,
+    ...((templateId === 'sat-style' || templateId === 'gre-style') ? { examFormat: examProfiles[templateId] } : {}),
+    workflow: authoringWorkflow,
     mentalModel: {
       package: "One complete assessment installed in a single call.",
       part: "A timed navigation boundary. Finishing a part locks it.",
@@ -152,7 +155,7 @@ export function getAssessmentAuthoringGuide(templateId: AssessmentAuthoringTempl
       maximumResources: 20,
     },
     instructions: [
-      "Create original content using the package schema. When an example package is included, replace its ID, title, content, options, answers, and rubric details.",
+      "Use the complete example as the format model. For new content, replace its ID, title, passages, questions, options and answers together. Request includeSchema:true if you need a structure beyond the example.",
       "Keep schemaVersion 4. Omit source because the application records agent authorship itself.",
       "Use stable lowercase IDs made from letters, numbers, periods, underscores, or hyphens. Item IDs must be unique across the package.",
       "Declare only the tools the learner needs. An empty tools array is valid.",

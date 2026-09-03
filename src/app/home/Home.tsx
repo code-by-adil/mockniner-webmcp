@@ -92,8 +92,6 @@ export function Home({
   const listeningReady = listeningAudio.readyToPlay;
   const fullDraft = findIeltsDraft(session, 'full', 'listening');
   const resumableFullExamSection = fullDraft ? getResumableSection(fullDraft) : null;
-  const fullExamEntrySection = resumableFullExamSection ?? "listening";
-  const canOpenFullExam = fullExamEntrySection !== "listening" || listeningReady;
 
   return (
     <div className="min-h-screen w-full bg-[#fafafa] text-neutral-900 font-sans selection:bg-neutral-200 flex flex-col">
@@ -156,7 +154,6 @@ export function Home({
                         ? () => onResume(fullDraft!.attemptId!)
                         : () => onStart("full", "listening")
                     }
-                    disabled={!canOpenFullExam}
                     className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-900 px-5 py-3 text-sm font-semibold transition-colors disabled:opacity-40 cursor-pointer"
                   >
                     <PlayCircle size={16} />
@@ -270,7 +267,6 @@ export function Home({
                         onClick={
                           isResumable ? () => onResume(draft!.attemptId!) : () => onStart("section", sec)
                         }
-                        disabled={sec === "listening" && !listeningReady}
                         className="w-full min-h-10 flex items-center justify-between rounded-md bg-neutral-50 hover:bg-neutral-100 border border-neutral-200/60 px-3.5 py-2 text-sm font-semibold text-neutral-800 transition-colors disabled:opacity-40 cursor-pointer"
                       >
                         <span>

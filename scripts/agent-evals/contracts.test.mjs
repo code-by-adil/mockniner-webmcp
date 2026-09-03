@@ -8,11 +8,11 @@ describe("agent evaluation fixtures", () => {
     artifacts = await buildAgentEvalArtifacts();
   });
 
-  it("compiles the seven source cases without writing artifacts", () => {
-    expect(artifacts.manifest.contractVersion).toBe(2);
-    expect(artifacts.manifest.cases).toHaveLength(7);
-    expect(new Set(artifacts.manifest.cases.map((entry) => entry.id)).size).toBe(7);
-    expect(artifacts.evals).toHaveLength(7);
+  it("compiles the ten source cases without writing artifacts", () => {
+    expect(artifacts.manifest.contractVersion).toBe(3);
+    expect(artifacts.manifest.cases).toHaveLength(10);
+    expect(new Set(artifacts.manifest.cases.map((entry) => entry.id)).size).toBe(10);
+    expect(artifacts.evals).toHaveLength(10);
 
     for (const evaluation of artifacts.evals) {
       expect(evaluation.messages.length).toBeGreaterThan(0);
@@ -35,7 +35,8 @@ describe("agent evaluation fixtures", () => {
       "get_assessment_content", "get_practice_library",
     ]);
     expect(artifacts.smokeEvals[1].expectedCall.every(call => call.result.ok === true)).toBe(true);
-    const installed = artifacts.smokeEvals[0].expectedCall.find(call => call.functionName === "install_assessment").arguments;
+    const { openAfterInstall, ...installed } = artifacts.smokeEvals[0].expectedCall.find(call => call.functionName === "install_assessment").arguments;
+    expect(openAfterInstall).toBe(false);
     expect(artifacts.smokeEvals[1].expectedCall[0].result.data.package).toEqual(installed);
   });
 });

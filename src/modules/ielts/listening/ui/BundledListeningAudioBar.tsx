@@ -87,13 +87,14 @@ export const BundledListeningAudioBar: FC<Props> = ({
 
   useEffect(() => {
     const status: ListeningAudioUiStatus = {
+      needsUserStart,
       state: audioError ? "error" : isLoadingAudio ? "loading" : isPlaying ? "playing" : "paused",
       audioPart,
       isInSilence: activeSilence != null,
       silenceEndSec: activeSilence?.end ?? null,
     };
     onUiStatus?.(status);
-  }, [activeSilence, audioError, audioPart, isLoadingAudio, isPlaying, onUiStatus]);
+  }, [activeSilence, audioError, audioPart, isLoadingAudio, isPlaying, needsUserStart, onUiStatus]);
 
   const persistPosition = (audio: HTMLAudioElement): void => {
     // load() resets currentTime. Do not replace a saved cursor until restoration.

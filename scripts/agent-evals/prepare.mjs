@@ -52,6 +52,7 @@ function evaluationToolSchemas(modules) {
   const never = async () => null;
   return modules.homeTools
     .createHomeToolDefinitions({
+      openPractice: never,
       installContent: never,
       installAssessment: never,
       readLearningSummary: never,
@@ -69,6 +70,8 @@ function installSuccess(caseId) {
     "gre-verbal": 10,
     "writing-rubric": 1,
     "validation-repair": 1,
+    "sat-full": 98,
+    "gre-full": 55,
   };
   const itemCount = exactCounts[caseId] ?? 4;
   return {
@@ -79,6 +82,7 @@ function installSuccess(caseId) {
       title: `${caseId} package`,
       itemCount,
       installed: true,
+      opened: true,
     },
   };
 }
@@ -102,7 +106,7 @@ function universalEval(definition, getAssessmentAuthoringKit) {
       {
         functionName: "install_assessment",
         arguments: { schemaVersion: kit.examplePackage.schemaVersion },
-        result: { ok: true },
+        result: { ok: true, data: { opened: true } },
         mockOutput: success,
       },
     ],
@@ -120,23 +124,24 @@ function ieltsEval(definition, getIeltsAuthoringKit) {
         result: { ok: true },
         mockOutput: {
           ok: true,
-          data: getIeltsAuthoringKit(definition.section),
+          data: getIeltsAuthoringKit(definition.section, true, false),
         },
       },
       {
         functionName: "install_ielts_practice_set",
         arguments: { section: definition.section },
-        result: { ok: true, data: { section: "reading", itemCount: 40 } },
+        result: { ok: true, data: { section: definition.section, itemCount: 40, opened: true } },
         mockOutput: {
           ok: true,
           data: {
-            contentKey: "agent-ielts-reading",
-            section: "reading",
-            name: "IELTS Reading Practice",
+            contentKey: `agent-ielts-${definition.section}`,
+            section: definition.section,
+            name: `IELTS ${definition.section} practice`,
             schemaVersion: 1,
             source: "agent",
             itemCount: 40,
             active: true,
+            opened: true,
           },
         },
       },
@@ -262,12 +267,12 @@ function browserSmokeEvals(modules) {
         },
         {
           functionName: "install_assessment",
-          arguments: assessmentPackage,
+          arguments: { ...assessmentPackage, openAfterInstall: false },
           result: { ok: true, data: { packageId: assessmentPackage.packageId, revision: 1, installed: true } },
         },
         {
           functionName: "install_ielts_practice_set",
-          arguments: writingDocument,
+          arguments: { ...writingDocument, openAfterInstall: false },
           result: { ok: true, data: { contentKey: writingDocument.contentKey, section: "writing", active: true } },
         },
       ],

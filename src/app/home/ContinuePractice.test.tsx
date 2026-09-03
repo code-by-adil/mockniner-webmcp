@@ -66,12 +66,12 @@ describe('continue practice', () => {
     }
   });
 
-  it('keeps a full IELTS test resumable at the next section and gates only Listening audio', () => {
+  it('keeps Full IELTS resumable during Listening preparation and at the next section', () => {
     const full = sessionReducer(initialSession, { type: 'START', mode: 'full', section: 'listening',
       attemptId: crypto.randomUUID(), startedAt: '2026-09-03T10:00:00Z' });
     const waiting = renderToStaticMarkup(<ContinuePractice session={full} content={content} listeningReady={false} onResume={noOp} assessmentLibrary={library} />);
-    expect(waiting).toContain('disabled=""');
-    expect(waiting).toContain('Listening audio is not ready');
+    expect(waiting).not.toContain('disabled=""');
+    expect(waiting).toContain('Resume to see audio preparation');
     const next = renderToStaticMarkup(<ContinuePractice session={{ ...full, completedSections: ['listening'] }} content={content} listeningReady={false} onResume={noOp} assessmentLibrary={library} />);
     expect(next).toContain('Reading · 1 of 4 sections completed');
     expect(next).not.toContain('disabled=""');

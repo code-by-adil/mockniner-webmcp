@@ -174,12 +174,12 @@ describe('focused assessment answer review', () => {
   });
 
   it('shows GRE grouped choices within their own blanks without internal IDs', async () => {
-    await render(submissionFor(greStyleAssessment, { 'verbal-text-completion': { 'blank-1': 'blank-1-b', 'blank-2': 'blank-2-a' } }));
-    const number = greStyleAssessment.parts.flatMap(part => part.items).findIndex(item => item.id === 'verbal-text-completion') + 1;
+    await render(submissionFor(greStyleAssessment, { 'gre-v1-completion-3': { 'blank-1': 'b1-b', 'blank-2': 'b2-a' } }));
+    const number = greStyleAssessment.parts.flatMap(part => part.items).findIndex(item => item.id === 'gre-v1-completion-3') + 1;
     await select(number);
-    expect(question().querySelector('[aria-label="Blank 1"]')?.textContent).toContain('inconclusiveYour answer');
-    expect(question().querySelector('[aria-label="Blank 2"]')?.textContent).toContain('cautiousYour answer');
-    expect(question().textContent).not.toContain('blank-1-b');
+    expect(question().querySelector('[aria-label="Blank 1"]')?.textContent).toContain('circumspectYour answer');
+    expect(question().querySelector('[aria-label="Blank 2"]')?.textContent).toContain('unequivocalYour answer');
+    expect(question().textContent).not.toContain('b1-b');
   });
 
   it('opens review mistakes directly, returns to overview, and resets for another attempt', async () => {

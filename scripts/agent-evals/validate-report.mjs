@@ -66,6 +66,13 @@ export function validateUniversalSemantics(caseId, assessment, issues) {
     issues,
   );
 
+  if (caseId === "sat-full" || caseId === "gre-full") {
+    const counts = caseId === "sat-full" ? [27, 27, 22, 22] : [1, 12, 12, 15, 15];
+    const times = caseId === "sat-full" ? [1920, 1920, 2100, 2100] : [1800, 1080, 1260, 1380, 1560];
+    assert(JSON.stringify(assessment.parts.map(part => part.items.length)) === JSON.stringify(counts), 'full exam question counts do not match the template', issues);
+    assert(JSON.stringify(assessment.parts.map(part => part.durationSeconds)) === JSON.stringify(times), 'full exam timings do not match the template', issues);
+  }
+
   if (caseId === "gre-verbal") {
     const completions = items.filter((item) => item.interaction.type === "grouped_choice");
     assert(items.length === 10, `expected 10 items, received ${items.length}`, issues);
@@ -162,7 +169,8 @@ export function validateRun(definition, runIndex, reportResults, modules, expect
     const install = calls.find((call) => call.functionName === "install_assessment");
     if (install) {
       try {
-        const assessment = modules.assessment.parseAssessmentAuthoringPackage(install.args);
+        const { openAfterInstall: _openAfterInstall, ...document } = install.args;
+        const assessment = modules.assessment.parseAssessmentAuthoringPackage(document);
         validateUniversalSemantics(definition.id, assessment, issues);
       } catch (error) {
         issues.push(
@@ -178,13 +186,14 @@ export function validateRun(definition, runIndex, reportResults, modules, expect
     );
     if (install) {
       try {
+        const { openAfterInstall: _openAfterInstall, ...document } = install.args;
         const content = modules.contentDocument.parsePracticeContentDocument({
-          ...install.args,
+          ...document,
           source: "agent",
         });
         assert(
-          content.section === "reading",
-          `expected IELTS Reading, received ${content.section}`,
+          content.section === definition.section,
+          `expected IELTS ${definition.section}, received ${content.section}`,
           issues,
         );
       } catch (error) {

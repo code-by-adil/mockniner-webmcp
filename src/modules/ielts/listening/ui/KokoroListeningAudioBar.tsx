@@ -102,7 +102,7 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
     hydrateState?.currentTimeSec ?? 0,
   ));
   const initialChunk = chunks[initialPosition.index] ?? null;
-  const startsInSilence = initialChunk?.kind === "silence" && !isReviewMode;
+  const startsInSilence = initialChunk?.kind === "silence" && !isReviewMode && audioSession.readyToPlay;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const shouldContinueRef = useRef(!isReviewMode);
@@ -178,6 +178,7 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
 
   useEffect(() => {
     if (
+      !audioSession.readyToPlay ||
       currentChunk?.kind !== "silence" ||
       !shouldContinueRef.current ||
       isReviewMode ||
@@ -186,7 +187,7 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
     silenceStartedAtRef.current = performance.now();
     setSilenceRemainingMs(currentChunk.durationMs);
     setIsPlaying(true);
-  }, [currentChunk, isPlaying, isReviewMode]);
+  }, [audioSession.readyToPlay, currentChunk, isPlaying, isReviewMode]);
 
   const playCurrent = useCallback(async (): Promise<void> => {
     if (isReviewMode || !currentChunk) return;
@@ -307,8 +308,9 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
   }, [advance, currentChunk]);
 
   const sourceError = audioError ?? audioSession.error;
-  const isLoading = !currentChunk;
+  const isLoading = !currentChunk || (!audioSession.readyToPlay && !effectiveIsPlaying);
   const status = useMemo<ListeningAudioUiStatus>(() => ({
+    needsUserStart,
     state: sourceError
       ? "error"
       : isLoading
@@ -327,6 +329,7 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
     currentOffsetMs,
     isLoading,
     effectiveIsPlaying,
+    needsUserStart,
     sourceError,
   ]);
 

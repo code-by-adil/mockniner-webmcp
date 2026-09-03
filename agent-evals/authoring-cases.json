@@ -1,5 +1,5 @@
 {
-  "contractVersion": 2,
+  "contractVersion": 3,
   "cases": [
     {
       "id": "gre-verbal",
@@ -34,7 +34,28 @@
       "name": "IELTS Reading uses the native section authoring kit",
       "kind": "ielts",
       "section": "reading",
-      "prompt": "Give me IELTS Reading practice."
+      "prompt": "Make me a new IELTS Reading practice test."
+    },
+    {
+      "id": "ielts-listening",
+      "name": "A short Listening request creates and opens all 40 questions",
+      "kind": "ielts",
+      "section": "listening",
+      "prompt": "I want to prepare for IELTS. Make me a listening practice test."
+    },
+    {
+      "id": "sat-full",
+      "name": "A short SAT request uses the complete exam template",
+      "kind": "universal",
+      "template": "sat-style",
+      "prompt": "Make me a full SAT practice test."
+    },
+    {
+      "id": "gre-full",
+      "name": "A short GRE request uses the complete exam template",
+      "kind": "universal",
+      "template": "gre-style",
+      "prompt": "Make me a full GRE practice test."
     },
     {
       "id": "unsupported-passage-selection",

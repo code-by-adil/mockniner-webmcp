@@ -73,7 +73,7 @@ describe('semantic practice navigation and discovery', () => {
     const lastPart = replacement.parts.at(-1)!
     lastPart.items.at(-1)!.prompt = [{ type: 'text', text: 'Revised final question with the same response contract.' }]
     replacement.revision += 1
-    const install = createAssessmentAuthoringToolDefinitions({ installAssessment: h.assessment.installAssessment }).find(tool => tool.name === 'install_assessment')!
+    const install = createAssessmentAuthoringToolDefinitions({ openPractice: vi.fn(async () => ({ view: 'exam' })), installAssessment: h.assessment.installAssessment }).find(tool => tool.name === 'install_assessment')!
     await expect(install.execute(replacement, options)).resolves.toMatchObject({ ok: true })
     h.workspace.assessments = await h.assessmentRepository.loadPackages()
     const changed = h.workspace.assessments.find(assessment => assessment.packageId === packageId)!
@@ -231,7 +231,7 @@ describe('semantic practice navigation and discovery', () => {
     await expect(h.navigate({ action: 'start', kind: 'reading' })).rejects.toMatchObject({ code: 'ACTIVE_ATTEMPT' })
     h.workspace.listeningAudio.readyToPlay = false
     library = await readPracticeLibrary(database, h.workspace, page)
-    expect(library.items.find(item => item.kind === 'listening')).toMatchObject({ startability: { canStart: false, blockingReason: { code: 'LISTENING_AUDIO_NOT_READY' } } })
+    expect(library.items.find(item => item.kind === 'listening')).toMatchObject({ startability: { canStart: true, blockingReason: null } })
     h.workspace.native = { ...initialSession, view: 'exam', currentSection: 'speaking' }
     library = await readPracticeLibrary(database, h.workspace, page)
     expect(library.items.every(item => item.startability.blockingReason?.code === 'SPEAKING_IN_PROGRESS')).toBe(true)
@@ -328,12 +328,11 @@ describe('semantic practice navigation and discovery', () => {
     expect(h.workspace.native.writingDrafts[1]).toBe('My unfinished writing.')
   })
 
-  it('gates Listening readiness, starts Full IELTS at Listening and resumes the next canonical section', async () => {
+  it('opens Full IELTS during Listening preparation and resumes the next canonical section', async () => {
     const h = setup(); h.workspace.listeningAudio.readyToPlay = false
-    await expect(h.navigate({ action: 'start', kind: 'full_ielts' })).rejects.toMatchObject({ code: 'LISTENING_AUDIO_NOT_READY' })
-    expect(h.workspace.native.attemptId).toBeNull()
+    await expect(h.navigate({ action: 'start', kind: 'full_ielts' })).resolves.toMatchObject({ view: 'exam', status: 'audio_preparing' })
+    expect(h.workspace.native.attemptId).not.toBeNull()
     h.workspace.listeningAudio.readyToPlay = true
-    await h.navigate({ action: 'start', kind: 'full_ielts' })
     expect(h.workspace.native).toMatchObject({ mode: 'full', currentSection: 'listening' })
     await h.native.submitObjective('listening')
     const completedId = h.workspace.native.attemptId!
@@ -346,17 +345,18 @@ describe('semantic practice navigation and discovery', () => {
     expect(h.workspace.native.attemptId).not.toBe(completedId)
   })
 
-  it('activates a different saved Listening set without starting until its audio is ready', async () => {
+  it('activates and opens a saved Listening set while its audio prepares, without requiring another start', async () => {
     const h = setup()
     const document = { ...listeningDocument, contentKey: 'saved-listening' }
     await h.contentStore.saveAndActivate(document)
+    h.workspace.listeningAudio.readyToPlay = false
     await expect(h.navigate({ action: 'start', kind: 'listening', contentKey: document.contentKey })).resolves.toMatchObject({ status: 'audio_preparing' })
     expect(h.workspace.content.listening.contentKey).toBe(document.contentKey)
-    expect(h.workspace.native.attemptId).toBeNull()
-    h.workspace.listeningAudio.readyToPlay = false
-    await expect(h.navigate({ action: 'start', kind: 'listening', contentKey: document.contentKey })).rejects.toMatchObject({ code: 'LISTENING_AUDIO_NOT_READY' })
+    const attemptId = h.workspace.native.attemptId
+    expect(attemptId).not.toBeNull()
+    await expect(h.navigate({ action: 'start', kind: 'listening', contentKey: document.contentKey })).rejects.toMatchObject({ code: 'ACTIVE_ATTEMPT' })
     h.workspace.listeningAudio.readyToPlay = true
-    await h.navigate({ action: 'start', kind: 'listening', contentKey: document.contentKey })
+    expect(h.workspace.native.attemptId).toBe(attemptId)
     expect(h.workspace.native).toMatchObject({ view: 'exam', currentSection: 'listening' })
   })
 

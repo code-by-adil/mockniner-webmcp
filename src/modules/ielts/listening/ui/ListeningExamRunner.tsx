@@ -63,6 +63,7 @@ export const ListeningExamRunner: React.FC<Props> = ({
   } = useTimedSubmission({
     secondsRemaining,
     disabled: isReviewMode,
+    timerPaused: !audioSession.readyToPlay || audioUiStatus.needsUserStart || ['loading', 'error', 'unavailable'].includes(audioUiStatus.state),
     onTick,
     onSubmit,
     fallbackError: "Unable to submit this Listening test.",
@@ -82,6 +83,7 @@ export const ListeningExamRunner: React.FC<Props> = ({
       setAudioUiStatus((prev) => {
         if (
           prev.state === status.state &&
+          prev.needsUserStart === status.needsUserStart &&
           prev.audioPart === status.audioPart &&
           prev.isInSilence === status.isInSilence &&
           prev.silenceEndSec === status.silenceEndSec

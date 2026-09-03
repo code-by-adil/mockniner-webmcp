@@ -54,12 +54,6 @@ export function getPracticeStartability(workspace: PracticeWorkspace, kind: Star
     if (draft) return { canStart: false, blockingReason: { code: 'ACTIVE_ATTEMPT', attemptId: draft.attemptId,
       message: 'An unfinished practice uses this section. It can use the active set, but cannot activate a different set until that practice is finished.' } }
   }
-  if (kind === 'listening' && contentKey && contentKey !== workspace.content.listening.contentKey) return {
-    canStart: false, blockingReason: { code: 'LISTENING_ACTIVATION_REQUIRED', message: 'Use open_practice start with this contentKey to activate it, then wait for listeningAudio.readyToPlay and start again.' },
-  }
-  if ((kind === 'listening' || kind === 'full_ielts') && !workspace.listeningAudio.readyToPlay) return {
-    canStart: false, blockingReason: { code: 'LISTENING_AUDIO_NOT_READY', message: 'Wait for listeningAudio.readyToPlay. If canRetry is true, use retry_ielts_listening_audio.' },
-  }
   return { canStart: true, blockingReason: null }
 }
 
@@ -86,9 +80,6 @@ export function createPracticeNavigation(deps: {
     const blocker = getPracticeDraftBlocker(deps.getWorkspace(), kind)
     if (blocker) throw new ApplicationError(blocker.code, blocker.message, true)
   }
-  const requireListening = (section: string) => {
-    if (section === 'listening' && !deps.getWorkspace().listeningAudio.readyToPlay) throw new ApplicationError('LISTENING_AUDIO_NOT_READY', 'Listening audio is not ready to play. Read listeningAudio in get_practice_context; if canRetry is true, use retry_ielts_listening_audio with its contentKey.', true)
-  }
   return async (raw: PracticeNavigationInput, options: PracticeNavigationOptions = {}) => {
     const { signal } = options
     const checkCancelled = () => signal?.throwIfAborted()
@@ -107,7 +98,7 @@ export function createPracticeNavigation(deps: {
       if (input.action === 'resume') {
         const draft = getResumablePractices(deps.getWorkspace()).find(d => d.kind === input.kind && d.attemptId === input.attemptId)
         if (!draft) throw new ApplicationError('RESUMABLE_ATTEMPT_NOT_FOUND', 'That attempt is not the saved unfinished attempt. Read get_practice_library for its current ID.', true)
-        if (draft.kind === 'ielts') { requireListening(draft.section); await deps.native.goHome(); checkCancelled(); await deps.native.resume(draft.attemptId); deps.assessment.goHome() }
+        if (draft.kind === 'ielts') { await deps.native.goHome(); checkCancelled(); await deps.native.resume(draft.attemptId); deps.assessment.goHome() }
         else { await deps.native.goHome(); checkCancelled(); deps.assessment.resume() }
         return { view: 'exam', kind: input.kind, resumedFromAttemptId: input.attemptId }
       }
@@ -125,14 +116,11 @@ export function createPracticeNavigation(deps: {
           assertCanLeave(); if (!options.replaceIeltsDraft) assertNoDraft(input.kind)
           if (!content || content.section !== input.kind) throw new ApplicationError('PRACTICE_NOT_FOUND', 'That content key is not a saved practice of the requested kind.', true)
           await deps.native.installContent(content)
-          // A changed Listening set needs the app's audio preparation before start.
-          if (input.kind === 'listening') { deps.assessment.goHome(); return { view: 'home', status: 'audio_preparing', contentKey: input.contentKey } }
         }
-        requireListening(input.kind === 'full_ielts' ? 'listening' : input.kind)
         await deps.native.start(input.kind === 'full_ielts' ? 'full' : 'section', input.kind === 'full_ielts' ? 'listening' : input.kind)
         deps.assessment.goHome()
       }
-      return { view: 'exam', kind: input.kind, status: 'started' }
+      return { view: 'exam', kind: input.kind, status: (input.kind === 'listening' || input.kind === 'full_ielts') && !deps.getWorkspace().listeningAudio.readyToPlay ? 'audio_preparing' : 'started' }
     } finally { navigating = false }
   }
 }

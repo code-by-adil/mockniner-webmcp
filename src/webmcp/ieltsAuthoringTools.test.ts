@@ -17,7 +17,7 @@ describe('practice-set WebMCP tool', () => {
     const example = parsePracticeContentDocument(kit.exampleDocument!)
     expect(example.section).toBe(section)
     const status: ListeningAudioStatus = { contentKey: example.contentKey, source: 'kokoro', phase: 'loading', readyToPlay: false, completedChunks: 0, totalChunks: null, error: null, canRetry: false }
-    const tools = createIeltsAuthoringToolDefinitions({ readListeningAudio: () => status, installContent: async input => parsePracticeContentDocument(input) })
+    const tools = createIeltsAuthoringToolDefinitions({ openPractice: vi.fn(async () => ({ view: 'exam' })), readListeningAudio: () => status, installContent: async input => parsePracticeContentDocument(input) })
     await expect(tools[1]!.execute(kit.exampleDocument!, toolOptions())).resolves.toMatchObject({ ok: true, data: { section, active: true, name: example.name } })
     if (example.section === 'listening') expect(example.audio).toMatchObject({ type: 'kokoro', parts: expect.any(Array) })
     kit.exampleDocument!.name = 'Changed copy'
@@ -28,11 +28,11 @@ describe('practice-set WebMCP tool', () => {
     const example = getIeltsAuthoringKit('listening').exampleDocument!
     const status: ListeningAudioStatus = { contentKey: example.contentKey, source: 'kokoro', phase, readyToPlay: phase === 'ready',
       completedChunks: phase === 'loading' ? 0 : 2, totalChunks: phase === 'loading' ? null : 10, error: phase === 'error' ? 'Synthetic failure.' : null, canRetry: phase === 'error' }
-    const tool = createIeltsAuthoringToolDefinitions({ installContent: async input => parsePracticeContentDocument(input), readListeningAudio: () => status })[1]!
+    const tool = createIeltsAuthoringToolDefinitions({ openPractice: vi.fn(async () => ({ view: 'exam' })), installContent: async input => parsePracticeContentDocument(input), readListeningAudio: () => status })[1]!
     await expect(tool.execute(example, toolOptions())).resolves.toMatchObject({ ok: true, data: { active: true, listeningAudio: status } })
   })
   it('exposes IELTS-specific discovery and installation names', () => {
-    const tools = createIeltsAuthoringToolDefinitions({ installContent: vi.fn(), readListeningAudio: vi.fn() })
+    const tools = createIeltsAuthoringToolDefinitions({ openPractice: vi.fn(async () => ({ view: 'exam' })), installContent: vi.fn(), readListeningAudio: vi.fn() })
 
     expect(tools.map((tool) => tool.name)).toEqual([
       'get_ielts_authoring_kit',
@@ -41,9 +41,9 @@ describe('practice-set WebMCP tool', () => {
   })
 
   it('returns only the requested IELTS section schema on demand', async () => {
-    const [tool] = createIeltsAuthoringToolDefinitions({ installContent: vi.fn(), readListeningAudio: vi.fn() })
+    const [tool] = createIeltsAuthoringToolDefinitions({ openPractice: vi.fn(async () => ({ view: 'exam' })), installContent: vi.fn(), readListeningAudio: vi.fn() })
 
-    const result = await tool!.execute({ section: 'reading' }, toolOptions())
+    const result = await tool!.execute({ section: 'reading', includeSchema: true }, toolOptions())
 
     expect(result).toMatchObject({
       ok: true,
@@ -59,7 +59,7 @@ describe('practice-set WebMCP tool', () => {
   })
 
   it('returns actionable paths for an invalid authoring-kit request', async () => {
-    const [tool] = createIeltsAuthoringToolDefinitions({ installContent: vi.fn(), readListeningAudio: vi.fn() })
+    const [tool] = createIeltsAuthoringToolDefinitions({ openPractice: vi.fn(async () => ({ view: 'exam' })), installContent: vi.fn(), readListeningAudio: vi.fn() })
 
     await expect(
       tool!.execute({ section: 'speaking' }, toolOptions()),
@@ -74,7 +74,7 @@ describe('practice-set WebMCP tool', () => {
   })
 
   it('discovers and installs a complete section through the full runtime parser', async () => {
-    const tools = createIeltsAuthoringToolDefinitions({
+    const tools = createIeltsAuthoringToolDefinitions({ openPractice: vi.fn(async () => ({ view: 'exam' })),
       readListeningAudio: vi.fn(),
       installContent: async (input) => parsePracticeContentDocument(input),
     })
@@ -105,7 +105,7 @@ describe('practice-set WebMCP tool', () => {
     }
     const installed = { ...replacement, source: 'agent' as const }
     const installContent = vi.fn(async () => installed)
-    const tool = createIeltsAuthoringToolDefinitions({ installContent, readListeningAudio: vi.fn() }).find(
+    const tool = createIeltsAuthoringToolDefinitions({ openPractice: vi.fn(async () => ({ view: 'exam' })), installContent, readListeningAudio: vi.fn() }).find(
       (item) => item.name === 'install_ielts_practice_set',
     )!
 
@@ -122,10 +122,12 @@ describe('practice-set WebMCP tool', () => {
         source: 'agent',
         itemCount: 2,
         active: true,
+        status: 'opened', opened: true, navigation: { view: 'exam' },
+        nextAction: 'Practice is open. Hand control to the learner to answer and submit.',
       },
       sideEffect: {
         type: 'practice_set_installed',
-        visibleView: 'home',
+        visibleView: 'exam',
       },
     })
     expect(tool!.annotations).toMatchObject({
@@ -137,7 +139,7 @@ describe('practice-set WebMCP tool', () => {
   })
 
   it('supports native clients that omit callback options', async () => {
-    const tool = createIeltsAuthoringToolDefinitions({
+    const tool = createIeltsAuthoringToolDefinitions({ openPractice: vi.fn(async () => ({ view: 'exam' })),
       readListeningAudio: vi.fn(),
       installContent: async (input) => parsePracticeContentDocument(input),
     }).find((item) => item.name === 'install_ielts_practice_set')!
@@ -148,7 +150,7 @@ describe('practice-set WebMCP tool', () => {
   })
 
   it('returns paths for a malformed practice set', async () => {
-    const tool = createIeltsAuthoringToolDefinitions({
+    const tool = createIeltsAuthoringToolDefinitions({ openPractice: vi.fn(async () => ({ view: 'exam' })),
       readListeningAudio: vi.fn(),
       installContent: async (input) => parsePracticeContentDocument(input),
     }).find((item) => item.name === 'install_ielts_practice_set')!
@@ -170,7 +172,7 @@ describe('practice-set WebMCP tool', () => {
   })
 
   it('reports an active attempt without replacing learner state', async () => {
-    const tool = createIeltsAuthoringToolDefinitions({
+    const tool = createIeltsAuthoringToolDefinitions({ openPractice: vi.fn(async () => ({ view: 'exam' })),
       readListeningAudio: vi.fn(),
       installContent: async () => {
         throw new ApplicationError('ACTIVE_ATTEMPT', 'Finish your unfinished IELTS attempt first.', true)

@@ -1,3 +1,4 @@
+import { openAfterInstallSchema, readInstallRequest, openInstalledPractice, type OpenInstalledPractice } from './installedPractice'
 import { z } from 'zod'
 import type { IeltsCommands } from '@/application/ieltsCommands'
 import type { ListeningAudioStatus } from '@/application/listeningAudioStatus'
@@ -14,6 +15,7 @@ import {
 } from './toolResult'
 
 type IeltsAuthoringToolDependencies = {
+  openPractice: OpenInstalledPractice
   installContent: IeltsCommands['installContent']
   readListeningAudio: () => ListeningAudioStatus
   includeAuthoringExamples?: () => boolean
@@ -22,6 +24,7 @@ type IeltsAuthoringToolDependencies = {
 const ieltsAuthoringKitInputSchema = {
   type: 'object',
   properties: {
+    includeSchema: { type: 'boolean', default: false, description: 'Include the full JSON Schema when using a format beyond the complete example. Usually unnecessary.' },
     section: {
       type: 'string',
       enum: IELTS_AUTHORING_SECTIONS,
@@ -35,6 +38,7 @@ const ieltsAuthoringKitInputSchema = {
 const ieltsPracticeSetTeachingSchema = {
   type: 'object',
   properties: {
+    openAfterInstall: openAfterInstallSchema,
     schemaVersion: { type: 'number', const: 1 },
     contentKey: {
       type: 'string',
@@ -71,6 +75,7 @@ function markAsAgentCreated(input: unknown): unknown {
 
 export function createIeltsAuthoringToolDefinitions({
   installContent,
+  openPractice,
   readListeningAudio,
   includeAuthoringExamples = () => true,
 }: IeltsAuthoringToolDependencies): WebMCP.ModelContextTool[] {
@@ -79,7 +84,7 @@ export function createIeltsAuthoringToolDefinitions({
       name: 'get_ielts_authoring_kit',
       title: 'Get native IELTS authoring kit',
       description:
-        'Return rules and JSON Schema for native IELTS Listening, Reading, or Writing. Includes a separate complete exampleDocument only when no unfinished practice exists; otherwise returns guidance without examples to protect answer keys. Choose a fresh contentKey for new practice.',
+        'Create native IELTS Listening, Academic Reading or Academic Writing from a complete original example and exam-owner format facts. Listening has all 40 questions and a full four-part spoken script; Reading has 40 questions and three substantial passages; Writing has both tasks. Use this kit directly for routine practice, without web research or Kokoro API research. Includes workflow instructions; install_ielts_practice_set opens practice by default. Full JSON Schema is opt-in with includeSchema:true. Examples are hidden during unfinished practice.',
       inputSchema: ieltsAuthoringKitInputSchema,
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async (input, options) => {
@@ -87,6 +92,7 @@ export function createIeltsAuthoringToolDefinitions({
         throwIfCancelled(signal)
         const parsed = z.strictObject({
           section: z.enum(IELTS_AUTHORING_SECTIONS),
+          includeSchema: z.boolean().default(false),
         }).safeParse(input)
         if (!parsed.success) {
           return toolFailure(
@@ -96,22 +102,23 @@ export function createIeltsAuthoringToolDefinitions({
             zodIssues(parsed.error),
           )
         }
-        return { ok: true, data: getIeltsAuthoringKit(parsed.data.section, includeAuthoringExamples()) }
+        return { ok: true, data: getIeltsAuthoringKit(parsed.data.section, includeAuthoringExamples(), parsed.data.includeSchema) }
       },
     },
     {
       name: 'install_ielts_practice_set',
       title: 'Install IELTS practice set',
       description:
-        'Validate, save and activate a complete native IELTS set built from get_ielts_authoring_kit. Returns the visible name and readiness. Listening audio is prepared asynchronously: active does not mean playable. Read listeningAudio in get_practice_context until readyToPlay, or retry a failed preparation.',
+        'Save and open a complete native IELTS set from get_ielts_authoring_kit in one call. Defaults to opening immediately, including Listening while audio prepares in the exam. Its timer pauses while audio is unavailable. Playback begins automatically when ready, subject to browser permission. Set openAfterInstall:false only for a save-for-later request. Check opened and any openingError; never claim saved practice is open unless opened is true. The learner answers and submits.',
       inputSchema: ieltsPracticeSetTeachingSchema,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: async (input, options) => {
         const signal = getToolExecutionSignal(options)
         throwIfCancelled(signal)
         try {
-          const document = await installContent(markAsAgentCreated(input))
-          throwIfCancelled(signal)
+          const request = readInstallRequest(input)
+          const document = await installContent(markAsAgentCreated(request.document))
+          const opening = await openInstalledPractice(openPractice, { action: 'start', kind: document.section, contentKey: document.contentKey }, request.openAfterInstall, signal)
           return {
             ok: true,
             data: {
@@ -122,11 +129,12 @@ export function createIeltsAuthoringToolDefinitions({
               source: document.source,
               itemCount: questionCount(document.section),
               active: true,
+              ...opening,
               ...(document.section === 'listening' ? { listeningAudio: readListeningAudio() } : {}),
             },
             sideEffect: {
               type: 'practice_set_installed',
-              visibleView: 'home',
+              visibleView: opening.opened ? 'exam' : 'home',
             },
           }
         } catch (error) {
