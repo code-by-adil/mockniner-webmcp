@@ -13,6 +13,42 @@ dist-ssr
 *.local
 .evals
 
+# Local agent instructions and configuration
+AGENTS.md
+AGENTS.override.md
+CLAUDE.md
+GEMINI.md
+/.codex/
+/.claude/
+/.agents/
+
+# Internal planning, submission drafts, and review notes
+/docs/SUBMISSION.md
+/docs/RELEASE.md
+/docs/WEBMCP_AVAILABILITY.md
+/docs/internal/
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# Browser backups and local databases
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.db
+*.db-*
+
+# Generated test output
+coverage/
+playwright-report/
+test-results/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

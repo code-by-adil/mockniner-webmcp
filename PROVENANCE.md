@@ -1,14 +1,9 @@
 # Attribution and content sources
 
-Assessment Lab is licensed under the [Apache License 2.0](./LICENSE).
-Third-party packages and models retain their respective licenses.
-
-## Application code
-
-The IELTS interface includes components adapted from earlier work by the same
-author. Assessment Lab's application state, storage, WebMCP integration, and
-custom assessment engine are developed in this repository. The project builds
-and runs independently.
+Assessment Lab's original code, documentation, and bundled practice content are
+licensed under the [MIT License](./LICENSE), copyright 2026 Mohammad Adil.
+Third-party packages, embedded components, and models retain their own licenses.
+The project license does not replace their terms.
 
 ## Practice content and assets
 
@@ -40,6 +35,23 @@ Generated Listening and examiner audio use `kokoro-js` with
 The model card lists Apache-2.0. Speech models are downloaded at runtime and are
 not included in this repository. Audio generation and transcription run in the
 browser.
+
+## Speech dependency licensing
+
+`phonemizer@1.2.1` declares Apache-2.0, but its distributed JavaScript embeds
+eSpeak NG. The app imports `phonemizer` directly in
+`src/infrastructure/media/kokoroScript.ts`, and `kokoro-js` also uses it.
+
+[Phonemizer's source](https://github.com/xenova/phonemizer.js/blob/main/src/phonemizer.js)
+loads the eSpeak NG runtime. [eSpeak NG's license
+information](https://github.com/espeak-ng/espeak-ng#license-information) specifies
+GPL-3.0-or-later. The wrapper's Apache-2.0 metadata does not resolve the embedded
+component's licensing.
+
+Before distributing a production build, resolve the applicable GPL obligations,
+including corresponding source, build instructions, and notices, or replace
+this dependency with a verified alternative. Adding MIT to this repository or
+generating a package-license list does not resolve this issue.
 
 ## Trademarks
 

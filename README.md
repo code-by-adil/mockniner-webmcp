@@ -1,68 +1,138 @@
 # Assessment Lab
 
-Practice with your agent.
+Prepare for your next exam with the AI agent you already use. No extra exam-prep
+subscription.
 
-Assessment Lab is a browser-based practice app for IELTS, SAT-style tests, and
-custom assessments. Choose a built-in test or ask your agent to create one.
-Complete the test here, review your results, and ask for feedback on submitted
-work.
+Assessment Lab is an open-source exam-practice workspace that runs in your
+browser. Use the AI agent you already have to create a test, complete it here,
+and get feedback on your submitted work. Start with IELTS or SAT-style practice,
+ask for a GRE-style diagnostic, or make a quiz for a subject you're learning.
 
-Your agent creates questions and gives feedback through WebMCP. The app handles
-timing, scores objective answers, and saves your progress in the browser.
+Your agent supplies the questions and feedback. Assessment Lab provides the exam
+interface, timers, objective scoring, and saved attempts. The exam can change;
+you keep the same place to practise and review your work.
+
+There is no Assessment Lab subscription, account, or application API key to set
+up. You bring the agent, including any subscription or usage costs it requires.
 
 Built for the [OpenAI WebMCP Challenge](https://openai.com/webmcp-challenge/).
 
-## Try it
+## Start with a test, or ask for one
 
-Open Assessment Lab in a browser with WebMCP support and ask your agent:
+The library is a starting point. Your agent can create practice around a topic,
+a skill you want to improve, or the time you have available.
 
-> Create a short SAT-style practice test focused on algebra and inference.
+| Practice | What you can do |
+| --- | --- |
+| IELTS | Use built-in Listening, Academic Reading, Academic Writing, and Speaking practice, separately or as a full test. Ask your agent for new question sets or a Speaking interview. |
+| SAT-style | Take the built-in 98-question test across four timed modules, with results by topic, or ask for a shorter, focused test. |
+| GRE-style | Ask for original Verbal Reasoning, Quantitative Reasoning, and analytical writing practice. |
+| Your own subject | Create a biology quiz, an essay with a marking rubric, or a diagnostic for a topic you're studying. |
 
-The test appears in the practice library. Complete it, submit your answers, and
-review your score. Then ask:
+Custom assessments can combine passages, tables, bar charts, multiple-choice
+questions, numeric and short-text answers, matching, and extended writing.
+They can include timed parts, a calculator, reference material, and answer
+review. Your agent chooses from the app's supported question types and tools.
 
-> Explain the questions I missed and create practice for the topics I need to improve.
+These are practice assessments, not official exams. IELTS bands are estimates.
+SAT-style and GRE-style results report practice accuracy and rubric feedback,
+not official or predicted scores. Custom tests follow a fixed sequence rather
+than adaptive routing.
 
-For Writing and Speaking, open your submitted work and ask your agent for
-feedback. The evaluation appears beside your responses. You can also choose a
-built-in test and practise without an agent.
+## Practise with your agent
 
-See the [Site tools guide](https://learn.chatgpt.com/docs/webmcp) for supported
-agent browsers and setup.
+Open Assessment Lab in an agent browser that supports WebMCP. For ChatGPT and
+Codex, follow the [Site tools guide](https://learn.chatgpt.com/docs/webmcp) for
+current browser, model, and account requirements. You need a compatible agent
+and browser, but no separate MCP server.
 
-## Practice and feedback
+Start in the practice library and ask:
 
-- IELTS Listening, Academic Reading, Academic Writing, and Speaking, available
-  separately or as a full practice test.
-- A 98-question SAT-style practice test with four timed modules and results by
-  topic.
-- Custom quizzes and assessments with passages, tables, charts, multiple
-  choice, numeric answers, matching, and written responses.
-- Automatic scoring for objective questions, with answer review after
-  submission when the assessment allows it.
-- Agent feedback on submitted writing and interview transcripts, including
-  strengths, suggested improvements, and comments on specific responses.
-- Saved progress, results, and feedback, with backup export and import.
+> Create a 20-minute GRE-style diagnostic with verbal and quantitative questions.
+> Add it to my library.
 
-Speaking uses examiner audio and records each answer with your permission.
-Speech recognition runs in the browser after the interview. Your agent reads its
-completed transcript for feedback. Pronunciation is excluded from the band
-estimate because the agent does not receive the recording.
+The agent creates the assessment through the site's tools. The app validates it
+and adds it to the library. Open the test, answer the questions, and submit your
+work. The app scores objective answers immediately.
 
-Scores are for practice. IELTS bands are estimates. SAT-style and GRE-style
-results report practice accuracy and rubric feedback, not official or predicted
-test scores. The built-in SAT-style test uses a fixed question sequence.
+With your results open, ask:
+
+> Explain the questions I missed. Create a short follow-up quiz on the topics I
+> need to work on.
+
+For written work, ask your agent to evaluate the submitted responses. It returns
+criterion scores and comments to the results view. IELTS Writing also supports
+corrections linked to specific passages in your text.
+
+You choose what to practise and control your answers and submission. Agent
+feedback requires a request after submission; it does not arrive automatically.
+You can also take built-in tests without an agent, with local scoring for
+objective questions.
+
+## Why WebMCP
+
+WebMCP lets your agent add questions and feedback directly to the app you are
+using. You do not have to copy questions into a document or paste your responses
+back into a chat.
+
+There is no embedded chatbot or application-side model API. The page exposes
+tools for creating practice, opening tests and results, reading submissions,
+and attaching feedback. React and WebMCP call the same application commands and
+use the same saved data.
+
+Agents send structured content, not executable code. The app validates questions,
+answer rules, and feedback before saving them. Its tools do not answer questions,
+submit attempts, or expose active answer keys and draft responses. Feedback
+belongs to the exact saved attempt, even if the question set changes later.
+
+See the [WebMCP tool reference](./docs/WEBMCP.md) for the complete workflow and
+contracts.
+
+## Listening and Speaking
+
+Built-in IELTS Listening uses a bundled recording. For agent-created Listening
+sets, the agent writes the script and the browser generates the audio locally
+with Kokoro.
+
+Speaking plays examiner questions and records each answer when you choose to
+start the microphone. After the interview, Whisper transcribes the completed
+recordings in the browser. Your agent reviews the submitted transcript, not the
+audio. Pronunciation is therefore excluded from the band estimate, and automatic
+transcripts may contain recognition errors.
+
+Speaking and generated Listening audio require WebGPU. They download speech
+models on first use and reuse them while the browser cache remains available.
+Speaking also requires microphone permission.
+
+## Your saved work
+
+Practice sets, unfinished attempts, completed recordings, results, and feedback
+stay in this browser's local database. There is no account-based sync.
+
+Local storage does not make agent reviews local. When you ask an external agent
+to review a submission, it receives that work under its provider's data policies.
+
+Use **Local data** to export a backup or move saved work to another browser or
+device. Importing replaces the destination's saved practice rather than merging
+histories. Export that browser's work first if you want to keep it.
+
+Backups are unencrypted. Keep them somewhere private. Clearing site data removes
+saved practice, and a recording still in progress is not saved or included in a
+backup.
 
 ## Run locally
 
-Use Node.js 20.19+ or 22.12+.
+Use Node.js 20.19+ or 22.12+, as required by
+[Vite](https://vite.dev/guide/). From the repository root:
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. To verify and build the application:
+Open the local URL printed by Vite. No backend or model API key is required.
+
+To check the project and create a production build:
 
 ```bash
 npm test
@@ -70,56 +140,35 @@ npm run lint
 npm run build
 ```
 
-The production build is in `dist/`. Deploy it to a static HTTPS host that
-supports custom response headers. The included `public/_headers` configures
-Cloudflare hosting. Other hosts must send the same headers:
+The app uses React and TypeScript, with SQLocal storing SQLite data in the
+browser's origin private file system. The development server already sets the
+headers required for persistence.
+
+### Hosting
+
+The build is in `dist/`. Use a static HTTPS host that supports custom response
+headers. The included `public/_headers` supplies them for Cloudflare hosting.
+Other hosts must return equivalent headers:
 
 ```text
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
 
-These headers enable SQLocal's browser storage. See the [SQLocal setup
-guide](https://sqlocal.dev/guide/setup).
-
-Speaking and agent-generated Listening audio require WebGPU. The first use
-downloads speech models. Later use reuses the browser cache while those files
-remain available. Speaking also requires microphone permission.
-
-## Your saved work
-
-Practice sets, completed answers, recordings, results, and feedback are saved in
-this browser. Assessment Lab does not require an account or an application API
-key. Your agent can read submitted work through the site's tools when you ask it
-to review your results. That work is then handled by your agent provider under
-its own data policies. Browser-local storage does not mean agent reviews stay
-on your device.
-
-Open **Local data** to export a backup or import one on another browser or
-device. Importing replaces the destination browser's saved practice. Backups are
-unencrypted, so keep them somewhere private. Clearing site data removes saved
-practice. A recording still in progress is not included in a backup.
-
-## How WebMCP connects the app and your agent
-
-React and WebMCP use the same application commands and saved data. An agent
-creates a structured assessment, the app validates it, and the test appears in
-the library. After submission, the agent can read the saved responses and return
-feedback that the app displays in the results view.
-
-The app registers tools with `document.modelContext` in the top-level page.
-Tools support practice creation, navigation, submission review, and feedback.
-The learner controls answering and submission. Active answer keys and draft
-responses are excluded from tool results.
-
-IELTS uses section-specific question models and interfaces. Custom assessments
-use a shared package format with configurable questions, timing, review rules,
-and rubrics. Both save attempts in the same local database.
+SQLocal needs these headers for persistent storage. See its
+[setup guide](https://sqlocal.dev/guide/setup) and the project's
+[deployment notes](./docs/LOCAL_DATA.md#deployment). Review the
+[speech dependency licensing notes](./PROVENANCE.md#speech-dependency-licensing)
+before distributing a build.
 
 ## Developer documentation
 
+IELTS retains its section-specific interfaces and scoring. Custom assessments
+share a validated package format for questions, timing, learner tools, review
+rules, and rubrics. New subjects do not require a new exam-specific runtime.
+
 - [WebMCP tool reference](./docs/WEBMCP.md)
-- [Assessment framework](./docs/ASSESSMENT_FRAMEWORK.md)
+- [Custom assessment format and authoring](./docs/ASSESSMENT_FRAMEWORK.md)
 - [Listening audio](./docs/KOKORO_LISTENING.md)
 - [Speaking interviews](./docs/SPEAKING.md)
 - [Local storage, backups, and deployment](./docs/LOCAL_DATA.md)
