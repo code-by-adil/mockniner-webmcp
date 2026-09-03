@@ -1,18 +1,22 @@
-# Assessment Lab
+# MockNiner
+
+<img src="./public/mockniner-logo.svg" alt="MockNiner M9 logo" width="104" height="72" />
+
+[Open MockNiner](https://assessment-lab.dgkhan08.workers.dev)
 
 Prepare for your next exam with the AI agent you already use. No extra exam-prep
 subscription.
 
-Assessment Lab is an open-source exam-practice workspace that runs in your
+MockNiner is an open-source exam-practice workspace that runs in your
 browser. Use the AI agent you already have to create a test, complete it here,
 and get feedback on your submitted work. Start with IELTS or SAT-style practice,
 ask for a GRE-style diagnostic, or make a quiz for a subject you're learning.
 
-Your agent supplies the questions and feedback. Assessment Lab provides the exam
+Your agent supplies the questions and feedback. MockNiner provides the exam
 interface, timers, objective scoring, and saved attempts. The exam can change;
 you keep the same place to practise and review your work.
 
-There is no Assessment Lab subscription, account, or application API key to set
+There is no MockNiner subscription, account, or application API key to set
 up. You bring the agent, including any subscription or usage costs it requires.
 
 Built for the [OpenAI WebMCP Challenge](https://openai.com/webmcp-challenge/).
@@ -41,7 +45,7 @@ than adaptive routing.
 
 ## Practise with your agent
 
-Open Assessment Lab in an agent browser that supports WebMCP. For ChatGPT and
+Open MockNiner in an agent browser that supports WebMCP. For ChatGPT and
 Codex, follow the [Site tools guide](https://learn.chatgpt.com/docs/webmcp) for
 current browser, model, and account requirements. You need a compatible agent
 and browser, but no separate MCP server.
@@ -176,13 +180,13 @@ rules, and rubrics. New subjects do not require a new exam-specific runtime.
 
 ## License and attribution
 
-Assessment Lab's original code, documentation, and bundled practice content are
+MockNiner's original code, documentation, and bundled practice content are
 licensed under the [MIT License](./LICENSE), copyright 2026 Mohammad Adil.
 Third-party packages and speech models retain their own licenses. See
 [Attribution and content sources](./PROVENANCE.md), including the unresolved
 eSpeak NG licensing issue in the speech dependency.
 
-IELTS, SAT, and GRE are trademarks of their respective owners. Assessment Lab is
+IELTS, SAT, and GRE are trademarks of their respective owners. MockNiner is
 an independent practice application and is not affiliated with or endorsed by
 IELTS, the British Council, IDP, Cambridge University Press & Assessment,
 College Board, or ETS.

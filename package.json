@@ -1,5 +1,5 @@
 {
-  "name": "webmcp-assessment-lab",
+  "name": "mockniner",
   "private": true,
   "version": "0.0.0",
   "license": "MIT",
@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "deploy": "npm run build && wrangler deploy",
+    "preview:workers": "npm run build && wrangler dev",
     "lint": "oxlint",
     "test": "vitest run --maxWorkers=4",
     "eval:agent:smoke": "node scripts/agent-evals/smoke.mjs",
@@ -40,6 +42,7 @@
     "vite": "^8.2.2",
     "vitest": "^4.1.11",
     "webmcp-evals": "0.0.4",
-    "webmcp-types": "^0.1.5"
+    "webmcp-types": "^0.1.5",
+    "wrangler": "4.128.0"
   }
 }

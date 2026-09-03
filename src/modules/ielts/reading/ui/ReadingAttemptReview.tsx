@@ -4,7 +4,7 @@ import type { ObjectiveContentDocument } from '@/domain/objectiveContent';
 import type { ObjectiveSubmission } from '@/domain/types';
 import { buildObjectiveFooterParts } from '@/modules/ielts/exam/footerParts';
 import { ObjectivePartView } from '@/modules/ielts/objective/ui/ObjectivePartView';
-import { AssessmentLabBrand } from '@/shared/ui/global/AssessmentLabBrand';
+import { BrandMark } from '@/shared/ui/global/BrandMark';
 import { scrollIntoViewNearest } from '@/shared/ui/exam/scrollIntoViewNearest';
 import { ObjectiveExplanationPanel } from '@/modules/ielts/objective/ui/ObjectiveExplanationPanel';
 import type { ObjectiveExplanation } from '@/domain/objectiveExplanation';
@@ -65,7 +65,7 @@ export function ReadingAttemptReview({ document: content, submission, currentPar
   return <div ref={rootRef} className="flex h-dvh min-w-0 flex-col overflow-hidden bg-white text-neutral-900">
     <header className="shrink-0 border-b border-neutral-200 px-4 py-3 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
-        <AssessmentLabBrand />
+        <BrandMark />
         <button type="button" onClick={onExit} className="inline-flex min-h-9 items-center gap-2 text-sm font-medium text-neutral-700 hover:text-neutral-950 focus-visible:outline-2 focus-visible:outline-offset-2">
           <ArrowLeft size={16} aria-hidden="true" />{backLabel}
         </button>

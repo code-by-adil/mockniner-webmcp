@@ -79,6 +79,30 @@ retry and revision handling.
 
 ## Deployment
 
+Live site: [assessment-lab.dgkhan08.workers.dev](https://assessment-lab.dgkhan08.workers.dev).
+
+The project deploys to Cloudflare Workers Static Assets using `wrangler.jsonc`.
+Only the Vite output in `dist` is uploaded. No server-side Worker script,
+database, application credentials, or custom domain is needed. The configuration
+enables the Worker's `workers.dev` address, disables preview URLs, and declares
+no custom-domain routes. Missing navigation paths serve the SPA's `index.html`.
+
+To deploy from an authenticated Cloudflare account:
+
+```bash
+npm ci
+npx wrangler login
+npm run deploy
+```
+
+Wrangler prints the deployed `https://assessment-lab.<account-subdomain>.workers.dev`
+address. Check `npx wrangler whoami` before deploying to confirm the account.
+To preview the production build with Cloudflare's asset routing and headers:
+
+```bash
+npm run preview:workers
+```
+
 SQLocal requires cross-origin isolation to persist data in the browser.
 `public/_headers` configures the production headers expected by Cloudflare:
 

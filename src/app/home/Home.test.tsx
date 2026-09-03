@@ -41,6 +41,13 @@ function renderHome(session: IeltsSession = initialSession, content: ActiveConte
 }
 
 describe("native IELTS home metadata", () => {
+  it('shows MockNiner branding and the broader exam-practice scope', () => {
+    const html = renderHome();
+    expect(html).toContain('/mockniner-logo.svg');
+    expect(html).toContain('>Mock</span>');
+    expect(html).toContain('>Niner</span>');
+    expect(html).toContain('SAT, GRE, IELTS, and more');
+  });
   it('shows independent resume actions for every parked section and full exam', () => {
     let session = initialSession;
     for (const [index, section] of (['speaking', 'reading', 'writing', 'listening', 'listening'] as const).entries()) {

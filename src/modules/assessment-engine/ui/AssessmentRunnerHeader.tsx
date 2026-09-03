@@ -2,7 +2,7 @@ import { useState, type ReactElement } from "react";
 import { formatMinutesAndSeconds } from "@/shared/time";
 import { Calculator, ChevronDown, Clock, Eye, EyeOff, FileText, LogOut } from "lucide-react";
 import type { AssessmentPart, AssessmentResource } from "@/domain/assessment";
-import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
+import { BrandMark } from "@/shared/ui/global/BrandMark";
 import { AssessmentCalculatorDialog } from "./AssessmentCalculatorDialog";
 import { AssessmentReferenceDialog } from "./AssessmentReferenceDialog";
 import { StorageButton } from '@/app/WorkspaceStorage';
@@ -41,7 +41,7 @@ export function AssessmentRunnerHeader({
       <header className="relative z-30 shrink-0 border-b border-neutral-200 bg-white shadow-xs">
         <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-3 px-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <AssessmentLabBrand />
+            <BrandMark compact />
             <div className="hidden min-w-0 border-l border-neutral-200 pl-4 md:block">
               <p className="truncate text-xs font-bold">{part.groupTitle ?? assessmentTitle}</p>
               <p className="truncate text-[11px] text-neutral-500">{part.title}</p>
@@ -49,11 +49,12 @@ export function AssessmentRunnerHeader({
             {part.description ? (
               <button
                 type="button"
+                aria-label="Directions"
                 aria-expanded={directionsOpen}
                 onClick={() => setDirectionsOpen((value) => !value)}
                 className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs font-semibold text-neutral-700"
               >
-                Directions
+                <span className="hidden sm:inline">Directions</span>
                 <ChevronDown size={13} className={directionsOpen ? "rotate-180" : ""} />
               </button>
             ) : null}

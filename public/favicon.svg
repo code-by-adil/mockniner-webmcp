@@ -1,4 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#c31524"/>
-  <path d="M18 17h28v7H18zm0 12h20v7H18zm0 12h28v7H18z" fill="#fff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="24 -42 480 480">
+  <title>MockNiner</title>
+  <path
+    d="M54 342V100C54 50 116 28 151 64L274 205C290 223 307 223 322 206L376 145M132 342V146L232 326"
+    fill="none"
+    stroke="#171717"
+    stroke-width="24"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M286 142C286 87 329 54 379 54C437 54 477 96 477 151C477 182 466 206 448 229L355 342"
+    fill="none"
+    stroke="#c1121f"
+    stroke-width="24"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
 </svg>

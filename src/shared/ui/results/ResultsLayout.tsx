@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
-import { AssessmentLabBrand } from '@/shared/ui/global/AssessmentLabBrand';
+import { BrandMark } from '@/shared/ui/global/BrandMark';
 import { StorageButton } from '@/app/WorkspaceStorage';
 import './results.css';
 
@@ -14,7 +14,7 @@ export function ResultsLayout({ title, subtitle, onBack, backLabel = 'Back to pr
   return <div className="results-page min-h-screen bg-white text-neutral-950" style={style}>
     <header className="border-b border-neutral-200">
       <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between gap-3 px-4 sm:px-8">
-        <AssessmentLabBrand /><StorageButton />
+        <BrandMark /><StorageButton />
       </div>
     </header>
     <main className="mx-auto max-w-[1280px] px-4 pb-12 pt-5 sm:px-8 sm:pt-7">

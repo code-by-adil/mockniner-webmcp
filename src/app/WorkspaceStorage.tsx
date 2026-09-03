@@ -48,7 +48,7 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
   </main>;
   return <main className="mx-auto max-w-lg px-6 py-24">
     <h1 className="text-2xl font-semibold">{state === 'opening' ? 'Opening your practice…' : state === 'unsupported' ? 'This browser does not support saved practice' : 'Practice is open in another tab'}</h1>
-    <p className="mt-4 leading-7">{state === 'unsupported' ? 'Open Assessment Lab in an up-to-date browser with local storage enabled. Your saved data has not changed.' : 'Close the other Assessment Lab tab, then try again. Practice can be open in one tab at a time.'}</p>
+    <p className="mt-4 leading-7">{state === 'unsupported' ? 'Open MockNiner in an up-to-date browser with local storage enabled. Your saved data has not changed.' : 'Close the other MockNiner tab, then try again. Practice can be open in one tab at a time.'}</p>
     {state === 'blocked' ? <button className="mt-6 rounded-lg border px-4 py-2" onClick={() => { setState('opening'); setRetry(value => value + 1); }}>Try again</button> : null}
   </main>;
 }

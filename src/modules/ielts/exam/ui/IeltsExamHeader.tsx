@@ -9,7 +9,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
+import { BrandMark } from "@/shared/ui/global/BrandMark";
 import { ExamSettingsMenu } from "./ExamSettingsMenu";
 import { StorageButton } from '@/app/WorkspaceStorage';
 
@@ -106,7 +106,7 @@ export const IeltsExamHeader: React.FC<Props> = ({
     >
       <div className="max-w-[1400px] mx-auto px-2 sm:px-4 h-full flex items-center justify-between">
         <div className="flex items-center gap-2 sm:gap-6 min-w-0">
-          <AssessmentLabBrand />
+          <BrandMark compact />
 
           {/* Review Mode Badge */}
           {isReviewMode && (

@@ -68,8 +68,9 @@ describe('Writing review surface', () => {
     )
 
     expect(markup).toContain('Writing review')
-    expect(markup).toContain('Assessment ')
-    expect(markup).toContain('>Lab</span>')
+    expect(markup).toContain('>Mock</span>')
+    expect(markup).toContain('>Niner</span>')
+    expect(markup).toContain('/mockniner-logo.svg')
     expect(markup).toContain('Agent evaluation')
     expect(markup).toContain('Both tasks address the prompt clearly.')
     expect(markup).toContain('Revision 1')

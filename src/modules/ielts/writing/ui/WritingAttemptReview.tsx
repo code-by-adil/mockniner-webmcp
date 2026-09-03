@@ -7,7 +7,7 @@ import type {
 } from "@/domain/types";
 import { ExamUiBoundary } from '@/app/layouts/ExamUiBoundary';
 import { ResizableSplitPane } from "@/shared/ui/exam/ResizableSplitPane";
-import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
+import { BrandMark } from "@/shared/ui/global/BrandMark";
 import {
   ArrowDown,
   ChevronDown,
@@ -457,7 +457,7 @@ export function WritingAttemptReview({
     <ExamUiBoundary><div className="fixed inset-0 z-[60] flex flex-col bg-white">
       <div className="z-20 flex h-12 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-3 sm:h-14 sm:px-5">
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-          <AssessmentLabBrand />
+          <BrandMark />
           <div className="hidden h-5 w-px bg-gray-200 sm:block" />
           <h1 className="hidden truncate text-sm font-semibold text-gray-700 sm:block">Writing review</h1>
         </div>

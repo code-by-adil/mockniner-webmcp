@@ -1,19 +1,22 @@
 # Attribution and content sources
 
-Assessment Lab's original code, documentation, and bundled practice content are
+MockNiner's original code, documentation, and bundled practice content are
 licensed under the [MIT License](./LICENSE), copyright 2026 Mohammad Adil.
 Third-party packages, embedded components, and models retain their own licenses.
 The project license does not replace their terms.
 
 ## Practice content and assets
 
-The built-in questions, passages, museum map, favicon, Listening scripts, and
-Listening recording are original project assets. The authoring examples are
-separate original content that illustrate the supported assessment formats.
+The built-in questions, passages, museum map, Listening scripts, and Listening
+recording are original project assets. The M9 logo and wordmark reuse the
+author's original MockNiner branding, with crimson accents for this app. The
+favicon uses the same M9 paths with heavier strokes for small sizes. The
+authoring examples are separate original content that illustrate the supported
+assessment formats.
 
 SAT-style practice test 1 contains 98 original questions with module counts and
 timings based on College Board's published test structure. Its passages,
-scenarios, data, and mathematics questions were created for Assessment Lab. See
+scenarios, data, and mathematics questions were created for MockNiner. See
 the [content notes](./src/content/satFullLength/README.md) for the format and
 sources.
 
@@ -55,7 +58,7 @@ generating a package-license list does not resolve this issue.
 
 ## Trademarks
 
-IELTS, SAT, and GRE are trademarks of their respective owners. Assessment Lab is
+IELTS, SAT, and GRE are trademarks of their respective owners. MockNiner is
 an independent practice application and is not affiliated with or endorsed by
 IELTS, the British Council, IDP, Cambridge University Press & Assessment,
 College Board, or ETS.

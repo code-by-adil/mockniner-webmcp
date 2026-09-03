@@ -19,7 +19,7 @@ without an automatic ten-minute break.
 ## Content sources
 
 All passages, fictional research scenarios, data, names, and mathematics
-questions were created for Assessment Lab. The question counts, timings, and
+questions were created for MockNiner. The question counts, timings, and
 passage-length guidance follow College Board's published format, reviewed on
 September 3, 2026:
 
@@ -27,5 +27,5 @@ September 3, 2026:
 - [Reading and Writing](https://satsuite.collegeboard.org/sat/whats-on-the-test/reading-writing)
 - [Math](https://satsuite.collegeboard.org/sat/whats-on-the-test/math)
 
-SAT is a trademark of College Board. Assessment Lab is not affiliated with or
+SAT is a trademark of College Board. MockNiner is not affiliated with or
 endorsed by College Board.

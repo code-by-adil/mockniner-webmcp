@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 360" role="img" aria-labelledby="mockniner-logo-title">
+  <title id="mockniner-logo-title">MockNiner M9 logo</title>
+  <defs>
+    <linearGradient id="m9-m" x1="42" y1="344" x2="360" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0a0a0a" />
+      <stop offset="0.42" stop-color="#262626" />
+      <stop offset="0.7" stop-color="#171717" />
+      <stop offset="1" stop-color="#0a0a0a" />
+    </linearGradient>
+    <linearGradient id="m9-nine" x1="302" y1="58" x2="420" y2="306" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e11d2e" />
+      <stop offset="0.52" stop-color="#c1121f" />
+      <stop offset="1" stop-color="#8f0d16" />
+    </linearGradient>
+  </defs>
+  <path
+    d="M54 342V100C54 50 116 28 151 64L274 205C290 223 307 223 322 206L376 145M132 342V146L232 326"
+    fill="none"
+    stroke="url(#m9-m)"
+    stroke-width="16"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M286 142C286 87 329 54 379 54C437 54 477 96 477 151C477 182 466 206 448 229L355 342"
+    fill="none"
+    stroke="url(#m9-nine)"
+    stroke-width="16"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

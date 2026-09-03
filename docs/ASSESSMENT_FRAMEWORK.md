@@ -2,7 +2,7 @@
 
 ## Overview
 
-Assessment Lab supports IELTS practice and custom assessments.
+MockNiner supports IELTS practice and custom assessments.
 
 - Native IELTS uses its own documents, scoring, and high-fidelity Listening,
   Reading, Writing, and Speaking interfaces.

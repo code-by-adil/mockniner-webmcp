@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 .evals
+.wrangler/
+.dev.vars
+.dev.vars.*
 
 # Local agent instructions and configuration
 AGENTS.md
