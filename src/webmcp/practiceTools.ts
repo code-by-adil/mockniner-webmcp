@@ -9,7 +9,7 @@ const pageSchema = z.strictObject({ kind: practiceKind.optional(), limit: z.numb
 export function createPracticeTools(deps: {
   readLibrary: (input: DiscoveryPage) => Promise<unknown>
   readHistory: (input: DiscoveryPage) => Promise<unknown>
-  navigate: (input: PracticeNavigationInput) => Promise<unknown>
+  navigate: (input: PracticeNavigationInput, options?: { signal?: AbortSignal }) => Promise<unknown>
 }): WebMCP.ModelContextTool[] {
   return [
     ...(['library', 'history'] as const).map(kind => ({
@@ -40,7 +40,7 @@ export function createPracticeTools(deps: {
         const signal = getToolExecutionSignal(options); throwIfCancelled(signal)
         const parsed = navigationSchema.safeParse(input)
         if (!parsed.success) return toolFailure('INVALID_INPUT', 'Choose library, result, start or resume and supply only that action’s required IDs.', true, zodIssues(parsed.error))
-        try { const data = await deps.navigate(parsed.data); return { ok: true, data, sideEffect: { type: 'practice_navigation' } } }
+        try { const data = await deps.navigate(parsed.data, { signal }); return { ok: true, data, sideEffect: { type: 'practice_navigation' } } }
         catch (error) { return applicationFailure(error) }
       },
     },

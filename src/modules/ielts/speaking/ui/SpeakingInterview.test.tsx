@@ -8,7 +8,7 @@ import { defaultSpeakingPlan, speakingQuestionText } from '@/domain/speakingPlan
 import { SpeakingInterview } from './SpeakingInterview'
 import { createSpeakingProgressToolDefinition } from '@/webmcp/speakingTools'
 
-const mocks = vi.hoisted(() => ({ start: vi.fn(), stop: vi.fn(), discard: vi.fn(), prepare: vi.fn(), transcribe: vi.fn(), speak: vi.fn(), preload: vi.fn(), prepareAudio: vi.fn(), dispose: vi.fn() }))
+const mocks = vi.hoisted(() => ({ start: vi.fn(), stop: vi.fn(), discard: vi.fn(), prepare: vi.fn(), transcribe: vi.fn(), speak: vi.fn(), prepareAudio: vi.fn(), dispose: vi.fn() }))
 const drafts = vi.hoisted(() => ({ load: vi.fn(), save: vi.fn() }))
 vi.mock('@/infrastructure/database/client', () => ({ getLocalDatabase: async () => ({}) }))
 vi.mock('@/infrastructure/database/speakingDraftRepository', () => ({ loadDraftRecordings: drafts.load, saveDraftRecording: drafts.save }))
@@ -17,10 +17,11 @@ vi.mock('../useSpeakingRecorder', () => ({ useSpeakingRecorder: () => ({
   discard: mocks.discard, transcribeRecordings: mocks.transcribe, transcriptionStatus: '',
 }) }))
 vi.mock('@/infrastructure/media/kokoroSpeakingPlayer', () => ({ KokoroSpeakingPlayer: class {
-  speak = mocks.speak; preload = mocks.preload; prepareAudio = mocks.prepareAudio; dispose = mocks.dispose
+  speak = mocks.speak; prepareAudio = mocks.prepareAudio; dispose = mocks.dispose
 } }))
 
 const plan = { ...defaultSpeakingPlan, title: 'Three-question flow test', questions: [defaultSpeakingPlan.questions[0]!, defaultSpeakingPlan.questions[6]!, defaultSpeakingPlan.questions[7]!] }
+const attemptId = '11111111-1111-4111-8111-111111111111'
 let root: Root, host: HTMLDivElement, bridge: ReturnType<typeof createSpeakingInterviewController>
 const complete = vi.fn()
 const persistPlan = vi.fn()
@@ -42,7 +43,7 @@ beforeEach(async () => {
   host = document.createElement('div'); document.body.append(host); root = createRoot(host)
   let binding!: SpeakingInterviewBinding
   const bind = (next: SpeakingInterviewBinding) => { binding = next; return bridge.bind(next) }
-  await act(async () => root.render(<SpeakingInterview bindSpeakingInterview={bind} onComplete={complete} onConfigurePlan={persistPlan} />))
+  await act(async () => root.render(<SpeakingInterview attemptId={attemptId} bindSpeakingInterview={bind} onComplete={complete} onConfigurePlan={persistPlan} />))
   // A reduced renderer fixture keeps lifecycle tests focused. The public plan
   // contract is tested independently and requires 10–12 questions.
   await act(async () => { binding.configure(plan) })
@@ -62,6 +63,27 @@ describe('one local Speaking experience', () => {
     await click('Resume interview')
     expect(bridge.read()).toMatchObject({ currentQuestion: 2, recordedAnswers: 1 })
     expect(mocks.speak).toHaveBeenLastCalledWith(speakingQuestionText(plan.questions[1]!), expect.any(AbortSignal), expect.any(Function))
+    expect(mocks.prepareAudio.mock.calls.map(([text]) => text)).toEqual(plan.questions.slice(1).map(speakingQuestionText))
+  })
+  it('prepares only the final unanswered prompt when resuming near the end', async () => {
+    drafts.load.mockResolvedValueOnce(plan.questions.slice(0, 2).map((question, sequence) => ({
+      promptId: question.id, partLabel: `Part ${question.part}`, sequence,
+      promptText: speakingQuestionText(question), timeLimitSeconds: question.responseSeconds,
+      status: 'answered', audio: new Blob(['saved answer']), durationMs: 2000, transcript: '',
+    })))
+    await act(async () => root.render(<SpeakingInterview key="last-question" attemptId={attemptId} initialPlan={plan}
+      bindSpeakingInterview={bridge.bind} onComplete={complete} onConfigurePlan={persistPlan} />))
+    await click('Resume interview')
+    expect(mocks.prepareAudio.mock.calls.map(([text]) => text)).toEqual([speakingQuestionText(plan.questions[2]!)])
+    expect(bridge.read()).toMatchObject({ currentQuestion: 3, recordedAnswers: 2 })
+  })
+  it('does not queue future questions before the current question can play', async () => {
+    mocks.speak.mockRejectedValueOnce(new Error('Question audio failed.'))
+    await click('Start interview')
+    expect(mocks.prepareAudio.mock.calls.map(([text]) => text)).toEqual([speakingQuestionText(plan.questions[0]!)])
+    await click('Retry this question')
+    expect(mocks.prepareAudio.mock.calls.map(([text]) => text)).toEqual(plan.questions.slice(0, 2).map(speakingQuestionText))
+    expect(bridge.read()).toMatchObject({ phase: 'ready', currentQuestion: 1 })
   })
   it('keeps a failed recording save for retry, without recording or advancing twice', async () => {
     await act(async () => root.render(<SpeakingInterview key="durable" attemptId="11111111-1111-4111-8111-111111111111" initialPlan={plan} bindSpeakingInterview={bridge.bind} onComplete={complete} onConfigurePlan={persistPlan} />))
@@ -89,7 +111,7 @@ describe('one local Speaking experience', () => {
     expect(bridge.canLeave()).toBe(true)
     await act(async () => root.render(<div>Paused</div>))
     expect(bridge.canLeave()).toBe(false)
-    await act(async () => root.render(<SpeakingInterview initialPlan={plan} bindSpeakingInterview={bridge.bind} onComplete={complete} onConfigurePlan={persistPlan} />))
+    await act(async () => root.render(<SpeakingInterview attemptId={attemptId} initialPlan={plan} bindSpeakingInterview={bridge.bind} onComplete={complete} onConfigurePlan={persistPlan} />))
     expect(host.textContent).toContain(plan.title)
     expect(bridge.read()).toMatchObject({ phase: 'setup', totalQuestions: 3, title: plan.title })
     expect(bridge.canLeave()).toBe(true)
@@ -98,8 +120,10 @@ describe('one local Speaking experience', () => {
     await click('Start interview')
     expect(bridge.canLeave()).toBe(false)
     const running = new Event('beforeunload', { cancelable: true })
-    window.dispatchEvent(running); expect(running.defaultPrevented).toBe(true)
+    window.dispatchEvent(running); expect(running.defaultPrevented).toBe(false)
     await click('Record answer'); expect(bridge.canLeave()).toBe(false)
+    const recording = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(recording); expect(recording.defaultPrevented).toBe(true)
     await click('Submit answer'); expect(bridge.canLeave()).toBe(false)
   })
   it('uses Space for record and submit without interfering with notes or dialogs', async () => {
@@ -180,8 +204,7 @@ describe('one local Speaking experience', () => {
     expect(host.textContent).not.toContain(plan.questions[0]!.text)
     await click('Start interview')
     expect(trackStop).toHaveBeenCalledOnce()
-    expect(mocks.preload).toHaveBeenCalledWith(plan.questions.map(speakingQuestionText))
-    expect(mocks.prepareAudio).toHaveBeenCalledTimes(1)
+    expect(mocks.prepareAudio.mock.calls.map(([text]) => text)).toEqual(plan.questions.slice(0, 2).map(speakingQuestionText))
     expect(mocks.start).not.toHaveBeenCalled()
     expect(() => bridge.configure(defaultSpeakingPlan)).toThrow('locked')
     await advance(60_000)

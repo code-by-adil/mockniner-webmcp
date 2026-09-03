@@ -1,7 +1,7 @@
 import { StorageButton } from '@/app/WorkspaceStorage'
 import { AssessmentLabBrand } from '@/shared/ui/global/AssessmentLabBrand'
 
-export function PracticeHeader() {
+export function PracticeHeader({ canImport = false }: { canImport?: boolean }) {
   return (
     <header className="sticky top-0 z-30 w-full border-b border-neutral-200/80 bg-white">
       <div className="mx-auto flex h-[60px] max-w-[1400px] items-center justify-between gap-3 px-4 sm:px-8">
@@ -12,7 +12,7 @@ export function PracticeHeader() {
             <span className="truncate text-[11px] leading-tight text-neutral-500">IELTS and custom assessments</span>
           </div>
         </div>
-        <StorageButton />
+        <StorageButton canImport={canImport} />
       </div>
     </header>
   )

@@ -4,7 +4,7 @@ import { parseAssessmentPackage } from "@/domain/assessment";
 import { AssessmentInteractionView } from "./AssessmentInteractionView";
 
 const assessment = parseAssessmentPackage({
-  schemaVersion: 3,
+  schemaVersion: 4,
   packageId: "interaction-rendering",
   revision: 1,
   title: "Interaction rendering",

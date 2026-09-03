@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act } from 'react';
+import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getAssessmentAuthoringKit } from '@/content/assessmentExamples';
@@ -8,6 +8,7 @@ import { greStyleAssessment } from '@/content/gre';
 import { gradeAssessment, type AssessmentEvaluation, type AssessmentPackage, type AssessmentResponseMap, type AssessmentSubmission } from '@/domain/assessment';
 import { AssessmentAnswerReview } from './AssessmentAnswerReview';
 import { AssessmentResults } from './AssessmentResults';
+import { resolveAssessmentReview, type AssessmentReviewSelection } from '@/domain/assessmentReview';
 
 function submissionFor(assessment: AssessmentPackage, responses: AssessmentResponseMap = {}): AssessmentSubmission {
   return { attemptId: '33333333-3333-4333-8333-333333333333', packageId: assessment.packageId, package: assessment,
@@ -15,6 +16,18 @@ function submissionFor(assessment: AssessmentPackage, responses: AssessmentRespo
 }
 function example(template: 'minimal-objective' | 'writing-with-rubric'): AssessmentPackage {
   return { ...getAssessmentAuthoringKit(template).examplePackage, source: 'built-in' };
+}
+
+function ReviewHost({ submission, evaluation }: { submission: AssessmentSubmission; evaluation?: AssessmentEvaluation }) {
+  const [selection, setSelection] = useState<AssessmentReviewSelection>({ filter: 'all' });
+  return <AssessmentAnswerReview submission={submission} evaluation={evaluation} selection={selection}
+    onSelectionChange={next => setSelection(resolveAssessmentReview(submission, next))} />;
+}
+
+function ResultsHost({ submission }: { submission: AssessmentSubmission }) {
+  const [review, setReview] = useState<AssessmentReviewSelection | null>(null);
+  return <AssessmentResults submission={submission} onHome={() => undefined} review={review}
+    onReviewChange={next => setReview(next ? resolveAssessmentReview(submission, next) : null)} />;
 }
 
 describe('focused assessment answer review', () => {
@@ -36,7 +49,7 @@ describe('focused assessment answer review', () => {
     if (moduleSelect.value !== entry.part.id) await act(async () => { moduleSelect.value = entry.part.id; moduleSelect.dispatchEvent(new Event('change', { bubbles: true })); });
     await click(container.querySelector<HTMLButtonElement>(`button[aria-label^="Question ${entry.number},"]`)!);
   }
-  async function render(submission: AssessmentSubmission, evaluation?: AssessmentEvaluation) { currentSubmission = submission; await act(async () => root.render(<AssessmentAnswerReview submission={submission} evaluation={evaluation} />)); }
+  async function render(submission: AssessmentSubmission, evaluation?: AssessmentEvaluation) { currentSubmission = submission; await act(async () => root.render(<ReviewHost submission={submission} evaluation={evaluation} />)); }
 
   it('shows one question with its saved material and inline answer choices', async () => {
     await render(submissionFor(satPracticeAssessment, { 'rw-1': 'b', 'math-1': '5' }));
@@ -90,6 +103,17 @@ describe('focused assessment answer review', () => {
     expect(document.activeElement).toBe(question().querySelector('h2'));
     await click(button('Previous'));
     expect(question().getAttribute('aria-label')).toBe('Question 3');
+  });
+
+  it('follows externally controlled review selection and moves focus to that question', async () => {
+    const submission = submissionFor(satPracticeAssessment);
+    const onSelectionChange = vi.fn();
+    await act(async () => root.render(<AssessmentAnswerReview submission={submission} selection={{ filter: 'all', itemId: 'rw-3' }} onSelectionChange={onSelectionChange} />));
+    expect(question().getAttribute('data-item-id')).toBe('rw-3');
+    await act(async () => root.render(<AssessmentAnswerReview submission={submission} selection={{ filter: 'all', itemId: 'math-1' }} onSelectionChange={onSelectionChange} />));
+    expect(question().getAttribute('data-item-id')).toBe('math-1');
+    expect(document.activeElement).toBe(question().querySelector('h2'));
+    expect(onSelectionChange).not.toHaveBeenCalled();
   });
 
   it('exposes each answer status as text and keeps its icon decorative', async () => {
@@ -160,13 +184,13 @@ describe('focused assessment answer review', () => {
 
   it('opens review mistakes directly, returns to overview, and resets for another attempt', async () => {
     const first = submissionFor(satPracticeAssessment, { 'math-1': '5' });
-    await act(async () => root.render(<AssessmentResults submission={first} onHome={() => undefined} />));
+    await act(async () => root.render(<ResultsHost key={first.attemptId} submission={first} />));
     expect(question()).toBeNull(); await click(button('Review mistakes'));
     expect(question().getAttribute('data-item-id')).toBe('math-1');
     await click(button('Back to results')); expect(question()).toBeNull();
     await click(button('Review Math · Module 2')); expect(question().getAttribute('data-item-id')).toBe('math-4');
     const second = { ...submissionFor(example('minimal-objective')), attemptId: '44444444-4444-4444-8444-444444444444' };
-    await act(async () => root.render(<AssessmentResults submission={second} onHome={() => undefined} />));
+    await act(async () => root.render(<ResultsHost key={second.attemptId} submission={second} />));
     expect(question()).toBeNull(); await click(button('Review answers'));
     expect(filterButton('All').getAttribute('aria-pressed')).toBe('true');
     expect(question().getAttribute('aria-label')).toBe('Question 1');

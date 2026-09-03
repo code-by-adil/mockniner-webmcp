@@ -5,7 +5,7 @@ import { getIeltsExample } from './ieltsExamples'
 import { listeningDocument } from './objective'
 import { revision, scriptsSha256 } from './bundledListeningAudio.json'
 import { parseListeningTimeline } from '@/infrastructure/media/listeningTimeline'
-import { getListeningAudioSources } from '@/infrastructure/media/listeningAudio'
+import { getBundledListeningSources } from '@/infrastructure/media/bundledListeningAssets'
 
 const museumScript = readFileSync(new URL('../../scripts/audio/part-2.txt', import.meta.url), 'utf8')
 // Question-range instructions and "check your answers" are normal exam narration.
@@ -57,7 +57,7 @@ describe('Listening narration', () => {
     const audio = readFileSync(new URL('../../public/audio/listening-test-1.mp3', import.meta.url))
     const timeline = readFileSync(new URL('../../public/audio/local-original-timeline.json', import.meta.url), 'utf8')
     expect(revision).toBe(createHash('sha256').update(audio).update(timeline).digest('hex').slice(0, 16))
-    const sources = getListeningAudioSources('local-original')
+    const sources = getBundledListeningSources('local-original')
     expect(sources.audioUrl).toBe(`/audio/listening-test-1.mp3?v=${revision}`)
     expect(sources.timelineUrl).toBe(`/audio/local-original-timeline.json?v=${revision}`)
     const parsed = parseListeningTimeline(JSON.parse(timeline))

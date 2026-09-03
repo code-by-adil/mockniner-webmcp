@@ -43,10 +43,7 @@ const readSubmissionInputSchema = z.strictObject({
 }).refine(input => !(input.attemptId && input.latest), { message: 'Use attemptId or latest, not both.' });
 const readSubmissionJsonSchema = z.toJSONSchema(readSubmissionInputSchema, { target: 'draft-07', io: 'input' });
 
-export type AssessmentToolSurface = "authoring" | "results" | "evaluation" | "none";
-
 type AssessmentToolDependencies = {
-  installAssessment: AssessmentApplicationCommands["installAssessment"];
   readAssessmentAttempt: (attemptId?: string) => Promise<{
     submission: AssessmentSubmission;
     evaluation: AssessmentEvaluation | null;
@@ -58,7 +55,7 @@ type AssessmentToolDependencies = {
 export function createAssessmentAuthoringToolDefinitions({
   installAssessment,
   includeAuthoringExamples = () => true,
-}: Pick<AssessmentToolDependencies, "installAssessment"> & { includeAuthoringExamples?: () => boolean }): WebMCP.ModelContextTool[] {
+}: { installAssessment: AssessmentApplicationCommands["installAssessment"]; includeAuthoringExamples?: () => boolean }): WebMCP.ModelContextTool[] {
   return [
     {
       name: "get_assessment_authoring_kit",
@@ -131,14 +128,10 @@ export function createAssessmentAuthoringToolDefinitions({
 }
 
 export function createAssessmentToolDefinitions({
-  installAssessment,
   readAssessmentAttempt,
   attachEvaluation,
   getCurrentAttemptId,
-}: AssessmentToolDependencies, surface: AssessmentToolSurface = "authoring"): WebMCP.ModelContextTool[] {
-  if (surface === "authoring") {
-    return createAssessmentAuthoringToolDefinitions({ installAssessment });
-  }
+}: AssessmentToolDependencies): WebMCP.ModelContextTool[] {
   const submissionTool: WebMCP.ModelContextTool = {
     name: "get_assessment_submission",
     title: "Read assessment submission",
@@ -174,7 +167,7 @@ export function createAssessmentToolDefinitions({
             selection,
             ...readAssessmentSubmission(stored, { view, partId, itemId }),
             evaluationStatus: getAssessmentEvaluationStatus(stored.submission.result, stored.evaluation),
-            evaluationRevision: stored.evaluation ? stored.evaluation.revision ?? 1 : 0,
+            evaluationRevision: stored.evaluation?.revision ?? 0,
             canReviseEvaluation: Boolean(stored.evaluation) && stored.submission.attemptId === getCurrentAttemptId(),
             canAttachEvaluation:
               !stored.evaluation &&
@@ -189,7 +182,7 @@ export function createAssessmentToolDefinitions({
     name: "attach_assessment_evaluation",
     title: "Attach assessment evaluation",
     description:
-      "Save rubric feedback on the visible immutable universal assessment submission. Read its rubric ID, criteria, scale and response text first. Identical retries return the saved evaluation without a new revision. For corrections, supply the reader's evaluationRevision as expectedRevision. Stale revisions are rejected. The visible result updates immediately.",
+      "Save rubric feedback on the visible immutable universal assessment submission. Read its criteria, scale and response text first. The app calculates the weighted score. Identical retries return the saved evaluation without a new revision. For corrections, supply the reader's evaluationRevision as expectedRevision. Stale revisions are rejected. The visible result updates immediately.",
     inputSchema: getAssessmentEvaluationJsonSchema(),
     annotations: { readOnlyHint: false, untrustedContentHint: false },
     execute: async (input, options) => {
@@ -206,9 +199,8 @@ export function createAssessmentToolDefinitions({
           ok: true,
           data: {
             status: "saved",
-            revision: evaluation.revision ?? 1,
+            revision: evaluation.revision,
             attemptId: evaluation.attemptId,
-            rubricId: evaluation.rubricId,
             overallScore: evaluation.overallScore,
             evaluatedAt: evaluation.evaluatedAt,
           },
@@ -219,6 +211,5 @@ export function createAssessmentToolDefinitions({
       }
     },
   };
-  if (surface === "results" || surface === "evaluation") return [submissionTool, evaluationTool];
-  return [];
+  return [submissionTool, evaluationTool];
 }

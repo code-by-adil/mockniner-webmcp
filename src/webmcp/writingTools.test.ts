@@ -39,19 +39,15 @@ function toolOptions() {
 }
 
 describe("Writing WebMCP tools", () => {
-  it("registers only the tools relevant to the visible Writing surface", () => {
+  it("defines the fixed Writing review tool group", () => {
     const dependencies = {
       readWritingAttempt: vi.fn(),
       attachWritingEvaluation: vi.fn(),
       getCurrentWritingAttemptId: () => undefined,
     };
-    expect(createWritingToolDefinitions(dependencies, "results").map((tool) => tool.name)).toEqual([
+    expect(createWritingToolDefinitions(dependencies).map((tool) => tool.name)).toEqual([
       "get_ielts_writing_submission", "attach_ielts_writing_evaluation",
     ]);
-    expect(
-      createWritingToolDefinitions(dependencies, "evaluation").map((tool) => tool.name),
-    ).toEqual(["get_ielts_writing_submission", "attach_ielts_writing_evaluation"]);
-    expect(createWritingToolDefinitions(dependencies, "none")).toEqual([]);
   });
 
   it("returns the immutable submission and evaluation status", async () => {

@@ -36,6 +36,8 @@ function createHarness({
   )
   const commands = createIeltsCommands({
     getState: () => state,
+    publishSession: next => { state = next },
+    persistSession: () => {},
     getContent: () => content,
     setContent: (next) => {
       content = next

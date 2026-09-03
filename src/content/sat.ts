@@ -1,7 +1,7 @@
 import { parseAssessmentPackage } from "@/domain/assessment";
 
 export const satPracticeAssessment = parseAssessmentPackage({
-  schemaVersion: 3,
+  schemaVersion: 4,
   packageId: "local-sat-foundations-v1",
   revision: 1,
   title: "SAT-Style Foundations Diagnostic",
@@ -34,7 +34,6 @@ export const satPracticeAssessment = parseAssessmentPackage({
     },
   ],
   review: { mode: "answers" },
-  rubrics: [],
   parts: [
     {
       id: "rw-module-1",

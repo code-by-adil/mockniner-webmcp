@@ -4,7 +4,6 @@ import { useExamNativeDialog } from '@/shared/ui/exam/useExamNativeDialog';
 import { draftSaves } from '@/infrastructure/saveCoordinator';
 import { storageHealth } from '@/infrastructure/storageHealth';
 import type { BackupSummary } from '@/infrastructure/database/backupRepository';
-const getLocalDatabase = async () => (await import('@/infrastructure/database/client')).getLocalDatabase();
 const backups = () => import('@/infrastructure/localBackup');
 const countLabel = (count: number, label: string) => `${count} ${label}${count === 1 ? '' : 's'}`;
 
@@ -88,12 +87,9 @@ export function StorageStatus({ children }: { children: ReactNode }) {
   };
   const dialog = useExamNativeDialog({ open, onOpenChange: close, closedBy: busy ? 'none' : 'closerequest' });
   useEffect(() => {
-    void getLocalDatabase().then(async db => {
+    void backups().then(async backup => {
       setPersistent(await navigator.storage?.persisted?.() ?? false);
-      const archived = await db.sql<{ name: string }>`SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'legacy_%'`;
-      if (archived.length) storageHealth.report('Some assessments from an older version cannot be opened here. Export a backup to keep their saved data.');
-      const imports = await db.sql<{ storage_key: string }>`SELECT storage_key FROM storage_imports WHERE status = 'unavailable'`;
-      for (const row of imports) storageHealth.report(`${row.storage_key}: An older unfinished attempt could not be restored. Its saved data is included in backups.`);
+      if (await backup.hasArchivedDrafts()) storageHealth.report('An older unfinished attempt could not be restored. Export a backup to keep its saved data.');
     }).catch(error => setMessage(String(error)));
   }, []);
   useEffect(() => {

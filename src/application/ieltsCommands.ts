@@ -41,13 +41,14 @@ import { ApplicationError } from "@/domain/errors";
 import { locateIeltsReview, reviewLocationSchema, type ReviewLocation } from '@/domain/reviewLocation';
 import { objectiveExplanationInputSchema, type ObjectiveExplanationInput, type ObjectiveExplanation } from '@/domain/objectiveExplanation';
 import { resolveWritingEvaluation } from "@/domain/writingAnnotations";
-import { findContentBlockingDraft, getIeltsDrafts, sessionReducer } from "@/domain/session";
+import { findContentBlockingDraft, sessionReducer } from "@/domain/session";
 import { defaultSpeakingPlan, speakingPlanSchema, type SpeakingPlan } from '@/domain/speakingPlan';
 
 type CommandDependencies = {
   getState: () => IeltsSession;
   dispatch: (action: SessionAction) => void;
-  persistSession?: (session: IeltsSession) => void | Promise<void>;
+  publishSession: (session: IeltsSession) => void;
+  persistSession: (session: IeltsSession) => void | Promise<void>;
   flushDrafts?: () => Promise<void>;
   now?: () => Date;
   getRepository: () => Promise<AttemptReader & AttemptWriter>;
@@ -61,7 +62,7 @@ export type IeltsCommands = {
   resume: (attemptId?: string) => void | Promise<void>;
   configureSpeakingPlan: (plan: SpeakingPlan) => void | Promise<void>;
   goHome: () => void | Promise<void>;
-  continueExam: () => void;
+  continueExam: () => void | Promise<void>;
   setPart: (section: SectionKey, part: number) => void;
   setObjectiveAnswer: (
     section: "listening" | "reading",
@@ -90,11 +91,12 @@ export type IeltsCommands = {
     attemptId: string,
     section: "listening" | "reading" | "writing" | "speaking",
     location?: ReviewLocation,
+    options?: { signal?: AbortSignal; beforeOpen?: () => void | Promise<void> },
   ) => Promise<void>;
   setReviewLocation: (location: ReviewLocation) => void;
   saveObjectiveExplanation: (input: ObjectiveExplanationInput) => Promise<ObjectiveExplanation>;
   closeReview: () => void;
-  reset: () => void;
+  reset: () => void | Promise<void>;
 };
 
 function requireActiveSection(
@@ -124,7 +126,8 @@ function requireVisibleSection(state: IeltsSession, section: SectionKey): void {
 export function createIeltsCommands({
   getState,
   dispatch,
-  persistSession = () => {},
+  publishSession,
+  persistSession,
   flushDrafts = async () => {},
   now = () => new Date(),
   getRepository,
@@ -132,15 +135,40 @@ export function createIeltsCommands({
   setContent,
   getContentStore,
 }: CommandDependencies): IeltsCommands {
-  // Metadata-changing commands must be durable before tools report success.
-  const commit = (action: SessionAction) => {
-    const next = sessionReducer(getState(), action);
+  let changingPractice = false;
+  function changePractice<T>(operation: () => T | Promise<T>): T | Promise<T> {
+    if (changingPractice) {
+      throw new ApplicationError('PRACTICE_CHANGE_BUSY', 'Another practice change is in progress. Wait for it to finish, then try again.', true);
+    }
+    changingPractice = true;
+    try {
+      const result = operation();
+      if (result instanceof Promise) return result.finally(() => { changingPractice = false; });
+      changingPractice = false;
+      return result;
+    } catch (error) {
+      changingPractice = false;
+      throw error;
+    }
+  }
+  const saveFailure = (cause: unknown) => new ApplicationError(
+    'DRAFT_SAVE_FAILED',
+    cause instanceof Error ? `Could not save the practice draft: ${cause.message}` : 'Could not save the practice draft.',
+    true,
+  );
+  const commit = (action: SessionAction): void | Promise<void> => {
+    const before = getState();
+    const next = sessionReducer(before, action);
     try {
       const saved = persistSession(next);
-      if (saved) return saved.then(() => { dispatch(action); return flushDrafts(); });
-    }
-    catch (cause) { throw new ApplicationError('DRAFT_SAVE_FAILED', cause instanceof Error ? `Could not save the practice draft: ${cause.message}` : 'Could not save the practice draft.', true); }
-    dispatch(action);
+      if (saved) return saved.then(() => {
+        // Answer edits remain available while saving. Save their latest state
+        // before leaving; never publish an older snapshot over those edits.
+        if (getState() !== before) return commit(action);
+        publishSession(next);
+      }).catch(cause => { throw cause instanceof ApplicationError ? cause : saveFailure(cause); });
+      publishSession(next);
+    } catch (cause) { throw saveFailure(cause); }
   };
   const openReview = (review: IeltsReview) => {
     dispatch({ type: "OPEN_REVIEW", review });
@@ -151,13 +179,22 @@ export function createIeltsCommands({
     section: "listening" | "reading" | "writing" | "speaking",
     returnTo: "home" | "result",
     location?: ReviewLocation,
+    options?: { signal?: AbortSignal; beforeOpen?: () => void | Promise<void> },
   ): Promise<void> => {
     const reader = await getRepository();
-    const showReview = (review: IeltsReview) => openReview(location ? locateIeltsReview(review, reviewLocationSchema.parse(location)) : review);
+    const signal = options?.signal;
+    signal?.throwIfAborted();
+    const showReview = async (review: IeltsReview) => {
+      const selected = location ? locateIeltsReview(review, reviewLocationSchema.parse(location)) : review;
+      signal?.throwIfAborted();
+      await options?.beforeOpen?.();
+      signal?.throwIfAborted();
+      openReview(selected);
+    };
     if (section === 'speaking') {
       const stored = await reader.readSpeakingAttempt(attemptId);
       if (!stored) throw new ApplicationError('ATTEMPT_NOT_FOUND', `Speaking attempt ${attemptId} was not found.`, true);
-      showReview({ kind: 'speaking', section, submission: stored.submission, evaluation: stored.evaluation, part: 1, returnTo });
+      await showReview({ kind: 'speaking', section, submission: stored.submission, evaluation: stored.evaluation, part: 1, returnTo });
       return;
     }
     if (section === "writing") {
@@ -165,7 +202,7 @@ export function createIeltsCommands({
       if (!stored) {
         throw new ApplicationError('ATTEMPT_NOT_FOUND', `Writing attempt ${attemptId} was not found.`, true);
       }
-      showReview({
+      await showReview({
         kind: "writing",
         section,
         submission: stored.submission,
@@ -200,7 +237,7 @@ export function createIeltsCommands({
         `Content ${submission.contentKey} belongs to ${document.section}, not ${section}.`,
       );
     }
-    showReview({
+    await showReview({
       kind: "objective",
       explanations: await reader.readObjectiveExplanations(attemptId),
       section,
@@ -230,7 +267,7 @@ export function createIeltsCommands({
     },
     start(mode, requestedSection) {
       const section = mode === "full" ? "listening" : requestedSection;
-      return commit({
+      return changePractice(() => commit({
         type: "START",
         mode,
         section,
@@ -238,29 +275,29 @@ export function createIeltsCommands({
         speakingPlan: mode === 'full' || section === 'speaking' ? defaultSpeakingPlan : undefined,
         startedAt: now().toISOString(),
         attemptId: crypto.randomUUID(),
-      });
+      }));
     },
     resume(targetAttemptId) {
-      return commit({
+      return changePractice(() => commit({
         type: "RESUME",
         targetAttemptId,
         startedAt: now().toISOString(),
         attemptId: crypto.randomUUID(),
-      });
+      }));
     },
     goHome() {
-      return commit({ type: "GO_HOME" });
+      return changePractice(() => commit({ type: "GO_HOME" }));
     },
     configureSpeakingPlan(input) {
       requireActiveSection(getState(), 'speaking');
-      return commit({ type: 'SET_SPEAKING_PLAN', plan: speakingPlanSchema.parse(input) });
+      return changePractice(() => commit({ type: 'SET_SPEAKING_PLAN', plan: speakingPlanSchema.parse(input) }));
     },
     continueExam() {
-      dispatch({
+      return changePractice(() => commit({
         type: "CONTINUE",
         startedAt: now().toISOString(),
         attemptId: crypto.randomUUID(),
-      });
+      }));
     },
     setPart(section, part) {
       requireVisibleSection(getState(), section);
@@ -279,6 +316,7 @@ export function createIeltsCommands({
       dispatch({ type: "SET_WRITING", task, value });
     },
     setListeningPlayback(playback) {
+      if (changingPractice) return;
       requireActiveSection(getState(), "listening");
       dispatch({
         type: "SET_LISTENING_PLAYBACK",
@@ -289,25 +327,27 @@ export function createIeltsCommands({
       });
     },
     tick(section) {
-      dispatch({ type: "TICK", section });
+      if (!changingPractice) dispatch({ type: "TICK", section });
     },
     async installContent(input) {
-      const document = parsePracticeContentDocument(input);
-      const assertContentUnlocked = () => {
-        if (findContentBlockingDraft(getState(), document.section))
-          throw new ApplicationError(
-            "ACTIVE_ATTEMPT",
-            "Finish the unfinished practice using this section before replacing its content. Other section drafts are preserved.",
-            true,
-          );
-      };
-      assertContentUnlocked();
-      const store = await getContentStore();
-      assertContentUnlocked();
-      await store.saveAndActivate(document);
-      setContent(replaceActiveContent(getContent(), document));
-      await commit({ type: getIeltsDrafts(getState()).length ? 'GO_HOME' : 'RESET' });
-      return document;
+      return changePractice(async () => {
+        const document = parsePracticeContentDocument(input);
+        const assertContentUnlocked = () => {
+          if (findContentBlockingDraft(getState(), document.section))
+            throw new ApplicationError(
+              "ACTIVE_ATTEMPT",
+              "Finish the unfinished practice using this section before replacing its content. Other section drafts are preserved.",
+              true,
+            );
+        };
+        assertContentUnlocked();
+        const store = await getContentStore();
+        assertContentUnlocked();
+        await store.saveAndActivate(document);
+        setContent(replaceActiveContent(getContent(), document));
+        if (getState().view !== 'home') await commit({ type: 'GO_HOME' });
+        return document;
+      });
     },
     async submitObjective(section) {
       await flushDrafts();
@@ -431,40 +471,42 @@ export function createIeltsCommands({
       return evaluation;
     },
     async openReview(section) {
-      const state = getState();
-      if (section === "listening" || section === "reading") {
-        const submission = state.objectiveSubmissions[section];
-        if (!submission) return;
-        await openStoredAttempt(submission.attemptId, section, "result");
-        return;
-      }
-      if (section === "writing") {
-        if (!state.writingSubmission) return;
-        await openStoredAttempt(
-          state.writingSubmission.attemptId,
+      return changePractice(async () => {
+        const state = getState();
+        if (section === "listening" || section === "reading") {
+          const submission = state.objectiveSubmissions[section];
+          if (!submission) return;
+          await openStoredAttempt(submission.attemptId, section, "result");
+          return;
+        }
+        if (section === "writing") {
+          if (!state.writingSubmission) return;
+          await openStoredAttempt(
+            state.writingSubmission.attemptId,
+            section,
+            "result",
+          );
+          return;
+        }
+        if (!state.speakingSubmission || !state.speakingEvaluation) return;
+        openReview({
+          kind: "speaking",
           section,
-          "result",
-        );
-        return;
-      }
-      if (!state.speakingSubmission || !state.speakingEvaluation) return;
-      openReview({
-        kind: "speaking",
-        section,
-        submission: state.speakingSubmission,
-        evaluation: state.speakingEvaluation,
-        part: 1,
-        returnTo: "result",
+          submission: state.speakingSubmission,
+          evaluation: state.speakingEvaluation,
+          part: 1,
+          returnTo: "result",
+        });
       });
     },
-    async openAttempt(attemptId, section, location) {
-      await openStoredAttempt(attemptId, section, "home", location);
+    async openAttempt(attemptId, section, location, options) {
+      await changePractice(() => openStoredAttempt(attemptId, section, "home", location, options));
     },
     closeReview() {
-      dispatch({ type: "CLOSE_REVIEW" });
+      changePractice(() => dispatch({ type: "CLOSE_REVIEW" }));
     },
     reset() {
-      dispatch({ type: "RESET" });
+      return changePractice(() => commit({ type: "RESET" }));
     },
   };
 }

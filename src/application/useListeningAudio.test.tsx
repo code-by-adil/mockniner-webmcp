@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { listeningDocument } from '@/content/objective'
 import { getIeltsExample } from '@/content/ieltsExamples'
 import type { ListeningContentDocument } from '@/domain/objectiveContent'
-import type { KokoroWorkerResponse } from '@/infrastructure/media/kokoro.worker'
+import type { KokoroListeningWorkerResponse } from '@/infrastructure/media/kokoroListening.worker'
 import type { SaveListeningAudioChunkInput, StoredListeningAudioChunk } from '@/infrastructure/database/listeningAudioRepository'
 import { useListeningAudio, type ListeningAudioSession } from './useListeningAudio'
 import { getListeningAudioStatus } from './listeningAudioStatus'
@@ -21,7 +21,7 @@ class TestWorker {
   terminate = vi.fn()
   constructor() { TestWorker.instances.push(this) }
   addEventListener(type: string, listener: (event: unknown) => void) { this.listeners.set(type, listener) }
-  emit(data: KokoroWorkerResponse) { this.listeners.get('message')?.({ data }) }
+  emit(data: KokoroListeningWorkerResponse) { this.listeners.get('message')?.({ data }) }
 }
 let root: Root
 let host: HTMLDivElement
@@ -37,11 +37,11 @@ function Harness({ document }: { document: ListeningContentDocument }) {
 async function render(document = generated) {
   await act(async () => { root.render(<Harness document={document} />) })
 }
-function chunk(sequence: number): Extract<KokoroWorkerResponse, { type: 'chunk' }> {
+function chunk(sequence: number): Extract<KokoroListeningWorkerResponse, { type: 'chunk' }> {
   return { type: 'chunk', chunk: { kind: 'speech', sequence, partId: 1, segmentIndex: sequence,
     text: 'Synthetic test speech.', voice: 'af_heart', durationMs: 1500, audio: new Blob(['audio']) } }
 }
-async function emit(worker: TestWorker, event: KokoroWorkerResponse) { await act(async () => { worker.emit(event) }) }
+async function emit(worker: TestWorker, event: KokoroListeningWorkerResponse) { await act(async () => { worker.emit(event) }) }
 
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); vi.stubGlobal('Worker', TestWorker)

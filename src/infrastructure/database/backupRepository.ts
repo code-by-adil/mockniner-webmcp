@@ -8,7 +8,6 @@ const tables = [
   'assessment_attempts', 'assessment_evaluations', 'practice_activity',
   'practice_drafts', 'draft_recordings', 'storage_imports',
 ] as const;
-const archives = ['legacy_assessment_packages_v8', 'legacy_assessment_attempts_v8', 'legacy_assessment_evaluations_v8'];
 type Connection = Pick<SQLocal, 'sql'>;
 type Column = { name: string; type: string; hidden: number };
 type Table = { name: string; columns: Column[] };
@@ -26,22 +25,18 @@ async function inspectTables(source: Connection, destination: Connection): Promi
     throw new BackupValidationError('This file contains unsupported database objects. Choose an unmodified practice backup.');
   }
   const names = objects.filter(object => object.type === 'table').map(object => object.name);
-  if (tables.some(name => name !== 'objective_explanations' && !names.includes(name)) || names.some(name =>
-    !tables.includes(name as typeof tables[number]) && !archives.includes(name) && name !== 'sqlite_sequence')) {
+  if (tables.some(name => !names.includes(name)) || names.some(name =>
+    !tables.includes(name as typeof tables[number]) && name !== 'sqlite_sequence')) {
     throw new BackupValidationError('This is not a compatible practice backup. Export a new backup from the current app.');
   }
   const versions = await source.sql<{ version: number }>`SELECT version FROM app_schema_migrations`;
-  const preExplanations = DATABASE_VERSION === 13 && versions.some(row => row.version === 12) && !versions.some(row => row.version >= 13);
-  if (names.includes('objective_explanations') === preExplanations) {
-    throw new BackupValidationError('The explanation table does not match this backup version.');
-  }
   if (versions.some(row => row.version > DATABASE_VERSION)) {
     throw new BackupValidationError('This backup is from a newer app version. Update the app before importing it.');
   }
-  if (!preExplanations && !versions.some(row => row.version === DATABASE_VERSION)) {
+  if (!versions.some(row => row.version === DATABASE_VERSION)) {
     throw new BackupValidationError('This backup uses an older storage format that this app cannot import.');
   }
-  if (DATABASE_MIGRATION_VERSIONS.filter(version => !preExplanations || version <= 12).some(version => !versions.some(row => row.version === version))
+  if (DATABASE_MIGRATION_VERSIONS.some(version => !versions.some(row => row.version === version))
     || versions.some(row => !Number.isInteger(row.version) || row.version < 1)) {
     throw new BackupValidationError('This backup has an incomplete version history. Choose an unmodified practice backup.');
   }
@@ -52,11 +47,9 @@ async function inspectTables(source: Connection, destination: Connection): Promi
       || !/^[a-z_][a-z_0-9]*$/i.test(field.name) || !['TEXT', 'INTEGER', 'BLOB', 'REAL', 'NUMERIC', ''].includes(field.type.toUpperCase()))) {
       throw new BackupValidationError('This backup has an unsupported table layout.');
     }
-    if (!archives.includes(name)) {
-      const expected = await columns(destination, name);
-      if (JSON.stringify(fields.map(field => [field.name, field.type])) !== JSON.stringify(expected.map(field => [field.name, field.type]))) {
-        throw new BackupValidationError('This backup has an incompatible table layout. Export a new backup from the current app.');
-      }
+    const expected = await columns(destination, name);
+    if (JSON.stringify(fields.map(field => [field.name, field.type])) !== JSON.stringify(expected.map(field => [field.name, field.type]))) {
+      throw new BackupValidationError('This backup has an incompatible table layout. Export a new backup from the current app.');
     }
     result.push({ name, columns: fields });
   }
@@ -89,12 +82,7 @@ export async function restoreBackup(source: Connection, destination: SQLocal): P
     await tx.sql`PRAGMA defer_foreign_keys = ON`;
     // Complete all deletes before inserting: parent deletion may cascade.
     for (const name of tables) await tx.sql(`DELETE FROM ${quote(name)}`);
-    for (const name of archives.toReversed()) await tx.sql(`DROP TABLE IF EXISTS ${quote(name)}`);
     for (const table of imported) {
-      if (archives.includes(table.name)) {
-        // Archived records are inert recovery data, not executable imported DDL.
-        await tx.sql(`CREATE TABLE ${quote(table.name)} (${table.columns.map(field => `${quote(field.name)} ${field.type}`).join(', ')})`);
-      }
       const fields = table.columns.map(field => quote(field.name)).join(', ');
       for (let offset = 0; ; offset += 50) {
         const rows = await source.sql<Record<string, string | number | Uint8Array | null>>(`SELECT ${fields} FROM ${quote(table.name)} LIMIT 50 OFFSET ${offset}`);
@@ -104,11 +92,6 @@ export async function restoreBackup(source: Connection, destination: SQLocal): P
         }
         if (rows.length < 50) break;
       }
-    }
-    // Version 12 backups predate explanations; the destination already has the
-    // current, empty table. Preserve its migration marker for the next restart.
-    if (!imported.some(table => table.name === 'objective_explanations')) {
-      await tx.sql`INSERT INTO app_schema_migrations (version, applied_at) VALUES (13, ${new Date().toISOString()})`;
     }
     if ((await tx.sql`PRAGMA foreign_key_check`).length) throw new BackupValidationError('The backup contains broken record links. Import was cancelled.');
   });

@@ -2,7 +2,6 @@ import type { SQLocal } from "sqlocal";
 import { ApplicationError } from '@/domain/errors';
 import { prepareEvaluationWrite } from '@/domain/evaluationRevision';
 import { completeDraft } from './draftRepository';
-import { readRecentHistory } from './historyRepository';
 import { recordPracticeActivity } from './practiceActivity';
 import type { AssessmentRepository } from "@/application/assessmentRepository";
 import { getLocalDatabase } from "./client";
@@ -12,7 +11,6 @@ import {
   assessmentResultSchema,
   parseAssessmentPackage,
   type AssessmentEvaluation,
-  type AssessmentHistoryEntry,
   type AssessmentPackage,
   type AssessmentResponseMap,
   type AssessmentResult,
@@ -28,8 +26,6 @@ export function createAssessmentRepository(
 ): AssessmentRepository {
   return {
     loadPackages: (onInvalid) => loadAssessmentPackages(database, onInvalid),
-    readHistory: (limit, onInvalid) =>
-      readAssessmentHistory(database, limit, onInvalid),
     savePackage: (assessment) => saveAssessmentPackage(database, assessment),
     deletePackage: (id) => deleteAssessmentPackage(database, id),
     saveAttempt: (submission) =>
@@ -299,7 +295,7 @@ export async function readAssessmentAttempt(
 
 export async function saveAssessmentEvaluation(
   database: SQLocal,
-  candidate: AssessmentEvaluation,
+  candidate: Omit<AssessmentEvaluation, 'revision'>,
   expectedRevision?: number,
 ): Promise<AssessmentEvaluation> {
   return database.transaction(async (transaction) => {
@@ -319,8 +315,9 @@ export async function saveAssessmentEvaluation(
       WHERE attempt_id = ${candidate.attemptId}
     `;
     const current = row ? assessmentEvaluationSchema.parse(JSON.parse(row.evaluationJson)) : null;
-    const evaluation = prepareEvaluationWrite(candidate, current, expectedRevision);
-    if (evaluation === current) return evaluation;
+    const prepared = prepareEvaluationWrite(candidate, current, expectedRevision);
+    if (current && prepared === current) return current;
+    const evaluation = assessmentEvaluationSchema.parse(prepared);
     await transaction.sql`
       INSERT INTO assessment_evaluations (attempt_id, evaluation_json, evaluated_at)
       VALUES (
@@ -335,16 +332,4 @@ export async function saveAssessmentEvaluation(
     });
     return evaluation;
   });
-}
-
-export async function readAssessmentHistory(
-  database: SQLocal, limit = 10, onInvalidAssessment?: InvalidStoredAssessmentHandler,
-): Promise<AssessmentHistoryEntry[]> {
-  const page = await readRecentHistory(database, 'assessment', Math.max(1, Math.min(50, Math.trunc(limit))));
-  for (const row of page.unavailable) onInvalidAssessment?.(new Error(row.message), { kind: 'attempt', id: row.attemptId });
-  return page.items.map(row => ({
-    attemptId: row.attemptId, packageId: row.packageId!, title: row.title, rawScore: row.rawScore!,
-    maximumScore: row.maximumScore!, submittedAt: row.submittedAt,
-    evaluationStatus: row.evaluationStatus === 'insufficient_evidence' ? 'awaiting_evaluation' : row.evaluationStatus,
-  }));
 }

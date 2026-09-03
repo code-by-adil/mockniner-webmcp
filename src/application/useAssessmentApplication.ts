@@ -1,20 +1,16 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
-  useReducer,
   useRef,
   useState,
 } from "react";
 import { builtInAssessments } from "@/content/builtInAssessments";
-import type {
-  AssessmentHistoryEntry,
-  AssessmentPackage,
-} from "@/domain/assessment";
+import type { AssessmentPackage } from "@/domain/assessment";
 import {
   assessmentSessionReducer,
   initialAssessmentSession,
+  type AssessmentSession,
   type AssessmentSessionAction,
 } from "@/domain/assessmentSession";
 import { reportHandledError } from "@/shared/reportHandledError";
@@ -31,26 +27,33 @@ const getRepository = async () =>
     await import("@/infrastructure/database/assessmentRepository")
   ).getAssessmentRepository();
 
-export function useAssessmentApplication() {
-  const [state, dispatch] = useReducer(
-    assessmentSessionReducer,
-    initialAssessmentSession,
-  );
+const defaultPersistence = { getRepository, getDraftRepository };
+
+export function useAssessmentApplication(persistence = defaultPersistence) {
+  const [state, setState] = useState(initialAssessmentSession);
   const [assessments, setAssessments] = useState<AssessmentPackage[]>(builtInAssessments);
   const [assessmentReady, setAssessmentReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [history, setHistory] = useState<AssessmentHistoryEntry[]>([]);
   const current = useRef({ state, assessments });
-  useLayoutEffect(() => {
-    current.current = { state, assessments };
-  }, [state, assessments]);
   const getState = useCallback(() => current.current.state, []);
   const getAssessments = useCallback(() => current.current.assessments, []);
+  const publishSession = useCallback((session: AssessmentSession) => {
+    current.current.state = session;
+    flushSync(() => setState(session));
+  }, []);
+  const updateAssessments = useCallback((update: (current: AssessmentPackage[]) => AssessmentPackage[]) => {
+    const next = update(current.current.assessments);
+    current.current.assessments = next;
+    flushSync(() => setAssessments(next));
+  }, []);
   const dispatchAndSave = useCallback((action: AssessmentSessionAction) => {
     const next = assessmentSessionReducer(getState(), action);
-    flushSync(() => dispatch(action));
-    draftSaves.enqueue('assessment', async () => (await getDraftRepository()).saveAssessment(next));
-  }, [getState]);
+    if (action.type === 'SET_RESPONSE' || action.type === 'TICK') {
+      current.current.state = next;
+      setState(next);
+    } else publishSession(next);
+    draftSaves.enqueue('assessment', async () => (await persistence.getDraftRepository()).saveAssessment(next));
+  }, [getState, publishSession, persistence]);
   // The factory stores these getters. It only reads them when a command runs after commit.
   const commands = useMemo(
     () =>
@@ -60,11 +63,10 @@ export function useAssessmentApplication() {
         getAssessments,
         dispatch: dispatchAndSave,
         flushDrafts: draftSaves.flush,
-        setAssessments,
-        setHistory,
-        getRepository,
+        setAssessments: updateAssessments,
+        getRepository: persistence.getRepository,
       }),
-    [getState, getAssessments, dispatchAndSave],
+    [getState, getAssessments, dispatchAndSave, updateAssessments, persistence],
   );
 
   useEffect(() => {
@@ -79,21 +81,15 @@ export function useAssessmentApplication() {
         rowId: row.id,
       });
     };
-    void getRepository()
-      .then((repository) =>
-        Promise.all([
-          repository.loadPackages(onInvalid),
-          repository.readHistory(10, onInvalid),
-        ]),
-      )
-      .then(async ([packages, attempts]) => {
+    void persistence.getRepository()
+      .then(repository => repository.loadPackages(onInvalid))
+      .then(async packages => {
         const installed = mergeAssessmentPackages(packages);
-        const drafts = await getDraftRepository();
-        const session = await drafts.loadAssessment(installed);
+        const drafts = await persistence.getDraftRepository();
+        const session = await drafts.loadAssessment();
         if (cancelled) return;
-        setAssessments(installed);
-        dispatch({ type: 'RESTORE', session });
-        setHistory(attempts);
+        updateAssessments(() => installed);
+        publishSession(session);
         setAssessmentReady(true);
       })
       .catch((error) => {
@@ -106,14 +102,13 @@ export function useAssessmentApplication() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [persistence, publishSession, updateAssessments]);
 
   return {
     state,
     assessments,
     assessmentReady,
     loadError,
-    history,
     commands,
     currentAssessment:
       state.packageSnapshot ?? assessments.find(

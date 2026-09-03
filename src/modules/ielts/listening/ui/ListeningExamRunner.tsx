@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Header } from "@/modules/exam-engine/ui/Header";
-import { ObjectiveExamFooter } from "@/modules/exam-engine/ui/ObjectiveExamFooter";
-import { buildObjectiveFooterParts } from "@/modules/exam-engine/footerParts";
+import { IeltsExamHeader } from "@/modules/ielts/exam/ui/IeltsExamHeader";
+import { ObjectiveExamFooter } from "@/modules/ielts/exam/ui/ObjectiveExamFooter";
+import { buildObjectiveFooterParts } from "@/modules/ielts/exam/footerParts";
 import { formatTime } from "@/shared/time";
 import { ObjectivePartView } from "@/modules/ielts/objective/ui/ObjectivePartView";
 import type { ObjectivePracticeRunnerProps } from "@/modules/ielts/objective/types/ObjectivePracticeRunnerProps";
@@ -10,7 +10,7 @@ import type {
   ListeningAudioPersistedState,
   ListeningAudioUiStatus,
 } from "./listeningAudioTypes";
-import { useTimedSubmission } from "@/modules/exam-engine/useTimedSubmission";
+import { useTimedSubmission } from "@/modules/ielts/exam/useTimedSubmission";
 import type { ListeningAudioSession } from "@/application/useListeningAudio";
 import { ObjectiveExplanationPanel } from '@/modules/ielts/objective/ui/ObjectiveExplanationPanel';
 
@@ -96,7 +96,7 @@ export const ListeningExamRunner: React.FC<Props> = ({
 
   return (
     <div className="h-screen bg-white text-gray-900 font-sans flex flex-col overflow-hidden">
-      <Header
+      <IeltsExamHeader
         testType="listening"
         onExit={onBack}
         isReviewMode={isReviewMode}

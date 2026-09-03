@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { ObjectiveContentDocument } from '@/domain/objectiveContent';
 import type { ObjectiveSubmission } from '@/domain/types';
-import { buildObjectiveFooterParts } from '@/modules/exam-engine/footerParts';
+import { buildObjectiveFooterParts } from '@/modules/ielts/exam/footerParts';
 import { ObjectivePartView } from '@/modules/ielts/objective/ui/ObjectivePartView';
 import { AssessmentLabBrand } from '@/shared/ui/global/AssessmentLabBrand';
 import { scrollIntoViewNearest } from '@/shared/ui/exam/scrollIntoViewNearest';
@@ -20,14 +20,13 @@ export function ReadingAttemptReview({ document: content, submission, currentPar
   onExit: () => void;
   backLabel: string;
   selectedQuestionId?: number | null;
-  onQuestionSelect?: (questionId: number) => void;
+  onQuestionSelect: (questionId: number) => void;
   explanations?: ObjectiveExplanation[];
   focusRequest?: object;
 }) {
   const { result, answers } = submission;
   const rootRef = useRef<HTMLDivElement>(null);
-  const [localSelection, setSelection] = useState<number | null>(null);
-  const selection = onQuestionSelect ? selectedQuestionId ?? null : localSelection;
+  const selection = selectedQuestionId ?? null;
   const parts = useMemo(() => buildObjectiveFooterParts(content), [content]);
   const questions = useMemo(() => parts.flatMap(part => part.questionNumbers.map(question => ({ question, part: part.part }))), [parts]);
   const correct = new Set(result.correctQuestionIds);
@@ -42,19 +41,12 @@ export function ReadingAttemptReview({ document: content, submission, currentPar
     return correct.has(question) ? 'Correct' : answers[question]?.trim() ? 'Incorrect' : 'Unanswered';
   }
 
-  function navigate(question: number) {
-    if (onQuestionSelect) { onQuestionSelect(question); return; }
-    const target = questions.find(entry => entry.question === question)!;
-    onPartChange(target.part);
-    setSelection(question);
-  }
-
   function jumpMistake(direction: 'previous' | 'next') {
     const anchor = selected ?? (direction === 'next' ? partQuestions[0]! - 1 : partQuestions[0]!);
     const target = direction === 'next'
       ? mistakes.find(entry => entry.question > anchor) ?? mistakes[0]
       : mistakes.findLast(entry => entry.question < anchor) ?? mistakes.at(-1);
-    if (target) navigate(target.question);
+    if (target) onQuestionSelect(target.question);
   }
 
   useEffect(() => {
@@ -102,7 +94,7 @@ export function ReadingAttemptReview({ document: content, submission, currentPar
         {parts.map(part => <button key={part.part} type="button" onClick={() => onPartChange(part.part)} aria-current={currentPart === part.part ? 'page' : undefined} className={`${buttonClass} ${currentPart === part.part ? 'border-neutral-900 bg-neutral-100 text-neutral-950' : ''}`}>Passage {part.part}</button>)}
       </nav>
       <nav aria-label="Review questions" className="flex gap-1.5 overflow-x-auto pb-1">
-        {partQuestions.map(question => <button key={question} type="button" aria-label={`Question ${question}, ${status(question).toLowerCase()}`} aria-current={selected === question ? 'true' : undefined} onClick={() => navigate(question)} className={`h-9 w-9 shrink-0 rounded border text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 ${correct.has(question) ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : answers[question]?.trim() ? 'border-red-300 bg-red-50 text-red-800' : 'border-neutral-300 bg-white text-neutral-700'} ${selected === question ? 'ring-2 ring-neutral-800 ring-inset' : ''}`}>{question}</button>)}
+        {partQuestions.map(question => <button key={question} type="button" aria-label={`Question ${question}, ${status(question).toLowerCase()}`} aria-current={selected === question ? 'true' : undefined} onClick={() => onQuestionSelect(question)} className={`h-9 w-9 shrink-0 rounded border text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 ${correct.has(question) ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : answers[question]?.trim() ? 'border-red-300 bg-red-50 text-red-800' : 'border-neutral-300 bg-white text-neutral-700'} ${selected === question ? 'ring-2 ring-neutral-800 ring-inset' : ''}`}>{question}</button>)}
       </nav>
     </footer>
   </div>;

@@ -30,13 +30,12 @@ describe('stable page WebMCP registration', () => {
   let bridge: ReturnType<typeof useWebMcpTools>
   const options = (active: boolean): WebMcpToolOptions => ({
     commands: {} as WebMcpToolOptions['commands'], assessmentCommands: {} as WebMcpToolOptions['assessmentCommands'],
-    enabled: true, nativeAuthoringEnabled: active,
-    context: { practice: null, view: 'home', activeAttempt: null, submissions: [] },
-    workspace: { native: initialSession, assessment: initialAssessmentSession, content: { listening: listeningDocument, reading: readingDocument, writing: writingDocument }, assessments: [satPracticeAssessment],
+    enabled: true,
+    context: { practice: active ? null : 'ielts', view: active ? 'home' : 'review', activeAttempt: null, submissions: [] },
+    workspace: { native: active ? initialSession : { ...initialSession, view: 'review' }, assessment: initialAssessmentSession, content: { listening: listeningDocument, reading: readingDocument, writing: writingDocument }, assessments: [satPracticeAssessment],
       listeningAudio: { contentKey: listeningDocument.contentKey, source: 'bundled', phase: 'ready', readyToPlay: true, completedChunks: 0, totalChunks: 1, error: null, canRetry: false } },
     retryListeningAudio: vi.fn(),
     loadPracticeContent: async () => null,
-    assessmentToolSurface: active ? 'authoring' : 'none', writingToolSurface: 'none', speakingToolSurface: 'none',
   })
   function Harness({ value }: { value: WebMcpToolOptions }) {
     const tools = useWebMcpTools(value)
@@ -104,7 +103,7 @@ describe('stable page WebMCP registration', () => {
     expect(report.available).toEqual(expect.arrayContaining(['get_ielts_authoring_kit', 'get_assessment_authoring_kit']))
     expect(report.conditional.get_assessment_content).toContain('no unfinished attempt for that package')
     expect(report.conditional.get_assessment_submission).toContain('Supply attemptId')
-    const result: WebMcpToolOptions = { ...value, nativeAuthoringEnabled: false, assessmentToolSurface: 'results' as const,
+    const result: WebMcpToolOptions = { ...value,
       context: { practice: 'assessment' as const, view: 'result' as const, activeAttempt: null,
         submissions: [{ kind: 'assessment' as const, attemptId: crypto.randomUUID(), evaluationStatus: 'not_required' as const }] } }
     await act(async () => root.render(<Harness value={result} />))
@@ -327,7 +326,7 @@ describe('stable page WebMCP registration', () => {
       package: satPracticeAssessment, responses: {}, result: gradeAssessment(satPracticeAssessment, {}), startedAt: '', submittedAt: '' }
     const newer = { ...older, attemptId: '22222222-2222-4222-8222-222222222222' }
     repository.readAttempt.mockImplementation(async (id?: string) => ({ submission: id === older.attemptId ? older : newer, evaluation: null }))
-    const value = (submission: typeof older): WebMcpToolOptions => ({ ...options(false), assessmentToolSurface: 'results',
+    const value = (submission: typeof older): WebMcpToolOptions => ({ ...options(false),
       context: getPracticeContext(initialSession, { ...initialAssessmentSession, view: 'result', submission }) })
     await act(async () => root.render(<Harness value={value(older)} />))
     const reader = registered.get('get_assessment_submission')!

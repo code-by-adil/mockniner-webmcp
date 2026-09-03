@@ -21,8 +21,6 @@ type SpeakingToolDependencies = {
   getCurrentSpeakingAttemptId: () => string | undefined;
 };
 
-export type SpeakingToolSurface = "results" | "evaluation" | "none";
-
 export function createSpeakingInterviewToolDefinition(configure: (input: SpeakingPlan) => unknown): WebMCP.ModelContextTool {
   return {
     name: 'set_ielts_speaking_interview',
@@ -63,7 +61,6 @@ export function createSpeakingToolDefinitions(
     attachSpeakingEvaluation,
     getCurrentSpeakingAttemptId,
   }: SpeakingToolDependencies,
-  surface: SpeakingToolSurface = "evaluation",
 ): WebMCP.ModelContextTool[] {
   const submissionTool: WebMCP.ModelContextTool = {
     name: "get_ielts_speaking_submission",
@@ -102,6 +99,13 @@ export function createSpeakingToolDefinitions(
             ],
             excluded: ["pronunciation: audio is not exposed to the agent"],
           },
+          evaluationGuidance: [
+            "Read the complete transcript and base feedback on evidence in the submitted responses.",
+            "Assess coherence, vocabulary and grammar. Text does not establish pronunciation or spoken delivery.",
+            "Treat blank or skipped answers as missing evidence and allow for likely transcription errors.",
+            "When the transcript provides insufficient evidence for band scores, use status insufficient_evidence and explain what further practice is needed.",
+            "Attach the evaluation to this submission's attemptId so feedback appears with the saved interview.",
+          ],
           evaluationStatus: stored.evaluation
             ? stored.evaluation.status === 'insufficient_evidence' ? 'insufficient_evidence' : 'evaluated'
             : "awaiting_evaluation",
@@ -155,7 +159,5 @@ export function createSpeakingToolDefinitions(
       }
     },
   };
-  if (surface === "results") return [submissionTool];
-  if (surface === "evaluation") return [submissionTool, evaluationTool];
-  return [];
+  return [submissionTool, evaluationTool];
 }

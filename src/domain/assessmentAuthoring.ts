@@ -118,7 +118,7 @@ const ASSESSMENT_AUTHORING_TEMPLATES: readonly AssessmentAuthoringTemplate[] = [
 export function getAssessmentAuthoringGuide(templateId: AssessmentAuthoringTemplateId) {
   const template = ASSESSMENT_AUTHORING_TEMPLATES.find((candidate) => candidate.id === templateId)!;
   return {
-    contractVersion: 3,
+    contractVersion: 4,
     template,
     mentalModel: {
       package: "One complete assessment installed in a single call.",
@@ -141,7 +141,7 @@ export function getAssessmentAuthoringGuide(templateId: AssessmentAuthoringTempl
       multiple_choice: "Use set with every correct option ID. The order does not matter and scoring is all or nothing.",
       text_entry: "Use exact, aliases, or agent. Agent scoring requires the package rubric.",
       numeric_entry: "Use numeric with the correct number and an optional tolerance.",
-      extended_text: "Use agent and reference the package rubric with evaluationRubricId.",
+      extended_text: "Use agent and include one package rubric shared by the extended responses.",
       matching: "Use mapping with one answer for every prompt ID.",
       grouped_choice: "Use mapping with one answer from each group's own options. Keep option IDs unique across the item. Scoring is all or nothing.",
     },
@@ -153,11 +153,12 @@ export function getAssessmentAuthoringGuide(templateId: AssessmentAuthoringTempl
     },
     instructions: [
       "Create original content using the package schema. When an example package is included, replace its ID, title, content, options, answers, and rubric details.",
-      "Keep schemaVersion 3. Omit source because the application records agent authorship itself.",
+      "Keep schemaVersion 4. Omit source because the application records agent authorship itself.",
       "Use stable lowercase IDs made from letters, numbers, periods, underscores, or hyphens. Item IDs must be unique across the package.",
       "Declare only the tools the learner needs. An empty tools array is valid.",
       "Use split layout only when an item has stimulus content. Put labels such as Passage or Source in presentation.stimulusLabel.",
       "Give every objective item a deterministic scoring rule. Agent-scored items must share one declared rubric.",
+      "The application calculates the overall evaluation score from criterion scores. Supply weights for every criterion that sum to 1, or omit weights for equal weighting. The mean rounds to the nearest rubric step from its minimum, with half steps rounding up.",
       "Use original or redistributable content. Exam names may describe a style, but results must not claim official scoring.",
       "Pass the edited package directly to install_assessment. If validation fails, repair the returned paths and retry with the full package.",
     ],

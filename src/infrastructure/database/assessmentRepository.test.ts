@@ -8,10 +8,10 @@ import {
   deleteAssessmentPackage,
   loadAssessmentPackages,
   readAssessmentAttempt,
-  readAssessmentHistory,
   saveAssessmentAttempt,
   saveAssessmentPackage,
 } from "./assessmentRepository";
+import { readHistoryPage } from './historyRepository';
 
 let database: SQLocal;
 
@@ -49,16 +49,16 @@ describe("universal assessment repository", () => {
     });
     const older = await save('11111111-1111-4111-8111-111111111111', '2026-09-01T10:00:00.000Z');
     const newer = await save('22222222-2222-4222-8222-222222222222', '2026-09-02T10:00:00.000Z');
-    const tool = createAssessmentToolDefinitions({ installAssessment: vi.fn(), attachEvaluation: vi.fn(),
+    const tool = createAssessmentToolDefinitions({ attachEvaluation: vi.fn(),
       readAssessmentAttempt: id => readAssessmentAttempt(database, id), getCurrentAttemptId: () => older.attemptId,
-    }, 'results')[0]!;
+    })[0]!;
     const options = { signal: new AbortController().signal };
     await expect(tool.execute({}, options)).resolves.toMatchObject({ ok: true, data: { submission: { attemptId: older.attemptId }, selection: { isVisible: true } } });
     await expect(tool.execute({ latest: true }, options)).resolves.toMatchObject({ ok: true, data: { submission: { attemptId: newer.attemptId }, selection: { isVisible: false } } });
     await expect(tool.execute({ attemptId: '33333333-3333-4333-8333-333333333333' }, options)).resolves.toMatchObject({ ok: false, error: { code: 'ASSESSMENT_SUBMISSION_NOT_FOUND' } });
-    expect(await readAssessmentHistory(database)).toHaveLength(2);
+    expect((await readHistoryPage(database, { kind: 'assessment', limit: 10, offset: 0 })).items).toHaveLength(2);
   });
-  it("creates only the canonical version-3 assessment columns", async () => {
+  it("creates only the canonical assessment columns", async () => {
     const packageColumns = await database.sql<{ name: string }>`PRAGMA table_info(assessment_packages)`;
     const attemptColumns = await database.sql<{ name: string }>`PRAGMA table_info(assessment_attempts)`;
 
@@ -108,7 +108,7 @@ describe("universal assessment repository", () => {
       submission,
       evaluation: null,
     });
-    await expect(readAssessmentHistory(database)).resolves.toEqual([
+    expect((await readHistoryPage(database, { kind: 'assessment', limit: 10, offset: 0 })).items).toEqual([
       expect.objectContaining({
         attemptId: submission.attemptId,
         rawScore: 2,
@@ -140,7 +140,7 @@ describe("universal assessment repository", () => {
       submission,
       evaluation: null,
     });
-    await expect(readAssessmentHistory(database)).resolves.toEqual([
+    expect((await readHistoryPage(database, { kind: 'assessment', limit: 10, offset: 0 })).items).toEqual([
       expect.objectContaining({
         attemptId: submission.attemptId,
         packageId: assessment.packageId,
@@ -165,7 +165,7 @@ describe("universal assessment repository", () => {
     });
 
     expect(retried).toEqual(first);
-    await expect(readAssessmentHistory(database)).resolves.toHaveLength(1);
+    expect((await readHistoryPage(database, { kind: 'assessment', limit: 10, offset: 0 })).items).toHaveLength(1);
   });
 
   it("keeps valid packages when one stored package is malformed", async () => {
@@ -175,7 +175,7 @@ describe("universal assessment repository", () => {
       INSERT INTO assessment_packages (
         package_id, schema_version, revision, document_json, installed_at
       ) VALUES (
-        'invalid-package', 3, 1, '{"schemaVersion":1}',
+        'invalid-package', 4, 1, '{"schemaVersion":1}',
         '2026-09-02T10:00:00.000Z'
       )
     `;
@@ -190,7 +190,6 @@ describe("universal assessment repository", () => {
   });
 
   it("keeps valid history when one stored attempt is malformed", async () => {
-    const onInvalidAssessment = vi.fn();
     const result = gradeAssessment(satPracticeAssessment, { "rw-1": "b" });
     const valid = await saveAssessmentAttempt(database, {
       attemptId: "44444444-4444-4444-8444-444444444444",
@@ -210,12 +209,12 @@ describe("universal assessment repository", () => {
       )
     `;
 
-    await expect(readAssessmentHistory(database, 1, onInvalidAssessment)).resolves.toEqual([
+    const first = await readHistoryPage(database, { kind: 'assessment', limit: 1, offset: 0 });
+    expect(first.items).toEqual([]);
+    expect(first.unavailable).toEqual([expect.objectContaining({ attemptId: 'invalid-attempt' })]);
+    expect(first.nextOffset).toBe(1);
+    expect((await readHistoryPage(database, { kind: 'assessment', limit: 1, offset: first.nextOffset! })).items).toEqual([
       expect.objectContaining({ attemptId: valid.attemptId }),
     ]);
-    expect(onInvalidAssessment).toHaveBeenCalledWith(
-      expect.any(Error),
-      { kind: "attempt", id: "invalid-attempt" },
-    );
   });
 });

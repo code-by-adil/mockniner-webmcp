@@ -41,12 +41,11 @@ export function getNextChunkIndex(
 ): number | null {
   const nextIndex = currentIndex + 1;
   if (nextIndex < availableChunks) return nextIndex;
-  const generationCanContinue =
-    phase === "loading" || phase === "generating";
-  if (
-    generationCanContinue &&
-    (totalChunks == null || nextIndex < totalChunks)
-  ) return nextIndex;
+  // A failed generator can resume. Keep the cursor on the next expected chunk
+  // so retry can continue playback instead of stranding it on an ended chunk.
+  if (phase !== "ready" && (totalChunks == null || nextIndex < totalChunks)) {
+    return nextIndex;
+  }
   return null;
 }
 

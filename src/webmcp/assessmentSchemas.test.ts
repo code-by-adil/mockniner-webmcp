@@ -18,11 +18,17 @@ describe("assessment WebMCP schemas", () => {
     expect(serialized).toContain('"$ref"');
     expect(serialized.length).toBeLessThan(11_000);
     expect(schema.properties).not.toHaveProperty("source");
+    expect(schema.properties).toHaveProperty("rubric");
+    expect(schema.properties).not.toHaveProperty("rubrics");
+    expect(schema.definitions).not.toHaveProperty("AssessmentRubric.properties.id");
   });
 
   it("publishes the authoritative evaluation input schema without compaction", () => {
-    expect(getAssessmentEvaluationJsonSchema()).toEqual(
+    const schema = getAssessmentEvaluationJsonSchema();
+    expect(schema).toEqual(
       z.toJSONSchema(assessmentEvaluationInputSchema, { target: "draft-07" }),
     );
+    expect(schema.properties).not.toHaveProperty("rubricId");
+    expect(schema.properties).not.toHaveProperty("overallScore");
   });
 });

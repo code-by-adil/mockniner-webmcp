@@ -21,17 +21,14 @@ import { reportHandledError } from "@/shared/reportHandledError";
 import { createHomeToolDefinitions } from "./homeTools";
 import {
   createWritingToolDefinitions,
-  type WritingToolSurface,
 } from "./writingTools";
 import {
   createSpeakingToolDefinitions,
   createSpeakingInterviewToolDefinition,
   createSpeakingProgressToolDefinition,
-  type SpeakingToolSurface,
 } from "./speakingTools";
 import {
   createAssessmentToolDefinitions,
-  type AssessmentToolSurface,
 } from "./assessmentTools";
 
 export type WebMcpToolOptions = {
@@ -41,10 +38,6 @@ export type WebMcpToolOptions = {
   workspace: PracticeWorkspace;
   loadPracticeContent: (key: string) => Promise<PracticeContentDocument | null>;
   retryListeningAudio: () => void;
-  assessmentToolSurface: AssessmentToolSurface;
-  nativeAuthoringEnabled: boolean;
-  writingToolSurface: WritingToolSurface;
-  speakingToolSurface: SpeakingToolSurface;
   enabled: boolean;
 };
 
@@ -66,6 +59,25 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
   useLayoutEffect(() => {
     latest.current = options;
   }, [options]);
+  // oxlint-disable-next-line react/refs -- The factory stores callbacks; refs are read only when a command runs.
+  const [navigation] = useState(() => createPracticeNavigation({
+    canLeaveSpeaking: interview.canLeave,
+    getWorkspace: () => latest.current.workspace,
+    native: {
+      start: (...args) => latest.current.commands.start(...args),
+      resume: (...args) => latest.current.commands.resume(...args),
+      goHome: () => latest.current.commands.goHome(),
+      installContent: input => latest.current.commands.installContent(input),
+      openAttempt: (...args) => latest.current.commands.openAttempt(...args),
+    },
+    assessment: {
+      start: (...args) => latest.current.assessmentCommands.start(...args),
+      resume: () => latest.current.assessmentCommands.resume(),
+      goHome: () => latest.current.assessmentCommands.goHome(),
+      openAttempt: (...args) => latest.current.assessmentCommands.openAttempt(...args),
+    },
+    loadContent: key => latest.current.loadPracticeContent(key),
+  }));
   const { enabled } = options;
   useEffect(() => {
     if (!enabled) return;
@@ -97,24 +109,6 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     }));
     tools.push(createObjectiveExplanationTool(input => latest.current.commands.saveObjectiveExplanation(input)));
     tools.push(createAssessmentContentTool(() => latest.current.workspace));
-    const navigation = createPracticeNavigation({
-      canLeaveSpeaking: interview.canLeave,
-      getWorkspace: () => latest.current.workspace,
-      native: {
-        start: (...args) => flushSync(() => latest.current.commands.start(...args)),
-        resume: (...args) => flushSync(() => latest.current.commands.resume(...args)),
-        goHome: () => flushSync(() => latest.current.commands.goHome()),
-        installContent: (input) => latest.current.commands.installContent(input),
-        openAttempt: (...args) => latest.current.commands.openAttempt(...args),
-      },
-      assessment: {
-        start: (...args) => flushSync(() => latest.current.assessmentCommands.start(...args)),
-        resume: () => flushSync(() => latest.current.assessmentCommands.resume()),
-        goHome: () => flushSync(() => latest.current.assessmentCommands.goHome()),
-        openAttempt: (...args) => latest.current.assessmentCommands.openAttempt(...args),
-      },
-      loadContent: key => latest.current.loadPracticeContent(key),
-    });
     tools.push(...createPracticeTools({
       readLibrary: async input => {
         const [{ getLocalDatabase }, { readPracticeLibrary }] = await Promise.all([import('@/infrastructure/database/client'), import('@/infrastructure/database/practiceDiscovery')]);
@@ -124,7 +118,7 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
         const [{ getLocalDatabase }, { readPracticeHistory }] = await Promise.all([import('@/infrastructure/database/client'), import('@/infrastructure/database/practiceDiscovery')]);
         return readPracticeHistory(await getLocalDatabase(), input);
       },
-      navigate: async input => ({ ...await navigation(input), view: latest.current.context.view, context: readContext() }),
+      navigate: async (input, execution) => ({ ...await navigation(input, execution), view: latest.current.context.view, context: readContext() }),
     }));
     // Kits include answer-bearing examples that agents can install verbatim.
     // Paused drafts and drafts hidden behind history need the same protection.
@@ -147,7 +141,6 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
           getCurrentWritingAttemptId: () =>
             visibleAttemptId('writing'),
         },
-        'evaluation',
       ),
     );
     tools.push(
@@ -160,18 +153,15 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
           getCurrentSpeakingAttemptId: () =>
             visibleAttemptId('speaking'),
         },
-        'evaluation',
       ),
     );
     tools.push(
       ...createAssessmentToolDefinitions(
         {
-          installAssessment: (input) => latest.current.assessmentCommands.installAssessment(input),
           readAssessmentAttempt: async (id) => (await getAssessmentRepository()).readAttempt(id),
           attachEvaluation: (input) => latest.current.assessmentCommands.attachEvaluation(input),
           getCurrentAttemptId: () => visibleAttemptId('assessment'),
         },
-        'evaluation',
       ),
     );
     tools.push(createSpeakingInterviewToolDefinition(interview.configure), createSpeakingProgressToolDefinition(interview.read));
@@ -214,8 +204,8 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
       }
     });
     return () => controller.abort();
-  }, [enabled, interview]);
+  }, [enabled, interview, navigation]);
   const status: WebMcpRegistrationStatus = !enabled ? 'loading'
     : typeof document.modelContext?.registerTool !== 'function' ? 'unavailable' : registrationStatus;
-  return { bindSpeakingInterview: interview.bind, canLeaveSpeaking: interview.canLeave, registrationStatus: status };
+  return { navigate: navigation, bindSpeakingInterview: interview.bind, canLeaveSpeaking: interview.canLeave, registrationStatus: status };
 }

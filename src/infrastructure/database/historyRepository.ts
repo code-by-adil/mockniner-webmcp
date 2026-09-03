@@ -13,10 +13,10 @@ export type HistoryEntry = {
   contentKey?: string; packageId?: string;
   evaluationStatus: 'not_required' | 'awaiting_evaluation' | 'evaluated' | 'insufficient_evidence';
   rawScore?: number; maximumScore?: number; band?: number; answered?: number;
-  domains?: ReturnType<typeof assessmentResultSchema.parse>['domains']; evaluationScore?: number;
+  domains?: ReturnType<typeof assessmentResultSchema.parse>['domains']; evaluationScore?: number; evaluationMaximumScore?: number;
   criteria?: WritingCriteriaSummary;
 };
-type Row = { attemptId: string; kind: HistoryKind; contentKey: string | null; packageId: string | null; submittedAt: string; definitionJson: string | null; resultJson: string | null; evaluationJson: string | null };
+type Row = { attemptId: string; kind: HistoryKind; contentKey: string | null; packageId: string | null; submittedAt: string; definitionJson: string | null; resultJson: string | null; evaluationJson: string | null; title: unknown };
 
 function criteria(evaluation: WritingEvaluation): WritingCriteriaSummary {
   return {
@@ -32,7 +32,7 @@ function parseRow(row: Row): HistoryEntry {
   z.iso.datetime({ offset: true }).parse(row.submittedAt);
   const common = { attemptId: row.attemptId, kind: row.kind, submittedAt: row.submittedAt,
     ...(row.packageId ? { packageId: row.packageId } : { contentKey: row.contentKey! }),
-    title: row.kind === 'assessment' ? '' : `${SECTION_META[row.kind].label} Practice` };
+    title: typeof row.title === 'string' && row.title.trim() ? row.title : row.kind === 'assessment' ? '' : `${SECTION_META[row.kind].label} practice` };
   if (row.kind === 'reading' || row.kind === 'listening') {
     const result: ObjectiveResult = parseStoredObjectiveResult(row.resultJson!);
     if (result.section !== row.kind) throw new Error('Objective result section does not match its attempt.');
@@ -44,10 +44,12 @@ function parseRow(row: Row): HistoryEntry {
     const result = assessmentResultSchema.parse(JSON.parse(row.resultJson!));
     const evaluation = row.evaluationJson ? assessmentEvaluationSchema.parse(JSON.parse(row.evaluationJson)) : null;
     if (evaluation && evaluation.attemptId !== row.attemptId) throw new Error('Evaluation identity does not match its attempt.');
+    const evaluatedRubric = evaluation ? assessment.rubric : null;
+    if (evaluation && !evaluatedRubric) throw new Error('An evaluated assessment must have a rubric.');
     return { ...common, title: assessment.title,
       evaluationStatus: evaluation ? 'evaluated' : result.awaitingEvaluationCount ? 'awaiting_evaluation' : 'not_required',
       rawScore: result.rawScore, maximumScore: result.maximumScore, domains: result.domains,
-      ...(evaluation ? { evaluationScore: evaluation.overallScore } : {}) };
+      ...(evaluation && evaluatedRubric ? { evaluationScore: evaluation.overallScore, evaluationMaximumScore: evaluatedRubric.scale.maximum } : {}) };
   }
   const evaluation = row.evaluationJson ? (row.kind === 'writing' ? parseStoredWritingEvaluation : parseStoredSpeakingEvaluation)(row.evaluationJson) : null;
   if (evaluation && evaluation.attemptId !== row.attemptId) throw new Error('Evaluation identity does not match its attempt.');
@@ -64,11 +66,13 @@ export async function readHistoryPage(database: Pick<SQLocal, 'sql'>, input: { k
   const rows = await database.sql<Row>`SELECT * FROM (
     SELECT a.id AS attemptId, a.section AS kind, a.content_key AS contentKey, NULL AS packageId,
       a.submitted_at AS submittedAt, NULL AS definitionJson, o.result_json AS resultJson,
-      COALESCE(w.evaluation_json, s.evaluation_json) AS evaluationJson
+      COALESCE(w.evaluation_json, s.evaluation_json) AS evaluationJson,
+      CASE WHEN json_valid(c.document_json) THEN json_extract(c.document_json, '$.name') END AS title
     FROM attempts a LEFT JOIN objective_submissions o ON o.attempt_id = a.id
       LEFT JOIN writing_evaluations w ON w.attempt_id = a.id LEFT JOIN speaking_evaluations s ON s.attempt_id = a.id
+      LEFT JOIN content_documents c ON c.content_key = a.content_key
     UNION ALL
-    SELECT a.id, 'assessment', NULL, a.package_id, a.submitted_at, a.package_snapshot_json, a.result_json, e.evaluation_json
+    SELECT a.id, 'assessment', NULL, a.package_id, a.submitted_at, a.package_snapshot_json, a.result_json, e.evaluation_json, NULL
     FROM assessment_attempts a LEFT JOIN assessment_evaluations e ON e.attempt_id = a.id
   ) WHERE (${input.kind ?? null} IS NULL OR kind = ${input.kind ?? null})
   ORDER BY submittedAt DESC, kind, attemptId DESC LIMIT ${limit + 1} OFFSET ${offset}`;
@@ -84,6 +88,8 @@ export async function readHistoryPage(database: Pick<SQLocal, 'sql'>, input: { k
   }
   return { items, unavailable, nextOffset: rows.length > limit ? offset + limit : null };
 }
+
+export type HistoryPage = Awaited<ReturnType<typeof readHistoryPage>>;
 
 export async function readRecentHistory(database: Pick<SQLocal, 'sql'>, kind: HistoryKind, limit: number) {
   const recent: HistoryEntry[] = [];

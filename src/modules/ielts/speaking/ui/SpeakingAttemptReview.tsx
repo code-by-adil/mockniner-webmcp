@@ -1,7 +1,7 @@
 import { ArrowLeft, CheckCircle2, Mic, Volume2 } from 'lucide-react'
 import type { SpeakingEvaluation, SpeakingSubmission } from '@/domain/types'
 import { ExamUiBoundary } from '@/app/layouts/ExamUiBoundary'
-import { Header } from '@/modules/exam-engine/ui/Header'
+import { IeltsExamHeader } from '@/modules/ielts/exam/ui/IeltsExamHeader'
 
 type Props = {
   submission: SpeakingSubmission
@@ -20,7 +20,7 @@ export function SpeakingAttemptReview({ submission, evaluation, onExit, backLabe
   return (
     <ExamUiBoundary>
       <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
-        <Header testType="speaking" position="contained" onExit={onExit} />
+        <IeltsExamHeader testType="speaking" position="contained" onExit={onExit} />
         <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
           <button type="button" onClick={onExit} className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-[var(--exam-accent)]">
             <ArrowLeft size={16} /> {backLabel}

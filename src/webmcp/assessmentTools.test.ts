@@ -7,7 +7,7 @@ import {
   parseAssessmentAuthoringPackage,
   type AssessmentSubmission,
 } from "@/domain/assessment";
-import { createAssessmentToolDefinitions } from "./assessmentTools";
+import { createAssessmentAuthoringToolDefinitions, createAssessmentToolDefinitions } from "./assessmentTools";
 
 const attemptId = "33333333-3333-4333-8333-333333333333";
 const submission: AssessmentSubmission = {
@@ -23,13 +23,9 @@ const submission: AssessmentSubmission = {
 const options = () => ({ signal: new AbortController().signal });
 
 describe("universal assessment WebMCP tools", () => {
-  it("returns one complete authoring kit with honest GRE coverage", async () => {
-    const tool = createAssessmentToolDefinitions({
-      installAssessment: vi.fn(),
-      readAssessmentAttempt: vi.fn(),
-      attachEvaluation: vi.fn(),
-      getCurrentAttemptId: () => undefined,
-    }).find((candidate) => candidate.name === "get_assessment_authoring_kit")!;
+  it("returns one complete authoring kit with explicit GRE coverage", async () => {
+    const tool = createAssessmentAuthoringToolDefinitions({ installAssessment: vi.fn() })
+      .find((candidate) => candidate.name === "get_assessment_authoring_kit")!;
 
     const result = await tool.execute({ template: "gre-style" }, options()) as {
       ok: true;
@@ -54,12 +50,8 @@ describe("universal assessment WebMCP tools", () => {
   });
 
   it("supports native clients that omit callback options", async () => {
-    const tool = createAssessmentToolDefinitions({
-      installAssessment: vi.fn(),
-      readAssessmentAttempt: vi.fn(),
-      attachEvaluation: vi.fn(),
-      getCurrentAttemptId: () => undefined,
-    }).find((candidate) => candidate.name === "get_assessment_authoring_kit")!;
+    const tool = createAssessmentAuthoringToolDefinitions({ installAssessment: vi.fn() })
+      .find((candidate) => candidate.name === "get_assessment_authoring_kit")!;
 
     await expect(
       tool.execute({ template: "minimal-objective" }, undefined as never),
@@ -67,12 +59,8 @@ describe("universal assessment WebMCP tools", () => {
   });
 
   it("still honors cancellation when the client supplies a signal", async () => {
-    const tool = createAssessmentToolDefinitions({
-      installAssessment: vi.fn(),
-      readAssessmentAttempt: vi.fn(),
-      attachEvaluation: vi.fn(),
-      getCurrentAttemptId: () => undefined,
-    }).find((candidate) => candidate.name === "get_assessment_authoring_kit")!;
+    const tool = createAssessmentAuthoringToolDefinitions({ installAssessment: vi.fn() })
+      .find((candidate) => candidate.name === "get_assessment_authoring_kit")!;
     const controller = new AbortController();
     controller.abort(new DOMException("Cancelled by client.", "AbortError"));
 
@@ -83,12 +71,8 @@ describe("universal assessment WebMCP tools", () => {
 
   it("installs a complete assessment and reports its visible side effect", async () => {
     const installAssessment = vi.fn(async () => ({ ...satPracticeAssessment, source: "agent" as const }));
-    const tool = createAssessmentToolDefinitions({
-      installAssessment,
-      readAssessmentAttempt: vi.fn(),
-      attachEvaluation: vi.fn(),
-      getCurrentAttemptId: () => undefined,
-    }).find((candidate) => candidate.name === "install_assessment")!;
+    const tool = createAssessmentAuthoringToolDefinitions({ installAssessment })
+      .find((candidate) => candidate.name === "install_assessment")!;
 
     const result = await tool.execute(getAssessmentAuthoringKit("sat-style").examplePackage, options());
     expect(result).toMatchObject({
@@ -107,12 +91,8 @@ describe("universal assessment WebMCP tools", () => {
       ...parseAssessmentAuthoringPackage(input),
       source: "agent" as const,
     }));
-    const tool = createAssessmentToolDefinitions({
-      installAssessment,
-      readAssessmentAttempt: vi.fn(),
-      attachEvaluation: vi.fn(),
-      getCurrentAttemptId: () => undefined,
-    }).find((candidate) => candidate.name === "install_assessment")!;
+    const tool = createAssessmentAuthoringToolDefinitions({ installAssessment })
+      .find((candidate) => candidate.name === "install_assessment")!;
     const invalid = structuredClone(getAssessmentAuthoringKit("minimal-objective").examplePackage);
     invalid.parts[0]!.items[0]!.interaction = {
       type: "single_choice",
@@ -140,12 +120,8 @@ describe("universal assessment WebMCP tools", () => {
         true,
       );
     });
-    const tool = createAssessmentToolDefinitions({
-      installAssessment,
-      readAssessmentAttempt: vi.fn(),
-      attachEvaluation: vi.fn(),
-      getCurrentAttemptId: () => undefined,
-    }).find((candidate) => candidate.name === "install_assessment")!;
+    const tool = createAssessmentAuthoringToolDefinitions({ installAssessment })
+      .find((candidate) => candidate.name === "install_assessment")!;
 
     const result = await tool.execute(
       getAssessmentAuthoringKit("gre-style").examplePackage,
@@ -164,11 +140,10 @@ describe("universal assessment WebMCP tools", () => {
 
   it("returns answer keys when the submitted package allows answer review", async () => {
     const tool = createAssessmentToolDefinitions({
-      installAssessment: vi.fn(),
       readAssessmentAttempt: async () => ({ submission, evaluation: null }),
       attachEvaluation: vi.fn(),
       getCurrentAttemptId: () => attemptId,
-    }, "results").find((candidate) => candidate.name === "get_assessment_submission")!;
+    }).find((candidate) => candidate.name === "get_assessment_submission")!;
 
     const result = await tool.execute({}, options());
     expect(result).toMatchObject({ ok: true, data: { evaluationStatus: "not_required" } });
@@ -178,8 +153,8 @@ describe("universal assessment WebMCP tools", () => {
   it('validates focused read inputs and preserves visible-attempt selection checks', async () => {
     let visibleId = attemptId;
     const read = vi.fn(async () => ({ submission, evaluation: null }));
-    const tool = createAssessmentToolDefinitions({ installAssessment: vi.fn(), readAssessmentAttempt: read, attachEvaluation: vi.fn(),
-      getCurrentAttemptId: () => visibleId }, 'results')[0];
+    const tool = createAssessmentToolDefinitions({ readAssessmentAttempt: read, attachEvaluation: vi.fn(),
+      getCurrentAttemptId: () => visibleId })[0];
     for (const input of [{ view: 'invalid' }, { itemId: '' }, { attemptId, latest: true }, { part: 1 }]) {
       await expect(tool.execute(input, options())).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
     }
@@ -193,33 +168,24 @@ describe("universal assessment WebMCP tools", () => {
     await expect(tool.execute({ attemptId, itemId: 'rw-1' }, options())).resolves.toMatchObject({ ok: true, data: { selection: { mode: 'id', isVisible: false } } });
   });
 
-  it("registers only tools relevant to the visible assessment surface", () => {
+  it("keeps authoring and review tool groups explicit", () => {
     const dependencies = {
-      installAssessment: vi.fn(),
       readAssessmentAttempt: vi.fn(),
       attachEvaluation: vi.fn(),
       getCurrentAttemptId: () => undefined,
     };
-    expect(createAssessmentToolDefinitions(dependencies, "authoring").map((tool) => tool.name)).toEqual([
+    expect(createAssessmentAuthoringToolDefinitions({ installAssessment: vi.fn() }).map((tool) => tool.name)).toEqual([
       "get_assessment_authoring_kit", "install_assessment",
     ]);
-    expect(createAssessmentToolDefinitions(dependencies, "results").map((tool) => tool.name)).toEqual([
+    expect(createAssessmentToolDefinitions(dependencies).map((tool) => tool.name)).toEqual([
       "get_assessment_submission", "attach_assessment_evaluation",
     ]);
-    expect(createAssessmentToolDefinitions(dependencies, "evaluation").map((tool) => tool.name)).toEqual([
-      "get_assessment_submission", "attach_assessment_evaluation",
-    ]);
-    expect(createAssessmentToolDefinitions(dependencies, "none")).toEqual([]);
   });
 
   it("rejects an unknown authoring template without installing anything", async () => {
     const installAssessment = vi.fn();
-    const tool = createAssessmentToolDefinitions({
-      installAssessment,
-      readAssessmentAttempt: vi.fn(),
-      attachEvaluation: vi.fn(),
-      getCurrentAttemptId: () => undefined,
-    }).find((candidate) => candidate.name === "get_assessment_authoring_kit")!;
+    const tool = createAssessmentAuthoringToolDefinitions({ installAssessment })
+      .find((candidate) => candidate.name === "get_assessment_authoring_kit")!;
     const result = await tool.execute({ template: "unknown" }, options());
     expect(result).toMatchObject({
       ok: false,
@@ -229,12 +195,7 @@ describe("universal assessment WebMCP tools", () => {
   });
 
   it("describes universal authoring without cross-tool routing prose", () => {
-    const tools = createAssessmentToolDefinitions({
-      installAssessment: vi.fn(),
-      readAssessmentAttempt: vi.fn(),
-      attachEvaluation: vi.fn(),
-      getCurrentAttemptId: () => undefined,
-    });
+    const tools = createAssessmentAuthoringToolDefinitions({ installAssessment: vi.fn() });
     expect(tools.find((tool) => tool.name === "get_assessment_authoring_kit")?.description)
       .toContain("universal engine capabilities");
     expect(tools.find((tool) => tool.name === "install_assessment")?.description)

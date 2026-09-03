@@ -30,6 +30,7 @@ export function createSaveCoordinator() {
   };
   return {
     reportFailure(error: unknown) { publish(error instanceof Error ? error.message : String(error)); },
+    clearError() { if (!pending.size) publish(); },
     enqueue(key: string, save: () => Promise<void>) {
       pending.set(key, save);
       publish(state.error);

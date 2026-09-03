@@ -65,12 +65,7 @@ export class KokoroSpeakingPlayer {
     if (this.context.state === 'suspended') await this.context.resume()
   }
 
-  // Queue in interview order. Inference stays serial while playback/recording
-  // continue independently. Failed buffers can be retried without losing others.
-  preload(texts: string[]): void {
-    for (const text of texts) void this.prepareAudio(text).catch(() => undefined)
-  }
-
+  // The interview requests the current question and at most one question ahead.
   prepareAudio(text: string): Promise<AudioBuffer> {
     const cached = this.audio.get(text)
     if (cached) return cached

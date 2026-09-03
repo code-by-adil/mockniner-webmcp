@@ -35,8 +35,8 @@ import { useWebMcpTools } from "@/webmcp/useWebMcpTools";
 import { useAssessmentApplication } from "@/application/useAssessmentApplication";
 import { AssessmentRunner } from "@/modules/assessment-engine/ui/AssessmentRunner";
 import { AssessmentResults } from "@/modules/assessment-engine/ui/AssessmentResults";
-import { getAssessmentToolSurface, getNativeToolSurfaces } from "@/webmcp/toolSurfaces";
 import { getPracticeContext } from '@/application/practiceContext';
+import { getPracticeHistoryRevision } from '@/application/usePracticeHistory';
 
 type Section = SectionKey;
 type Mode = IeltsMode;
@@ -228,19 +228,9 @@ export default function App() {
 }
 
 function PracticeApp() {
-  const { state, content, contentReady, loadError, learningSummary, commands, loadPracticeContent } = useIeltsApplication();
+  const { state, content, contentReady, loadError, commands, loadPracticeContent } = useIeltsApplication();
   const assessmentApplication = useAssessmentApplication();
-  const uiCommands = {
-    start: (...args: Parameters<typeof commands.start>) => { void Promise.resolve().then(() => commands.start(...args)).catch(draftSaves.reportFailure); },
-    resume: (...args: Parameters<typeof commands.resume>) => { void Promise.resolve().then(() => commands.resume(...args)).catch(draftSaves.reportFailure); },
-    goHome: () => { void Promise.resolve().then(() => commands.goHome()).catch(draftSaves.reportFailure); },
-  };
   const listeningAudio = useListeningAudio(content.listening);
-  const assessmentToolSurface = getAssessmentToolSurface(
-    state.view === "home",
-    assessmentApplication.state,
-  );
-  const nativeToolSurfaces = getNativeToolSurfaces(state, assessmentApplication.state);
   const webMcp = useWebMcpTools({
     commands,
     assessmentCommands: assessmentApplication.commands,
@@ -248,12 +238,16 @@ function PracticeApp() {
     workspace: { native: state, assessment: assessmentApplication.state, content, assessments: assessmentApplication.assessments, listeningAudio: getListeningAudioStatus(content.listening, listeningAudio) },
     retryListeningAudio: listeningAudio.retry,
     loadPracticeContent,
-    assessmentToolSurface,
-    nativeAuthoringEnabled: nativeToolSurfaces.authoringEnabled,
-    writingToolSurface: nativeToolSurfaces.writing,
-    speakingToolSurface: nativeToolSurfaces.speaking,
     enabled: contentReady && assessmentApplication.assessmentReady,
   });
+  const uiCommands = {
+    start: (mode: Mode, section: Section) => { void webMcp.navigate({ action: 'start', kind: mode === 'full' ? 'full_ielts' : section }, { replaceIeltsDraft: true }).catch(draftSaves.reportFailure); },
+    resume: (attemptId = state.attemptId) => { if (attemptId) void webMcp.navigate({ action: 'resume', kind: 'ielts', attemptId }).catch(draftSaves.reportFailure); },
+    goHome: () => { void webMcp.navigate({ action: 'library' }).catch(draftSaves.reportFailure); },
+    leaveSpeaking: () => { void webMcp.navigate({ action: 'library' }, { confirmedSpeakingExit: true }).catch(draftSaves.reportFailure); },
+    continueExam: () => { void Promise.resolve().then(commands.continueExam).catch(draftSaves.reportFailure); },
+    closeReview: () => { void Promise.resolve().then(commands.closeReview).catch(draftSaves.reportFailure); },
+  };
   const section = state.view === "review"
     ? state.review?.section ?? null
     : state.currentSection;
@@ -284,7 +278,7 @@ function PracticeApp() {
           key={assessmentApplication.state.partId}
           assessment={assessmentApplication.currentAssessment}
           session={assessmentApplication.state}
-          onExit={assessmentApplication.commands.goHome}
+          onExit={uiCommands.goHome}
           onResponse={assessmentApplication.commands.setResponse}
           onToggleMark={assessmentApplication.commands.toggleMark}
           onToggleElimination={assessmentApplication.commands.toggleElimination}
@@ -305,7 +299,7 @@ function PracticeApp() {
       <AssessmentResults
         submission={assessmentApplication.state.submission}
         evaluation={assessmentApplication.state.evaluation}
-        onHome={assessmentApplication.commands.goHome}
+        onHome={uiCommands.goHome}
         review={assessmentApplication.state.review ?? null}
         onReviewChange={assessmentApplication.commands.setReview}
       />
@@ -321,18 +315,16 @@ function PracticeApp() {
         listeningAudio={listeningAudio}
         onRetryListeningAudio={listeningAudio.retry}
         content={content}
-        learningSummary={learningSummary}
-        onReviewAttempt={commands.openAttempt}
+        historyRevision={getPracticeHistoryRevision(state, assessmentApplication.state)}
+        onReviewAttempt={async (attemptId, kind) => { await webMcp.navigate({ action: 'result', kind, attemptId }).catch(draftSaves.reportFailure); }}
         assessmentLibrary={{
           assessments: assessmentApplication.assessments,
           assessmentSession: assessmentApplication.state,
-          assessmentHistory: assessmentApplication.history,
-          onStartAssessment: assessmentApplication.commands.start,
-          onResumeAssessment: assessmentApplication.commands.resume,
+          onStartAssessment: packageId => { void webMcp.navigate({ action: 'start', kind: 'assessment', packageId }).catch(draftSaves.reportFailure); },
+          onResumeAssessment: () => { const attemptId = assessmentApplication.state.attemptId; if (attemptId) void webMcp.navigate({ action: 'resume', kind: 'assessment', attemptId }).catch(draftSaves.reportFailure); },
           onRestartAssessment: assessmentApplication.commands.restart,
           onDiscardAssessment: assessmentApplication.commands.discard,
           onDeleteAssessment: assessmentApplication.commands.deleteAssessment,
-          onReviewAssessment: assessmentApplication.commands.openAttempt,
         }}
       />
     );
@@ -345,7 +337,7 @@ function PracticeApp() {
         mode={mode}
         speakingAttemptId={state.speakingSubmission?.attemptId}
         onHome={uiCommands.goHome}
-        onContinue={commands.continueExam}
+        onContinue={uiCommands.continueExam}
       />
     );
   }
@@ -375,7 +367,7 @@ function PracticeApp() {
         explanations={review.explanations}
         focusRequest={review}
         onPartChange={(part) => commands.setPart('reading', part)}
-        onExit={commands.closeReview}
+        onExit={uiCommands.closeReview}
         backLabel={review.returnTo === 'home' ? 'Back to practice' : 'Back to results'}
       /></ExamUiBoundary>;
     }
@@ -386,7 +378,7 @@ function PracticeApp() {
       answers: isReviewMode ? submission!.answers : state.answers[section],
       currentPart: review?.part ?? state.partBySection[section],
       secondsRemaining: state.secondsRemaining[section],
-      onBack: isReviewMode ? commands.closeReview : uiCommands.goHome,
+      onBack: isReviewMode ? uiCommands.closeReview : uiCommands.goHome,
       isReviewMode,
       onAnswerChange: (id: number, value: string) =>
         commands.setObjectiveAnswer(section, id, value),
@@ -417,7 +409,7 @@ function PracticeApp() {
 
   if (section === "writing") {
     if (state.view === "review" && state.review?.kind === "writing") {
-      if (!state.review.evaluation) return <PendingAttemptReview review={state.review} onExit={commands.closeReview} />;
+      if (!state.review.evaluation) return <PendingAttemptReview review={state.review} onExit={uiCommands.closeReview} />;
       return (
         <WritingAttemptReview
           backLabel={state.review.returnTo === 'home' ? 'Back to practice' : 'Back to results'}
@@ -427,7 +419,7 @@ function PracticeApp() {
           selectedCorrectionId={state.review.selectedCorrectionId}
           focusRequest={state.review}
           onCorrectionSelect={correctionId => commands.setReviewLocation({ taskNumber: state.review?.part === 2 ? 2 : 1, correctionId })}
-          onExit={commands.closeReview}
+          onExit={uiCommands.closeReview}
           onPartChange={(part) => commands.setPart("writing", part)}
         />
       );
@@ -448,19 +440,20 @@ function PracticeApp() {
   }
 
   if (state.view === "review" && state.review?.kind === "speaking") {
-    if (!state.review.evaluation) return <PendingAttemptReview review={state.review} onExit={commands.closeReview} />;
+    if (!state.review.evaluation) return <PendingAttemptReview review={state.review} onExit={uiCommands.closeReview} />;
     return (
       <SpeakingAttemptReview
         backLabel={state.review.returnTo === 'home' ? 'Back to practice' : 'Back to results'}
         submission={state.review.submission}
         evaluation={state.review.evaluation}
-        onExit={commands.closeReview}
+        onExit={uiCommands.closeReview}
       />
     );
   }
 
-  return <SpeakingExamRunner key={state.attemptId} onExit={uiCommands.goHome} onSubmit={commands.submitSpeaking}
-    attemptId={state.attemptId ?? undefined} attemptStartedAt={state.startedAtBySection.speaking}
+  if (state.view !== 'exam' || section !== 'speaking' || !state.attemptId) throw new Error('The active Speaking attempt is unavailable.');
+  return <SpeakingExamRunner key={state.attemptId} onExit={uiCommands.leaveSpeaking} onSubmit={commands.submitSpeaking}
+    attemptId={state.attemptId} attemptStartedAt={state.startedAtBySection.speaking}
     initialPlan={state.speakingPlan} onConfigurePlan={commands.configureSpeakingPlan} canLeave={webMcp.canLeaveSpeaking}
     bindSpeakingInterview={webMcp.bindSpeakingInterview} />;
 }

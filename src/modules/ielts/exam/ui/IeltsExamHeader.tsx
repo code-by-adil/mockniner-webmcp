@@ -61,7 +61,7 @@ function getListeningAudioText(status: Props["listeningAudioStatus"]) {
   }
 }
 
-export const Header: React.FC<Props> = ({
+export const IeltsExamHeader: React.FC<Props> = ({
   testType = "listening",
   position = "viewport",
   onExit,

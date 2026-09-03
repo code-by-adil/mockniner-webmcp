@@ -1,17 +1,16 @@
 import { z } from "zod";
 import type { AttemptReader } from "@/application/attemptReader";
-import { initialSession, type IeltsAttemptState, type IeltsSession } from "@/domain/session";
+import { initialSession, type IeltsAttemptState } from "@/domain/session";
 import { speakingPlanSchema } from '@/domain/speakingPlan';
 import { answerMapSchema } from "@/domain/attemptValidation";
 
-export const STORAGE_KEY = "ielts-practice-session-v4";
 const section = z.enum(["listening", "reading", "writing", "speaking"]);
 const timestamp = z.iso.datetime({ offset: true });
 const draftSchema = z.object({
   contentKeys: z.object({ listening: z.string().optional(), reading: z.string().optional(), writing: z.string().optional() }).optional(),
   speakingPlan: speakingPlanSchema.optional(),
-  attemptId: z.uuid().nullable().default(null),
-  view: z.enum(["home", "exam", "transition", "result", "review"]),
+  attemptId: z.uuid().nullable(),
+  view: z.enum(["home", "exam", "transition", "result"]),
   mode: z.enum(["full", "section"]).nullable(),
   currentSection: section.nullable(),
   partBySection: z.object({
@@ -51,60 +50,6 @@ export const attemptSnapshotSchema = z.object({
   draft: draftSchema,
   resultAttemptIds: resultIdsSchema,
 });
-const snapshotSchema = attemptSnapshotSchema.extend({
-  version: z.union([z.literal(1), z.literal(2)]),
-  pausedDrafts: z.array(attemptSnapshotSchema).max(5).default([]),
-});
-const submissionId = z.object({ attemptId: z.uuid() }).optional();
-const legacySchema = draftSchema.extend({
-  objectiveSubmissions: z.object({
-    listening: submissionId,
-    reading: submissionId,
-  }),
-  writingSubmission: submissionId,
-  speakingSubmission: submissionId,
-});
-
-export function parseSnapshot(value: string): z.infer<typeof snapshotSchema> {
-  const raw: unknown = JSON.parse(value);
-  const current = snapshotSchema.safeParse(raw);
-  if (current.success) return current.data;
-  const legacy = legacySchema.parse(raw);
-  return {
-    version: 1,
-    pausedDrafts: [],
-    draft: {
-      ...draftSchema.parse(legacy),
-      view: legacy.view === "review" ? "home" : legacy.view,
-    },
-    resultAttemptIds: {
-      listening: legacy.objectiveSubmissions.listening?.attemptId,
-      reading: legacy.objectiveSubmissions.reading?.attemptId,
-      writing: legacy.writingSubmission?.attemptId,
-      speaking: legacy.speakingSubmission?.attemptId,
-    },
-  };
-}
-
-export async function loadSession(
-  reader: AttemptReader,
-): Promise<IeltsSession> {
-  if (typeof localStorage === "undefined") return initialSession;
-  const value = localStorage.getItem(STORAGE_KEY);
-  if (!value) return initialSession;
-  let snapshot: z.infer<typeof snapshotSchema>;
-  try {
-    snapshot = parseSnapshot(value);
-  } catch (cause) {
-    throw new Error("Saved IELTS session metadata is invalid.", { cause });
-  }
-  const [active, ...pausedDrafts] = await Promise.all([
-    restoreAttempt(snapshot, reader),
-    ...snapshot.pausedDrafts.map(draft => restoreAttempt(draft, reader)),
-  ]);
-  return { ...active!, pausedDrafts };
-}
-
 export async function restoreAttempt(snapshot: z.infer<typeof attemptSnapshotSchema>, reader: AttemptReader): Promise<IeltsAttemptState> {
   const { pausedDrafts: _paused, ...initialAttempt } = initialSession;
   const { draft, resultAttemptIds: ids } = snapshot;
@@ -125,8 +70,6 @@ export async function restoreAttempt(snapshot: z.infer<typeof attemptSnapshotSch
   return {
     ...initialAttempt,
     ...draft,
-    attemptId: draft.attemptId ?? (draft.mode ? crypto.randomUUID() : null),
-    view: draft.view === "review" ? "home" : draft.view,
     objectiveSubmissions: {
       ...(listening ? { listening } : {}),
       ...(reading ? { reading } : {}),
@@ -136,19 +79,6 @@ export async function restoreAttempt(snapshot: z.infer<typeof attemptSnapshotSch
     speakingSubmission: speaking?.submission,
     speakingEvaluation: speaking?.evaluation ?? undefined,
   };
-}
-
-export function saveSession(session: IeltsSession): void {
-  if (typeof localStorage === "undefined") return;
-  if (!session.mode && !session.pausedDrafts.length) {
-    localStorage.removeItem(STORAGE_KEY);
-    return;
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    version: 2,
-    ...snapshotAttempt(session),
-    pausedDrafts: session.pausedDrafts.map(snapshotAttempt),
-  }));
 }
 
 export function snapshotAttempt(session: IeltsAttemptState) {

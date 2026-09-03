@@ -1,21 +1,15 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { Check, Minus, X } from 'lucide-react';
 import type { AssessmentEvaluation, AssessmentResult, AssessmentSubmission } from '@/domain/assessment';
 import { getAssessmentPartResources } from '@/domain/assessmentSelectors';
-import { AssessmentReviewContent } from './AssessmentReviewContext';
+import { AssessmentReviewContent } from './AssessmentReviewContent';
 import { AssessmentReviewAnswer } from './AssessmentReviewAnswer';
-import { AssessmentReviewFooter, type ReviewPart } from './AssessmentReviewFooter';
-import type { AssessmentReviewSelection } from '@/domain/assessmentReview';
+import { AssessmentReviewFooter, type ReviewPart, type ReviewQuestion } from './AssessmentReviewFooter';
+import { matchesAssessmentReviewFilter, permittedAssessmentReviewFilter, type AssessmentReviewFilter, type AssessmentReviewSelection } from '@/domain/assessmentReview';
 
-export type ReviewFilter = 'all' | 'incorrect' | 'unanswered';
 type ItemResult = AssessmentResult['itemResults'][number];
 
-function matchesFilter(result: ItemResult, filter: ReviewFilter): boolean {
-  return filter === 'incorrect' ? result.answered && result.correct === false
-    : filter === 'unanswered' ? !result.answered : true;
-}
-
-function statusFor(result: ItemResult, showAnswers: boolean) {
+function statusFor(result: ItemResult, showAnswers: boolean): { label: ReviewQuestion['status']; Icon: typeof Check; classes: string } {
   if (!result.answered) return { label: 'Unanswered', Icon: Minus, classes: 'border-neutral-300 bg-white text-neutral-600' };
   if (!showAnswers || result.correct === null) return { label: 'Response saved', Icon: Check, classes: 'border-neutral-300 bg-neutral-100 text-neutral-700' };
   return result.correct
@@ -23,49 +17,41 @@ function statusFor(result: ItemResult, showAnswers: boolean) {
     : { label: 'Incorrect', Icon: X, classes: 'border-red-200 bg-red-50 text-red-800' };
 }
 
-export function AssessmentAnswerReview({ submission, evaluation, initialFilter = 'all', initialItemId, selection, onSelectionChange }: {
-  submission: AssessmentSubmission; evaluation?: AssessmentEvaluation; initialFilter?: ReviewFilter; initialItemId?: string;
-  selection?: AssessmentReviewSelection; onSelectionChange?: (selection: AssessmentReviewSelection) => void;
+export function AssessmentAnswerReview({ submission, evaluation, selection, onSelectionChange }: {
+  submission: AssessmentSubmission; evaluation?: AssessmentEvaluation;
+  selection: AssessmentReviewSelection; onSelectionChange: (selection: AssessmentReviewSelection) => void;
 }) {
-  const [localFilter, setFilter] = useState<ReviewFilter>(initialFilter);
-  const [localSelectedId, setSelectedId] = useState(initialItemId);
-  const filter = selection?.filter ?? localFilter;
-  const selectedId = selection ? selection.itemId : localSelectedId;
+  const { filter, itemId: selectedId } = selection;
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const focusSelection = useRef(false);
   const headingId = useId();
   const showAnswers = submission.package.review.mode === 'answers';
-  const selectedFilter = !showAnswers && filter === 'incorrect' ? 'all' : filter;
+  const selectedFilter = permittedAssessmentReviewFilter(submission.package.review.mode, filter);
   const byId = new Map(submission.result.itemResults.map(result => [result.itemId, result]));
   const entries = submission.package.parts.flatMap(part => part.items.map((item, index) => ({ part, item, number: index + 1 }))).flatMap(({ part, item, number }) => {
     const result = byId.get(item.id);
     return result ? [{ part, item, result, number }] : [];
   });
-  const visible = entries.filter(entry => matchesFilter(entry.result, selectedFilter));
+  const visible = entries.filter(entry => matchesAssessmentReviewFilter(entry.result, selectedFilter));
   const active = visible.find(entry => entry.item.id === selectedId) ?? visible[0];
   const activeIndex = active ? visible.indexOf(active) : -1;
   const activeId = active?.item.id;
-  const filters: { id: ReviewFilter; label: string }[] = [
+  const filters: { id: AssessmentReviewFilter; label: string }[] = [
     { id: 'all', label: 'All' }, ...(showAnswers ? [{ id: 'incorrect' as const, label: 'Incorrect' }] : []), { id: 'unanswered', label: 'Unanswered' },
   ];
 
   useEffect(() => {
-    if (!selection && !focusSelection.current) return;
-    focusSelection.current = false;
     headingRef.current?.focus({ preventScroll: true });
     headingRef.current?.scrollIntoView({ block: 'nearest' });
   }, [activeId, selection]);
 
   function selectQuestion(id: string) {
-    focusSelection.current = id !== activeId;
-    if (onSelectionChange) onSelectionChange({ filter, itemId: id });
-    else setSelectedId(id);
+    onSelectionChange({ filter: selectedFilter, itemId: id });
     if (id === activeId) headingRef.current?.focus({ preventScroll: true });
   }
 
   const navigationParts: ReviewPart[] = submission.package.parts.flatMap(part => {
     const questions = visible.filter(entry => entry.part.id === part.id).map(entry => ({
-      id: entry.item.id, number: entry.number, status: statusFor(entry.result, showAnswers).label as ReviewPart['questions'][number]['status'],
+      id: entry.item.id, number: entry.number, status: statusFor(entry.result, showAnswers).label,
     }));
     return questions.length ? [{ id: part.id, label: [part.groupTitle, part.title].filter(Boolean).join(' · '), total: part.items.length, questions }] : [];
   });
@@ -79,12 +65,12 @@ export function AssessmentAnswerReview({ submission, evaluation, initialFilter =
     <div className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-neutral-200">
       <div role="group" aria-label="Filter questions" className="flex flex-wrap gap-4 sm:gap-6">
         {filters.map(option => <button type="button" key={option.id} aria-pressed={option.id === selectedFilter}
-          onClick={() => { if (onSelectionChange) onSelectionChange({ filter: option.id }); else { setFilter(option.id); setSelectedId(undefined); } }}
+          onClick={() => onSelectionChange({ filter: option.id })}
           className={`min-h-12 border-b-2 text-sm ${option.id === selectedFilter ? 'border-neutral-900 font-semibold text-neutral-950' : 'border-transparent text-neutral-600 hover:text-neutral-950'}`}>
-          {option.label}<span className="ml-2 text-xs tabular-nums text-neutral-500">{entries.filter(entry => matchesFilter(entry.result, option.id)).length}</span>
+          {option.label}<span className="ml-2 text-xs tabular-nums text-neutral-500">{entries.filter(entry => matchesAssessmentReviewFilter(entry.result, option.id)).length}</span>
         </button>)}
       </div>
-      <p role="status" className={`${visible.length ? 'sr-only sm:not-sr-only' : 'pb-3'} text-sm text-neutral-600 sm:pb-0`}>{visible.length ? `${visible.length} of ${entries.length} questions` : selectedFilter === 'incorrect' ? 'No incorrect answers.' : 'No unanswered questions.'}</p>
+      <p role="status" className={`${visible.length ? 'sr-only sm:not-sr-only' : 'pb-3'} text-sm text-neutral-600 sm:pb-0`}>{visible.length ? `${visible.length} of ${entries.length} ${entries.length === 1 ? 'question' : 'questions'}` : selectedFilter === 'incorrect' ? 'No incorrect answers.' : 'No unanswered questions.'}</p>
     </div>
     <div className="min-w-0">
         {active && activeStatus ? <article key={activeId} aria-label={`Question ${active.number}`} data-item-id={activeId}>

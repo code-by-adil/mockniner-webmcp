@@ -40,7 +40,7 @@ const speakingFeedback = (attemptId: string): SpeakingEvaluation => ({ attemptId
   reason: 'No recording.', evaluatedAt: dates.submittedAt,
 })
 const assessmentFeedback = (attemptId: string): AssessmentEvaluation => ({ attemptId,
-  rubricId: 'writing', overallScore: 1, criteria: [{ criterionId: 'clarity', score: 1, feedback: 'Private feedback', evidence: [] }],
+  revision: 1, overallScore: 1, criteria: [{ criterionId: 'clarity', score: 1, feedback: 'Private feedback', evidence: [] }],
   summary: 'Private summary', strengths: ['Clear'], improvements: ['Detail'], annotations: [], evaluatedAt: dates.submittedAt,
 })
 

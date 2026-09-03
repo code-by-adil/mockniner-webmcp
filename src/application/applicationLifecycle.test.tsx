@@ -2,69 +2,53 @@
 import { act, StrictMode, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SQLocal } from 'sqlocal';
 import { satPracticeAssessment } from "@/content/sat";
 import type { AssessmentSubmission } from "@/domain/assessment";
 import {
-  initialAssessmentSession,
+  assessmentSessionReducer, initialAssessmentSession,
 } from "@/domain/assessmentSession";
-import type {
-  ObjectiveSubmission,
-  SpeakingSubmission,
-  WritingSubmission,
-} from "@/domain/types";
+import type { WritingSubmission } from "@/domain/types";
 import { useIeltsApplication } from "./useIeltsApplication";
 import { useAssessmentApplication } from "./useAssessmentApplication";
 import { getIeltsExample } from '@/content/ieltsExamples';
 import { defaultSpeakingPlan } from '@/domain/speakingPlan';
-import { loadSession } from '@/infrastructure/ieltsSessionStorage';
 import { draftSaves } from '@/infrastructure/saveCoordinator';
-import { ASSESSMENT_SESSION_STORAGE_KEY, saveAssessmentSession } from '@/infrastructure/assessmentSessionStorage';
+import { createDraftRepository } from '@/infrastructure/database/draftRepository';
+import { createIeltsRepository } from '@/infrastructure/database/ieltsRepository';
+import { createAssessmentRepository } from '@/infrastructure/database/assessmentRepository';
+import { createContentStore } from '@/infrastructure/database/contentRepository';
+import { migrateDatabase } from '@/infrastructure/database/migrations';
 
-// Persistence is a boundary here; real SQLite upgrade/rollback tests live in
-// draftRepository.test.ts. These adapters retain the old fixtures for hook tests.
-vi.mock('@/infrastructure/database/draftRepository', () => ({ getDraftRepository: async () => {
-  const native = await import('@/infrastructure/ieltsSessionStorage');
-  const universal = await import('@/infrastructure/assessmentSessionStorage');
+function createRepositories(database: SQLocal) {
+  const ielts = createIeltsRepository(database);
+  const assessment = createAssessmentRepository(database);
   return {
-    issues: [],
-    loadIelts: async (reader: Parameters<typeof native.loadSession>[0]) => ({ session: await native.loadSession(reader), documents: [] }),
-    saveIelts: native.saveSession,
-    loadAssessment: async () => universal.loadAssessmentSession(),
-    saveAssessment: universal.saveAssessmentSession,
+    ielts: {
+      ...ielts,
+      saveObjectiveAttempt: vi.fn(ielts.saveObjectiveAttempt),
+      saveWritingAttempt: vi.fn(ielts.saveWritingAttempt),
+      saveSpeakingAttempt: vi.fn(ielts.saveSpeakingAttempt),
+    },
+    assessment: {
+      ...assessment,
+      saveAttempt: vi.fn(assessment.saveAttempt),
+    },
   };
-} }));
+}
 
-const repositories = vi.hoisted(() => ({
-  ielts: {
-    readObjectiveExplanations: async () => [],
-    readLearningSummary: vi.fn(),
-    readObjectiveAttempt: vi.fn(async () => null),
-    readWritingAttempt: vi.fn(async () => null),
-    readSpeakingAttempt: vi.fn(async () => null),
-    saveObjectiveAttempt: vi.fn(),
-    saveWritingAttempt: vi.fn(),
-    saveSpeakingAttempt: vi.fn(),
-    saveObjectiveExplanation: vi.fn(),
-    saveWritingEvaluation: vi.fn(),
-    saveSpeakingEvaluation: vi.fn(),
-  },
-  assessment: {
-    loadPackages: vi.fn(async () => []),
-    readHistory: vi.fn(async () => []),
-    saveAttempt: vi.fn(),
-  },
-}));
-vi.mock("@/infrastructure/database/assessmentRepository", () => ({
-  getAssessmentRepository: async () => repositories.assessment,
-}));
+let database: SQLocal;
+let drafts: ReturnType<typeof createDraftRepository>;
+let repositories: ReturnType<typeof createRepositories>;
 
 const nativePersistence = {
   getRepository: async () => repositories.ielts,
-  getContentStore: async () => ({
-    loadActive: async () => [],
-    loadByKey: async () => null,
-    saveAndActivate: async () => {},
-  }),
+  getContentStore: async () => createContentStore(database),
+  getDraftRepository: async () => drafts,
+};
+const assessmentPersistence = {
+  getRepository: async () => repositories.assessment,
+  getDraftRepository: async () => drafts,
 };
 
 function deferred<T>() {
@@ -87,7 +71,7 @@ function Native() {
   return <p>{application.state.view}</p>;
 }
 function Universal() {
-  const application = useAssessmentApplication();
+  const application = useAssessmentApplication(assessmentPersistence);
   useLayoutEffect(() => {
     universal = application;
   });
@@ -103,10 +87,18 @@ it('commits installed content before the external installation caller reads its 
   });
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  localStorage.clear();
+  vi.stubGlobal('Worker', class {});
+  vi.stubGlobal('navigator', {});
   vi.clearAllMocks();
+  let connected!: () => void;
+  const ready = new Promise<void>(resolve => { connected = resolve; });
+  database = new SQLocal({ databasePath: ':memory:', onInit: sql => [sql`PRAGMA foreign_keys = ON`], onConnect: connected });
+  await ready;
+  await migrateDatabase(database);
+  drafts = createDraftRepository(database);
+  repositories = createRepositories(database);
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -117,6 +109,7 @@ afterEach(async () => {
     await vi.dynamicImportSettled();
   });
   await act(async () => root.unmount());
+  await database.destroy(true);
   host.remove();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -131,7 +124,7 @@ describe("real application hook lifecycle", () => {
       await native.commands.start('section', 'speaking');
       id = native.state.attemptId!;
       await native.commands.configureSpeakingPlan(plan);
-      expect(await loadSession(repositories.ielts)).toMatchObject({ attemptId: id, speakingPlan: plan });
+      expect((await createDraftRepository(database).loadIelts(repositories.ielts)).session).toMatchObject({ attemptId: id, speakingPlan: plan });
       await native.commands.start('section', 'reading');
     });
     await act(async () => root.render(<div>Unmounted</div>));
@@ -143,13 +136,12 @@ describe("real application hook lifecycle", () => {
     await act(async () => root.render(<Native />));
     await act(async () => native.commands.start('section', 'speaking'));
     const before = native.state;
-    const storage = localStorage;
-    vi.stubGlobal('localStorage', { getItem: storage.getItem.bind(storage), removeItem: storage.removeItem.bind(storage), setItem() { throw new Error('Quota exceeded'); } });
+    await database.sql`CREATE TRIGGER fail_draft_save BEFORE INSERT ON practice_drafts BEGIN SELECT RAISE(ABORT, 'Quota exceeded'); END`;
     try {
       await expect(native.commands.configureSpeakingPlan(defaultSpeakingPlan)).rejects.toThrow('Quota exceeded');
       await expect(native.commands.start('section', 'reading')).rejects.toThrow('Quota exceeded');
       expect(native.state).toBe(before);
-    } finally { vi.stubGlobal('localStorage', storage); }
+    } finally { await database.sql`DROP TRIGGER fail_draft_save`; }
   });
   it('finishes the correct parked draft when a submission resolves after switching sections', async () => {
     await act(async () => root.render(<Native />));
@@ -165,43 +157,13 @@ describe("real application hook lifecycle", () => {
     await act(async () => { pending.resolve(saved); await saving; });
     expect(native.state).toMatchObject({ attemptId: currentId, currentSection: 'speaking', pausedDrafts: [], completedSections: [] });
   });
-  it("refreshes native history when a save completes after returning home", async () => {
-    await act(async () => root.render(<Native />));
-    await act(async () => {
-      await vi.dynamicImportSettled();
-    });
-    await act(async () => native.commands.start("section", "writing"));
-    const pending = deferred<WritingSubmission>();
-    repositories.ielts.saveWritingAttempt.mockReturnValueOnce(pending.promise);
-    let saving!: Promise<WritingSubmission>;
-    await act(async () => {
-      saving = native.commands.submitWriting();
-    });
-    const submission: WritingSubmission =
-      repositories.ielts.saveWritingAttempt.mock.calls[0][0];
-    await act(async () => native.commands.goHome());
-    const reads = repositories.ielts.readLearningSummary.mock.calls.length;
-    await act(async () => {
-      pending.resolve(submission);
-      await saving;
-    });
-    expect(native.state.view).toBe("home");
-    expect(repositories.ielts.readLearningSummary).toHaveBeenCalledTimes(
-      reads + 1,
-    );
-  });
-
   it("keeps a custom assessment draft when its catalog cannot be loaded", async () => {
-    saveAssessmentSession({
-      ...initialAssessmentSession,
-      attemptId: "22222222-2222-4222-8222-222222222222",
-      packageId: "custom-package",
-      partId: "part-1",
-      itemId: "item-1",
-      startedAt: "2026-09-02T10:00:00.000Z",
-      responses: { "item-1": "Saved answer" },
+    const state = assessmentSessionReducer(initialAssessmentSession, {
+      type: 'START', assessment: satPracticeAssessment, attemptId: crypto.randomUUID(),
+      startedAt: '2026-09-02T10:00:00.000Z', nowMs: Date.parse('2026-09-02T10:00:00.000Z'),
     });
-    const before = localStorage.getItem(ASSESSMENT_SESSION_STORAGE_KEY);
+    await drafts.saveAssessment(state);
+    const before = await database.sql`SELECT * FROM practice_drafts`;
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(repositories.assessment, "loadPackages").mockRejectedValue(
       new Error("Storage unavailable"),
@@ -219,7 +181,7 @@ describe("real application hook lifecycle", () => {
     expect(universal.assessmentReady).toBe(false);
     expect(universal.loadError).toContain("could not be loaded");
     expect(universal.state.responses).toEqual({}); // Not exposed until its catalog loads.
-    expect(localStorage.getItem(ASSESSMENT_SESSION_STORAGE_KEY)).toBe(before);
+    expect(await database.sql`SELECT * FROM practice_drafts`).toEqual(before);
   });
 
   it.each(["writing", "reading", "speaking"] as const)(
@@ -238,27 +200,17 @@ describe("real application hook lifecycle", () => {
       expect(native.contentReady).toBe(true);
       await act(async () => native.commands.start("section", section));
       const oldId = native.state.attemptId;
-      const pending = deferred<
-        ObjectiveSubmission | WritingSubmission | SpeakingSubmission
-      >();
+      const pending = deferred<void>();
       let saving!: Promise<unknown>;
-      let submission:
-        ObjectiveSubmission | WritingSubmission | SpeakingSubmission;
       await act(async () => {
         if (section === "writing") {
-          repositories.ielts.saveWritingAttempt.mockReturnValueOnce(
-            pending.promise,
-          );
+          repositories.ielts.saveWritingAttempt.mockImplementationOnce(async submission => { await pending.promise; return submission; });
           saving = native.commands.submitWriting();
         } else if (section === "reading") {
-          repositories.ielts.saveObjectiveAttempt.mockReturnValueOnce(
-            pending.promise,
-          );
+          repositories.ielts.saveObjectiveAttempt.mockImplementationOnce(async submission => { await pending.promise; return submission; });
           saving = native.commands.submitObjective("reading");
         } else {
-          repositories.ielts.saveSpeakingAttempt.mockReturnValueOnce(
-            pending.promise,
-          );
+          repositories.ielts.saveSpeakingAttempt.mockImplementationOnce(async submission => { await pending.promise; return { ...submission, responses: [] }; });
           saving = native.commands.submitSpeaking({
             contentKey: "speaking",
             startedAt: new Date().toISOString(),
@@ -266,21 +218,12 @@ describe("real application hook lifecycle", () => {
           });
         }
       });
-      if (section === "writing")
-        submission = repositories.ielts.saveWritingAttempt.mock.calls[0][0];
-      else if (section === "reading")
-        submission = repositories.ielts.saveObjectiveAttempt.mock.calls[0][0];
-      else
-        submission = {
-          ...repositories.ielts.saveSpeakingAttempt.mock.calls[0][0],
-          responses: [],
-        };
       await act(async () => native.commands.goHome());
       await act(async () => native.commands.start("section", section));
       const newId = native.state.attemptId;
       expect(newId).not.toBe(oldId);
       await act(async () => {
-        pending.resolve(submission);
+        pending.resolve();
         await saving;
       });
       expect(native.state).toMatchObject({

@@ -18,7 +18,7 @@ export function AssessmentReviewFooter({ parts, selectedId, onSelect, onPrevious
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const activeButtonRef = useRef<HTMLButtonElement>(null);
   const [height, setHeight] = useState(140);
-  const moduleId = useId();
+  const partSelectId = useId();
   const part = parts.find(candidate => candidate.questions.some(question => question.id === selectedId))!;
   const selected = part.questions.find(question => question.id === selectedId)!;
 
@@ -67,8 +67,8 @@ export function AssessmentReviewFooter({ parts, selectedId, onSelect, onPrevious
       <div className="mx-auto max-w-[1280px] px-3 py-2 sm:px-8 sm:py-3">
         <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
           <div className="min-w-0 basis-full sm:basis-auto">
-            <label htmlFor={moduleId} className="sr-only">Review module</label>
-            <select id={moduleId} value={part.id} onChange={event => select(parts.find(candidate => candidate.id === event.target.value)!.questions[0].id)}
+            <label htmlFor={partSelectId} className="sr-only">Review part</label>
+            <select id={partSelectId} value={part.id} onChange={event => select(parts.find(candidate => candidate.id === event.target.value)!.questions[0].id)}
               className="h-10 w-full min-w-0 max-w-full rounded border border-neutral-200 bg-white px-2 text-sm font-medium text-neutral-800 sm:w-[300px]">
               {parts.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.label}</option>)}
             </select>
@@ -80,7 +80,7 @@ export function AssessmentReviewFooter({ parts, selectedId, onSelect, onPrevious
               <summary className="flex h-10 cursor-pointer list-none items-center justify-center gap-2 rounded border border-neutral-200 px-3 text-xs font-medium text-neutral-800">
                 <Grid2X2 size={15} aria-hidden="true" />Question {selected.number} of {part.total}
               </summary>
-              <nav aria-label="Questions in this module" className="absolute inset-x-0 bottom-full max-h-[60dvh] overflow-y-auto border-t border-neutral-300 bg-white px-4 py-4 shadow-[0_-8px_24px_#0000000d]">
+              <nav aria-label="Questions in this part" className="absolute inset-x-0 bottom-full max-h-[60dvh] overflow-y-auto border-t border-neutral-300 bg-white px-4 py-4 shadow-[0_-8px_24px_#0000000d]">
                 <p className="mb-4 text-sm font-semibold">{part.label}</p>
                 <div className="grid grid-cols-[repeat(auto-fill,40px)] justify-center gap-2">{questionButtons(true)}</div>
                 <p className="mt-4 text-xs text-neutral-600">{showAnswers ? '✓ Correct · × Incorrect · − Unanswered' : '✓ Response saved · − Unanswered'}</p>
@@ -89,7 +89,7 @@ export function AssessmentReviewFooter({ parts, selectedId, onSelect, onPrevious
             <button type="button" aria-label="Next" onClick={onNext} disabled={!canNext} className="inline-flex h-10 items-center justify-center gap-2 rounded border border-neutral-200 px-3 text-sm font-medium disabled:opacity-40"><span className="hidden sm:inline">Next</span><ArrowRight size={16} aria-hidden="true" /></button>
           </div>
         </div>
-        <nav aria-label="Questions in this module" className="mt-2 hidden overflow-x-auto px-1 py-1 sm:block">
+        <nav aria-label="Questions in this part" className="mt-2 hidden overflow-x-auto px-1 py-1 sm:block">
           <div className="flex w-max gap-1.5">{questionButtons(false)}</div>
         </nav>
       </div>

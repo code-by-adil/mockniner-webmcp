@@ -2,7 +2,7 @@ import { parseAssessmentPackage } from '@/domain/assessment'
 
 // Authoring-only content, deliberately independent of the playable SAT set.
 export const satAuthoringExample = parseAssessmentPackage({
-  schemaVersion: 3, packageId: 'example-sat-style', revision: 1, source: 'built-in',
+  schemaVersion: 4, packageId: 'example-sat-style', revision: 1, source: 'built-in',
   title: 'SAT-style Authoring Example',
   description: 'A compact structural example with four fixed-order parts; not a full-length or official SAT.',
   metadata: { subject: 'College readiness', difficulty: 'standard', locale: 'en-US', shortLabel: 'SAT-style',

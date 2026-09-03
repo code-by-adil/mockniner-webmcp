@@ -9,7 +9,7 @@ import { greStyleAssessment } from "./gre";
 import { satAuthoringExample } from "./satAuthoringExample";
 
 const minimalObjectiveAssessment = parseAssessmentPackage({
-  schemaVersion: 3,
+  schemaVersion: 4,
   packageId: "example-minimal-objective",
   revision: 1,
   title: "General Knowledge Check",
@@ -19,7 +19,6 @@ const minimalObjectiveAssessment = parseAssessmentPackage({
   presentation: { accent: "blue", density: "comfortable" },
   resources: [],
   review: { mode: "answers" },
-  rubrics: [],
   parts: [
     {
       id: "questions",
@@ -57,7 +56,7 @@ const minimalObjectiveAssessment = parseAssessmentPackage({
 });
 
 const writingWithRubricAssessment = parseAssessmentPackage({
-  schemaVersion: 3,
+  schemaVersion: 4,
   packageId: "example-writing-with-rubric",
   revision: 1,
   title: "Public Policy Essay",
@@ -73,9 +72,7 @@ const writingWithRubricAssessment = parseAssessmentPackage({
   presentation: { accent: "green", density: "comfortable" },
   resources: [],
   review: { mode: "responses" },
-  rubrics: [
-    {
-      id: "argument-writing",
+  rubric: {
       title: "Argument writing rubric",
       scale: { minimum: 0, maximum: 4, step: 1 },
       criteria: [
@@ -94,8 +91,7 @@ const writingWithRubricAssessment = parseAssessmentPackage({
       ],
       requireEvidence: true,
       allowAnnotations: true,
-    },
-  ],
+  },
   parts: [
     {
       id: "essay",
@@ -123,7 +119,6 @@ const writingWithRubricAssessment = parseAssessmentPackage({
             placeholder: "Write your response",
           },
           scoring: { type: "agent" },
-          evaluationRubricId: "argument-writing",
         },
       ],
     },

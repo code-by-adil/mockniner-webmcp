@@ -29,7 +29,7 @@ universal interface reads the validated package directly
 ```
 
 An `AssessmentPackage` contains identity, metadata, resources, ordered parts,
-items, review policy, and optional rubrics. A part controls timing, navigation,
+items, review policy, and one optional rubric. A part controls timing, navigation,
 layout, learner tools, and its items. Completing a part locks it.
 
 Each item has this shape:
@@ -63,7 +63,7 @@ Use the universal tools for other assessments:
 2. Read the returned coverage notes. Do not imitate an unsupported behavior.
 3. Use the schema to build a package. When `examplesIncluded` is true, you can
    adapt `examplePackage` with a new ID, title, content, answer keys, and rubric.
-4. Keep `schemaVersion` set to `3`. Do not add `source`; the application records
+4. Keep `schemaVersion` set to `4`. Do not add `source`; the application records
    authorship.
 5. Declare only the tools that the learner needs. Empty `tools` and `resources`
    arrays are valid.
@@ -95,7 +95,7 @@ validation.
 
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "packageId": "sample-science-check",
   "revision": 1,
   "title": "Science Check",
@@ -140,8 +140,7 @@ validation.
       ]
     }
   ],
-  "review": { "mode": "answers" },
-  "rubrics": []
+  "review": { "mode": "answers" }
 }
 ```
 
@@ -223,15 +222,15 @@ Describe GRE-style results as practice accuracy and rubric feedback.
 
 ## Validation and runtime selection
 
-All agent input crosses one schema-version-3 boundary. Runtime validation
+All agent input crosses one schema-version-4 boundary. Runtime validation
 checks:
 
 - types and size limits
 - stable IDs and unique item IDs
-- option, resource, and rubric references
+- option and resource references, and a rubric for agent-scored items
 - interaction and scoring compatibility
 - table dimensions
-- selection limits
+- selection limits and reachable text answers within character limits
 - split-layout requirements
 - grouped-choice answer coverage
 - rubric scales, criterion IDs, and weights
@@ -264,11 +263,11 @@ the agent can call `get_assessment_submission` to read the immutable submission
 according to its saved review policy. `answers` includes objective keys and
 correctness; `responses` returns responses without either; `none` hides
 objective item details and responses. Aggregate scores remain available.
-Agent-scored items, their submitted responses, and rubrics remain readable under
+Agent-scored items, their submitted responses, and the rubric remain readable under
 every policy so evaluation still works. No active draft responses or keys are
 returned. The reader accepts `view: "summary"` for a compact outline with
 permitted part and item IDs. Full reads can be limited by `partId` or `itemId`;
-matching responses, per-item results, references, rubrics and annotations follow
+matching responses, per-item results, references, the rubric, and annotations follow
 the same selection. A partial read keeps aggregate scores explicitly scoped to
 the whole assessment and omits global evaluation prose and criterion feedback.
 Unfiltered full reads retain the complete existing response contract.
@@ -281,15 +280,20 @@ unfiltered `data.package` can be edited and sent to `install_assessment` with an
 incremented revision. Built-ins must be copied to a fresh package ID. Partial
 reads are labeled and cannot serve as complete replacement payloads.
 
-If evaluation is needed, call the registered `attach_assessment_evaluation`.
-That tool checks the rubric, scale, criteria, evidence, annotations, item IDs,
-and quoted response text before it saves the evaluation. Identical retries
+If evaluation is needed, call `attach_assessment_evaluation` with criterion
+scores and feedback. The package has one `rubric`, so neither items nor
+evaluations carry a rubric ID. The agent does not supply an overall score.
+The app calculates the mean from the criterion scores, using declared weights
+or equal weighting when none are supplied. It rounds to the nearest rubric
+scale step relative to the scale minimum, within the scale endpoints.
+
+The tool checks the scale, criteria, evidence, annotations, item IDs, and quoted
+response text before it saves the evaluation. Identical retries
 return the saved evaluation without changing its timestamp or revision. To
 revise feedback, read `evaluationRevision` from the submission tool and supply
 it as `expectedRevision` with the full replacement. The transaction rejects
 stale revisions, increments successful revisions, and updates the visible result
 without changing the submitted responses or scores from local objective grading.
-Older saved feedback is treated as revision 1.
 
 Submission history records one explicit evaluation state:
 
@@ -302,7 +306,7 @@ the presence of an evaluation. Reloading the application cannot turn an
 evaluated attempt back into a pending one.
 
 The application owns the result interface. Package data may supply domain names,
-rubrics, review policy, an accent, and a disclaimer. It cannot supply HTML or an
+the rubric, review policy, an accent, and a disclaimer. It cannot supply HTML or an
 arbitrary result template.
 
 ## Native IELTS and shared code
@@ -382,8 +386,8 @@ start. Catalog changes cannot replace the content used to render or score it.
 Submission stores the immutable snapshot and removes the draft in one
 transaction.
 
-Schema version 3 has no adapter for the earlier profile, section, and module
-model. On databases that have not applied migration 9, the old universal tables
-are renamed to `legacy_*_v8` before current tables are created. They remain in
-local exports for recovery. Native IELTS records are untouched. Recovery applies
-to records retained in the database or a backup.
+Schema version 4 replaces the previous rubric collection with one package
+rubric and locally calculated overall scores. There is no adapter for earlier
+custom-assessment formats. Database migration 14 removes old custom packages,
+drafts, attempts, evaluations, activity, and archived custom tables. Native IELTS
+data is preserved. Only current-format backups can be imported.

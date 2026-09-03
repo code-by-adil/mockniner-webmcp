@@ -1,10 +1,10 @@
 import { useMemo } from "react";
-import { Header } from "@/modules/exam-engine/ui/Header";
-import { ObjectiveExamFooter } from "@/modules/exam-engine/ui/ObjectiveExamFooter";
-import { buildObjectiveFooterParts } from "@/modules/exam-engine/footerParts";
+import { IeltsExamHeader } from "@/modules/ielts/exam/ui/IeltsExamHeader";
+import { ObjectiveExamFooter } from "@/modules/ielts/exam/ui/ObjectiveExamFooter";
+import { buildObjectiveFooterParts } from "@/modules/ielts/exam/footerParts";
 import { formatTime } from "@/shared/time";
 import type { ObjectivePracticeRunnerProps } from "@/modules/ielts/objective/types/ObjectivePracticeRunnerProps";
-import { useTimedSubmission } from "@/modules/exam-engine/useTimedSubmission";
+import { useTimedSubmission } from "@/modules/ielts/exam/useTimedSubmission";
 import { ResizableSplitPaneMobileHeaderProvider } from "@/shared/ui/exam/ResizableSplitPane";
 import { ObjectivePartView } from "@/modules/ielts/objective/ui/ObjectivePartView";
 
@@ -61,7 +61,7 @@ export function ReadingExamRunner({
 
   return (
     <div className="h-screen bg-white text-gray-900 font-sans flex flex-col overflow-hidden">
-      <Header
+      <IeltsExamHeader
         testType="reading"
         onExit={onBack}
         timeLeft={formatTime(secondsRemaining)}

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { satPracticeAssessment } from "@/content/sat";
 import { greStyleAssessment } from "@/content/gre";
 import { gradeAssessment, parseAssessmentPackage, type AssessmentSubmission } from "./assessment";
@@ -12,8 +12,6 @@ import {
 
 const nowMs = Date.parse("2026-09-02T10:00:00.000Z");
 const attemptId = "33333333-3333-4333-8333-333333333333";
-
-afterEach(() => vi.unstubAllGlobals());
 
 function start() {
   return assessmentSessionReducer(initialAssessmentSession, {
@@ -161,33 +159,6 @@ describe("assessment session", () => {
     });
   });
 
-  it("persists session state without copying the assessment package", () => {
-    const values = new Map<string, string>();
-    vi.stubGlobal("window", {
-      localStorage: {
-        getItem: (key: string) => values.get(key) ?? null,
-        setItem: (key: string, value: string) => values.set(key, value),
-        removeItem: (key: string) => values.delete(key),
-      },
-    });
-    const active = assessmentSessionReducer(start(), {
-      type: "SET_RESPONSE", itemId: "rw-1", response: "b",
-    });
-
-    saveAssessmentSession(active);
-
-    const stored = JSON.parse(values.get(ASSESSMENT_SESSION_STORAGE_KEY)!) as Record<string, unknown>;
-    expect(stored).not.toHaveProperty("assessment");
-    expect(stored).not.toHaveProperty("parts");
-    expect(loadAssessmentSession()).toMatchObject({
-      view: "home",
-      packageId: satPracticeAssessment.packageId,
-      partId: "rw-module-1",
-      itemId: "rw-1",
-      responses: { "rw-1": "b" },
-    });
-  });
-
   it("prevents direct navigation when a part declares linear delivery", () => {
     const linearPackage = parseAssessmentPackage({
       ...satPracticeAssessment,
@@ -217,13 +188,7 @@ describe("assessment session", () => {
     })).toMatchObject({ view: "result", packageId: null, submission });
   });
 
-  it("preserves the draft while viewing history, including storage and resume", () => {
-    const values = new Map<string, string>();
-    vi.stubGlobal("window", { localStorage: {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
-      removeItem: (key: string) => values.delete(key),
-    } });
+  it("preserves the draft while viewing history and resuming", () => {
     const draft = assessmentSessionReducer(start(), { type: "SET_RESPONSE", itemId: "rw-1", response: "b" });
     const submission: AssessmentSubmission = {
       attemptId: "44444444-4444-4444-8444-444444444444", packageId: satPracticeAssessment.packageId,
@@ -233,8 +198,7 @@ describe("assessment session", () => {
     const review = assessmentSessionReducer(draft, { type: "OPEN_SUBMISSION", submission, evaluation: null });
     expect(review.responses).toEqual(draft.responses);
     expect(getDraftAssessmentPackageId(review)).toBe(draft.packageId);
-    saveAssessmentSession(review);
-    const resumed = assessmentSessionReducer(loadAssessmentSession(), {
+    const resumed = assessmentSessionReducer(review, {
       type: "RESUME", assessment: satPracticeAssessment, nowMs,
     });
     expect(resumed).toMatchObject({ view: "assessment", attemptId, responses: { "rw-1": "b" } });
@@ -242,4 +206,3 @@ describe("assessment session", () => {
     expect(assessmentSessionReducer(resumed, { type: "COMPLETE", submission })).toBe(resumed);
   });
 });
-import { ASSESSMENT_SESSION_STORAGE_KEY, loadAssessmentSession, saveAssessmentSession } from '@/infrastructure/assessmentSessionStorage';

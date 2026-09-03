@@ -112,8 +112,9 @@ export function AssessmentRunner({
 
   useEffect(() => {
     if (session.secondsRemaining !== 0 || expiredPartRef.current === part.id) return;
-    expiredPartRef.current = part.id;
     const expiration = window.setTimeout(() => {
+      if (expiredPartRef.current === part.id) return;
+      expiredPartRef.current = part.id;
       if (finalPart) void submitAssessment();
       else onExpirePart(part.id);
     });

@@ -1,5 +1,4 @@
-import { loadSession, saveSession } from '@/infrastructure/ieltsSessionStorage'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   getResumableSection,
   initialSession,
@@ -62,16 +61,6 @@ const writingEvaluation: WritingEvaluation = {
   task2: writingTaskEvaluation,
   evaluatedAt: '2026-08-31T11:05:00.000Z',
 }
-
-const reader = {
-  readObjectiveExplanations: async () => [],
-  readLearningSummary: vi.fn(), readObjectiveAttempt: vi.fn(),
-  readWritingAttempt: vi.fn(), readSpeakingAttempt: vi.fn(),
-}
-
-afterEach(() => {
-  vi.unstubAllGlobals()
-})
 
 describe('full exam state transitions', () => {
   it('locks a submitted section behind a transition and advances in official order', () => {
@@ -326,38 +315,6 @@ describe('full exam state transitions', () => {
     expect(ignored).toBe(started)
     const ticked = sessionReducer(started, { type: 'TICK', section: 'reading' })
     expect(ticked.secondsRemaining.reading).toBe(3599)
-  })
-
-  it('persists and reloads the draft without result snapshots', async () => {
-    const values = new Map<string, string>()
-    vi.stubGlobal('localStorage', {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
-      removeItem: (key: string) => values.delete(key),
-    })
-    const answered = sessionReducer(
-      sessionReducer(initialSession, {
-        type: 'START', attemptId: listeningSubmission.attemptId,
-        mode: 'section',
-        section: 'reading',
-        startedAt: '2026-08-31T10:00:00.000Z',
-      }),
-      { type: 'SET_ANSWER', section: 'reading', questionId: 12, value: 'trunks' },
-    )
-
-    saveSession(answered)
-
-    expect(await loadSession(reader)).toEqual(answered)
-    expect(values.size).toBe(1)
-  })
-
-  it('rejects malformed current-session data instead of trusting browser storage', async () => {
-    vi.stubGlobal('localStorage', {
-      getItem: () => JSON.stringify({ ...initialSession, view: 'unexpected' }),
-      setItem: vi.fn(),
-    })
-
-    await expect(loadSession(reader)).rejects.toThrow('session metadata is invalid')
   })
 
 })

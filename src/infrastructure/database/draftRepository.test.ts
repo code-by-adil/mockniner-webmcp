@@ -3,13 +3,11 @@ import { SQLocal } from 'sqlocal';
 import { migrateDatabase } from './migrations';
 import { createDraftRepository } from './draftRepository';
 import { createIeltsRepository } from './ieltsRepository';
-import { saveAssessmentAttempt, saveAssessmentPackage, readAssessmentHistory } from './assessmentRepository';
+import { saveAssessmentAttempt, saveAssessmentPackage } from './assessmentRepository';
 import { readHistoryPage } from './historyRepository';
 import { saveDraftRecording, loadDraftRecordings } from './speakingDraftRepository';
-import { initialSession, sessionReducer } from '@/domain/session';
+import { getIeltsDrafts, initialSession, sessionReducer } from '@/domain/session';
 import { initialAssessmentSession, assessmentSessionReducer } from '@/domain/assessmentSession';
-import { ASSESSMENT_SESSION_STORAGE_KEY } from '../assessmentSessionStorage';
-import { STORAGE_KEY, snapshotAttempt } from '../ieltsSessionStorage';
 import { listeningDocument, readingDocument } from '@/content/objective';
 import { writingDocument } from '@/content/writing';
 import { satPracticeAssessment } from '@/content/sat';
@@ -39,18 +37,39 @@ describe('durable practice drafts', () => {
     const writingId = state.attemptId;
     state = sessionReducer(state, { type: 'START', section: 'reading', mode: 'section', attemptId: crypto.randomUUID(), startedAt });
     await repo.saveIelts(state, content);
-    const restored = await createDraftRepository(db).loadIelts(createIeltsRepository(db), content);
+    const restored = await createDraftRepository(db).loadIelts(createIeltsRepository(db));
     expect(restored.session.pausedDrafts[0]).toMatchObject({ attemptId: writingId, writingDrafts: { 1: 'Original saved draft.' } });
     expect(restored.documents.map(doc => doc.contentKey)).toEqual(expect.arrayContaining([readingDocument.contentKey, writingDocument.contentKey]));
     expect(await db.sql`SELECT id FROM practice_drafts`).toHaveLength(2);
     expect(await db.sql`SELECT * FROM practice_activity`).toHaveLength(0);
   });
 
+  it('round-trips all five IELTS slots with their answers, positions and timers', async () => {
+    let state = initialSession;
+    for (const [index, section] of (['speaking', 'reading', 'writing', 'listening', 'listening'] as const).entries()) {
+      state = sessionReducer(state, { type: 'START', mode: index === 4 ? 'full' : 'section', section, attemptId: crypto.randomUUID(), startedAt });
+      if (section === 'speaking') state = sessionReducer(state, { type: 'SET_SPEAKING_PLAN', plan: defaultSpeakingPlan });
+      if (section === 'reading') state = sessionReducer(state, { type: 'SET_ANSWER', section, questionId: 1, value: 'TRUE' });
+      if (section === 'writing') state = sessionReducer(state, { type: 'SET_WRITING', task: 1, value: 'My saved essay.' });
+      state = sessionReducer(state, { type: 'SET_PART', section, part: 2 });
+      state = sessionReducer(state, { type: 'TICK', section });
+    }
+    await createDraftRepository(db).saveIelts(state, content);
+    const restored = (await createDraftRepository(db).loadIelts(createIeltsRepository(db))).session;
+    expect(getIeltsDrafts(restored)).toHaveLength(5);
+    for (const draft of getIeltsDrafts(state)) {
+      const resumed = sessionReducer(restored, { type: 'RESUME', targetAttemptId: draft.attemptId!, attemptId: crypto.randomUUID(), startedAt });
+      expect(resumed).toMatchObject({ attemptId: draft.attemptId, answers: draft.answers,
+        writingDrafts: draft.writingDrafts, partBySection: draft.partBySection, secondsRemaining: draft.secondsRemaining });
+      expect(getIeltsDrafts(resumed)).toHaveLength(5);
+    }
+  });
+
   it('keeps a universal draft on its original revision after the catalog changes', async () => {
     const state = universal();
     await createDraftRepository(db).saveAssessment(state);
     await saveAssessmentPackage(db, { ...satPracticeAssessment, revision: 2, title: 'Changed title' });
-    const restored = await createDraftRepository(db).loadAssessment([{ ...satPracticeAssessment, revision: 2 }]);
+    const restored = await createDraftRepository(db).loadAssessment();
     expect(restored.packageSnapshot).toEqual(satPracticeAssessment);
     const resumed = assessmentSessionReducer(restored, { type: 'RESUME', assessment: { ...satPracticeAssessment, revision: 2 }, nowMs: Date.parse(startedAt) });
     expect(resumed.packageSnapshot?.revision).toBe(1);
@@ -78,7 +97,7 @@ describe('durable practice drafts', () => {
     await repo.saveIelts(state, content);
     await createIeltsRepository(db).saveObjectiveAttempt({ attemptId: state.attemptId!, section: 'listening', contentKey: listeningDocument.contentKey,
       answers: {}, result: gradeObjectiveDocument(listeningDocument, {}), startedAt, submittedAt: startedAt });
-    const restored = await createDraftRepository(db).loadIelts(createIeltsRepository(db), content);
+    const restored = await createDraftRepository(db).loadIelts(createIeltsRepository(db));
     expect(restored.session.completedSections).toEqual(['listening']);
     expect(restored.session.objectiveSubmissions.listening?.attemptId).toBe(state.attemptId);
     const resumed = sessionReducer(restored.session, { type: 'RESUME', attemptId: crypto.randomUUID(), startedAt });
@@ -98,38 +117,13 @@ describe('durable practice drafts', () => {
     expect(await db.sql`SELECT * FROM practice_drafts`).toHaveLength(1);
   });
 
-  it('archives invalid legacy bytes and keeps invalid rows when valid drafts change', async () => {
-    const raw = '{a broken draft with private work';
-    const storage = { getItem: (key: string) => key === ASSESSMENT_SESSION_STORAGE_KEY ? raw : null, removeItem: vi.fn() };
-    const repo = createDraftRepository(db, storage);
-    expect(await repo.loadAssessment([satPracticeAssessment])).toEqual(initialAssessmentSession);
-    expect(storage.removeItem).not.toHaveBeenCalled();
-    expect(await db.sql`SELECT raw_value, status FROM storage_imports`).toEqual([{ raw_value: raw, status: 'unavailable' }]);
+  it('keeps invalid rows for recovery when valid drafts change', async () => {
+    const repo = createDraftRepository(db);
     const invalidId = crypto.randomUUID();
     await db.sql`INSERT INTO practice_drafts VALUES (${invalidId}, 'ielts', 0, '{}', ${startedAt})`;
-    await repo.loadIelts(createIeltsRepository(db), content);
+    await repo.loadIelts(createIeltsRepository(db));
     await repo.saveIelts(native(), content);
     expect(await db.sql`SELECT * FROM practice_drafts WHERE id = ${invalidId}`).toHaveLength(1);
-    expect(repo.issues).toHaveLength(2);
-  });
-
-  it('imports valid legacy drafts once, retaining an exportable copy', async () => {
-    const state = native('writing');
-    const raw = JSON.stringify({ version: 2, ...snapshotAttempt(state), pausedDrafts: [] });
-    const values = new Map([[STORAGE_KEY, raw]]);
-    const storage = { getItem: (key: string) => values.get(key) ?? null, removeItem: (key: string) => { values.delete(key); } };
-    const repo = createDraftRepository(db, storage);
-    const simultaneous = await Promise.all([repo.loadIelts(createIeltsRepository(db), content), repo.loadIelts(createIeltsRepository(db), content)]);
-    expect(simultaneous.every(result => result.session.attemptId === state.attemptId)).toBe(true);
-    expect(repo.issues).toEqual([]);
-    expect(values.size).toBe(0);
-    expect(await db.sql`SELECT raw_value, status FROM storage_imports`).toEqual([{ raw_value: raw, status: 'imported' }]);
-    expect((await repo.loadIelts(createIeltsRepository(db), content)).session.attemptId).toBe(state.attemptId);
-    expect(await db.sql`SELECT * FROM practice_drafts`).toHaveLength(1);
-    values.set(STORAGE_KEY, 'different legacy draft from an older app');
-    await repo.loadIelts(createIeltsRepository(db), content);
-    expect(values.get(STORAGE_KEY)).toBe('different legacy draft from an older app');
-    expect(await db.sql`SELECT * FROM storage_imports`).toHaveLength(2);
   });
 
   it('persists raw Speaking audio before transcription and keeps it private until submission', async () => {
@@ -166,7 +160,7 @@ describe('durable practice drafts', () => {
     const assessment = universal();
     await saveAssessmentAttempt(db, { attemptId: assessment.attemptId!, assessment: satPracticeAssessment, responses: {}, result: gradeAssessment(satPracticeAssessment, {}), startedAt, submittedAt: startedAt });
     await db.sql`UPDATE assessment_attempts SET result_json = 'bad' WHERE id = ${assessment.attemptId}`;
-    expect(await readAssessmentHistory(db)).toEqual([]);
+    expect((await readHistoryPage(db, { kind: 'assessment', limit: 10, offset: 0 })).items).toEqual([]);
     expect(await db.sql`PRAGMA quick_check`).toEqual([{ quick_check: 'ok' }]);
   });
 
@@ -187,17 +181,49 @@ describe('durable practice drafts', () => {
     expect(await db.sql`PRAGMA foreign_key_check`).toEqual([]);
   });
 
-  it('archives pre-v9 universal tables instead of deleting their data', async () => {
-    await db.sql`DELETE FROM app_schema_migrations WHERE version = 9`;
-    await db.sql`INSERT INTO assessment_packages VALUES ('legacy-id', 3, 1, 'legacy unconvertible bytes', ${startedAt})`;
-    const id = crypto.randomUUID();
-    await db.sql`INSERT INTO assessment_attempts VALUES (${id}, 'legacy-id', 'old package', 'old answers', 'old result', ${startedAt}, ${startedAt})`;
-    await db.sql`INSERT INTO assessment_evaluations VALUES (${id}, 'old feedback', ${startedAt})`;
+  it('retires old custom assessments while preserving native drafts, submissions, audio and recovery bytes', async () => {
+    const state = native('listening');
+    await createDraftRepository(db).saveIelts(state, content);
+    await db.sql`INSERT INTO draft_recordings VALUES (${state.attemptId}, 0, '{}', ${new Uint8Array([1, 2, 3])}, 'audio/wav')`;
+    await db.sql`INSERT INTO attempts VALUES ('native', 'speaking', 'interview', 'submitted', ${startedAt}, ${startedAt})`;
+    await db.sql`INSERT INTO speaking_responses VALUES ('native-recording', 'native', 1, 'Part 1', 0, 'Original question', 60, 1000, 'audio/wav', 3, ${new Uint8Array([4, 5, 6])}, 'Original transcript', 'answered')`;
+    await db.sql`INSERT INTO listening_audio_chunks VALUES (${listeningDocument.contentKey}, 0, 1, 0, 'speech', 1000, 'audio/wav', 3, ${new Uint8Array([7, 8, 9])}, ${startedAt}, 'current')`;
+    await db.sql`INSERT INTO storage_imports VALUES ('retained-native', 'saved native recovery data', 'unavailable', NULL, ${startedAt})`;
+    const preservedTables = ['attempts', 'speaking_responses', 'content_documents', 'draft_recordings', 'listening_audio_chunks', 'storage_imports'];
+    const preserved = await Promise.all(preservedTables.map(table => db.sql(`SELECT * FROM ${table}`)));
+    const originalDrafts = await db.sql`SELECT * FROM practice_drafts`;
+
+    await db.sql`DELETE FROM app_schema_migrations WHERE version = 14`;
+    await db.sql`DROP TABLE assessment_packages`;
+    await db.sql`CREATE TABLE assessment_packages (package_id TEXT PRIMARY KEY, schema_version INTEGER NOT NULL CHECK (schema_version = 3), revision INTEGER NOT NULL, document_json TEXT NOT NULL, installed_at TEXT NOT NULL)`;
+    await db.sql`INSERT INTO assessment_packages VALUES ('old-custom', 3, 1, 'old package', ${startedAt})`;
+    await db.sql`INSERT INTO assessment_attempts VALUES ('old-attempt', 'old-custom', 'old package', 'old answers', 'old result', ${startedAt}, ${startedAt})`;
+    await db.sql`INSERT INTO assessment_evaluations VALUES ('old-attempt', 'old feedback', ${startedAt})`;
+    await db.sql`INSERT INTO practice_drafts VALUES ('old-draft', 'assessment', 0, '{}', ${startedAt})`;
+    await db.sql`INSERT INTO practice_activity (recorded_at, event_type, kind, package_id, revision, attempt_id) VALUES (${startedAt}, 'attempt_submitted', 'assessment', 'old-custom', 1, 'old-attempt')`;
+    for (const table of ['assessment_evaluations', 'assessment_attempts', 'assessment_packages']) {
+      await db.sql(`CREATE TABLE legacy_${table}_v8 (original TEXT)`);
+    }
+
     await migrateDatabase(db);
-    expect(await db.sql`SELECT document_json FROM legacy_assessment_packages_v8`).toEqual([{ document_json: 'legacy unconvertible bytes' }]);
-    expect(await db.sql`SELECT * FROM assessment_packages`).toHaveLength(0);
-    expect(await db.sql`SELECT id, responses_json FROM legacy_assessment_attempts_v8`).toEqual([{ id, responses_json: 'old answers' }]);
-    expect(await db.sql`SELECT attempt_id, evaluation_json FROM legacy_assessment_evaluations_v8`).toEqual([{ attempt_id: id, evaluation_json: 'old feedback' }]);
+    for (const [index, table] of preservedTables.entries()) expect(await db.sql(`SELECT * FROM ${table}`), table).toEqual(preserved[index]);
+    expect(await db.sql`SELECT * FROM practice_drafts`).toEqual(originalDrafts);
+    for (const table of ['assessment_packages', 'assessment_attempts', 'assessment_evaluations', 'practice_activity']) {
+      expect(await db.sql(`SELECT * FROM ${table}`), table).toEqual([]);
+    }
+    expect(await db.sql`SELECT name FROM sqlite_master WHERE name LIKE 'legacy_assessment_%'`).toEqual([]);
+    expect((await createDraftRepository(db).loadIelts(createIeltsRepository(db))).session.attemptId).toBe(state.attemptId);
+
+    await saveAssessmentPackage(db, satPracticeAssessment);
+    const current = universal();
+    await createDraftRepository(db).saveAssessment(current);
+    const submittedId = crypto.randomUUID();
+    await saveAssessmentAttempt(db, { attemptId: submittedId, assessment: satPracticeAssessment,
+      responses: {}, result: gradeAssessment(satPracticeAssessment, {}), startedAt, submittedAt: startedAt });
+    await migrateDatabase(db);
+    expect(await db.sql`SELECT schema_version FROM assessment_packages`).toEqual([{ schema_version: 4 }]);
+    expect(await db.sql`SELECT id FROM assessment_attempts`).toEqual([{ id: submittedId }]);
+    expect((await createDraftRepository(db).loadAssessment()).attemptId).toBe(current.attemptId);
     expect(await db.sql`PRAGMA foreign_key_check`).toEqual([]);
   });
   it('refuses to write a database from a newer application version', async () => {

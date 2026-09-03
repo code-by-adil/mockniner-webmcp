@@ -52,7 +52,7 @@ describe('pending Writing submission', () => {
     expect(host.querySelector('[role="status"]')!.textContent).toBe('')
     await act(async () => resolve())
     expect(copyButton().textContent).toContain('Copied')
-    expect(host.querySelector('[role="status"]')!.textContent).toContain('Request copied')
+    expect(host.querySelector('[role="status"]')!.textContent).toContain('Text copied')
   })
   it('keeps the request selectable after a copy failure and allows retry', async () => {
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('Denied')).mockResolvedValue(undefined)

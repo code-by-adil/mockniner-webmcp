@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assessmentAnswerFitsLimit } from "./assessmentText";
 
 const identifierSchema = z.string().trim().min(1).max(100)
   .regex(/^[a-z0-9][a-z0-9._-]*$/);
@@ -95,7 +96,7 @@ const rubricCriterionSchema = z.strictObject({
   weight: z.number().positive().max(1).optional(),
 });
 const assessmentRubricSchema = z.strictObject({
-  id: identifierSchema, title: shortTextSchema,
+  title: shortTextSchema,
   scale: z.strictObject({
     minimum: z.number().finite(), maximum: z.number().finite(), step: z.number().positive().finite(),
   }),
@@ -114,7 +115,6 @@ const assessmentItemSchema = z.strictObject({
   prompt: z.array(assessmentContentBlockSchema).min(1).max(20),
   interaction: assessmentInteractionSchema,
   scoring: scoringRuleSchema,
-  evaluationRubricId: identifierSchema.optional(),
   presentation: z.strictObject({
     layout: z.enum(["single", "split"]).optional(),
     stimulusLabel: shortTextSchema.optional(),
@@ -153,7 +153,7 @@ const assessmentPartSchema = z.strictObject({
   .meta({ id: "AssessmentPart" });
 
 const assessmentPackageFields = {
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(4),
   packageId: identifierSchema.describe("A stable ID for this assessment. Change it when creating a different assessment."),
   revision: z.number().int().positive().max(10_000)
     .describe("Increase this integer when replacing the content of the same package ID."),
@@ -174,7 +174,7 @@ const assessmentPackageFields = {
   parts: z.array(assessmentPartSchema).min(1).max(50),
   review: z.strictObject({ mode: z.enum(["answers", "responses", "none"]).default("answers") })
     .default({ mode: "answers" }),
-  rubrics: z.array(assessmentRubricSchema).max(20).default([]),
+  rubric: assessmentRubricSchema.optional(),
 };
 
 const assessmentPackageContentSchema = z.strictObject(assessmentPackageFields)
@@ -192,38 +192,35 @@ function validateAssessmentPackage(
 ): void {
   const partIds = assessment.parts.map((part) => part.id);
   const resourceIds = assessment.resources.map((resource) => resource.id);
-  const rubricIds = assessment.rubrics.map((rubric) => rubric.id);
   const resourceIdSet = new Set(resourceIds);
-  const rubricIdSet = new Set(rubricIds);
   const itemIds: string[] = [];
-  const agentRubricIds = new Set<string>();
 
   addDuplicateIssues(partIds, ["parts"], "Part IDs", context);
   addDuplicateIssues(resourceIds, ["resources"], "Resource IDs", context);
-  addDuplicateIssues(rubricIds, ["rubrics"], "Rubric IDs", context);
   assessment.resources.forEach((resource, resourceIndex) => {
     resource.content.forEach((block, blockIndex) => {
       validateContentBlock(block, ["resources", resourceIndex, "content", blockIndex], context);
     });
   });
 
-  assessment.rubrics.forEach((rubric, rubricIndex) => {
+  const rubric = assessment.rubric;
+  if (rubric) {
     addDuplicateIssues(
       rubric.criteria.map((criterion) => criterion.id),
-      ["rubrics", rubricIndex, "criteria"],
+      ["rubric", "criteria"],
       "Criterion IDs",
       context,
     );
     if (rubric.scale.maximum <= rubric.scale.minimum) {
       context.addIssue({
-        code: "custom", path: ["rubrics", rubricIndex, "scale"],
+        code: "custom", path: ["rubric", "scale"],
         message: "The rubric maximum must be greater than its minimum.",
       });
     } else {
       const steps = (rubric.scale.maximum - rubric.scale.minimum) / rubric.scale.step;
       if (Math.abs(steps - Math.round(steps)) > 1e-8) {
         context.addIssue({
-          code: "custom", path: ["rubrics", rubricIndex, "scale", "step"],
+          code: "custom", path: ["rubric", "scale", "step"],
           message: "The rubric step must divide the scale range exactly.",
         });
       }
@@ -232,16 +229,16 @@ function validateAssessmentPackage(
     const supplied = weights.filter((weight): weight is number => weight !== undefined);
     if (supplied.length > 0 && supplied.length !== weights.length) {
       context.addIssue({
-        code: "custom", path: ["rubrics", rubricIndex, "criteria"],
+        code: "custom", path: ["rubric", "criteria"],
         message: "Rubric criterion weights must be supplied for every criterion or omitted for all.",
       });
     } else if (supplied.length > 0 && Math.abs(supplied.reduce((sum, value) => sum + value, 0) - 1) > 1e-8) {
       context.addIssue({
-        code: "custom", path: ["rubrics", rubricIndex, "criteria"],
+        code: "custom", path: ["rubric", "criteria"],
         message: "Rubric criterion weights must sum to 1.",
       });
     }
-  });
+  }
 
   assessment.parts.forEach((part, partIndex) => {
     addDuplicateIssues(
@@ -260,14 +257,11 @@ function validateAssessmentPackage(
     });
     part.items.forEach((item, itemIndex) => {
       itemIds.push(item.id);
-      if (item.scoring.type === "agent" && item.evaluationRubricId) {
-        agentRubricIds.add(item.evaluationRubricId);
-      }
       validateItemContract(
         item,
         part.defaultLayout,
         ["parts", partIndex, "items", itemIndex],
-        rubricIdSet,
+        rubric !== undefined,
         context,
       );
     });
@@ -275,12 +269,6 @@ function validateAssessmentPackage(
   addDuplicateIssues(itemIds, ["parts"], "Item IDs", context);
   if (itemIds.length > 300) {
     context.addIssue({ code: "custom", path: ["parts"], message: "An assessment package cannot contain more than 300 items." });
-  }
-  if (agentRubricIds.size > 1) {
-    context.addIssue({
-      code: "custom", path: ["parts"],
-      message: "All agent-evaluated items in one assessment must share one rubric.",
-    });
   }
 }
 
@@ -296,7 +284,7 @@ function validateItemContract(
   item: z.infer<typeof assessmentItemSchema>,
   defaultLayout: "single" | "split",
   path: Array<string | number>,
-  rubricIds: Set<string>,
+  hasRubric: boolean,
   context: z.RefinementCtx,
 ): void {
   item.stimulus.forEach((block, index) => validateContentBlock(block, [...path, "stimulus", index], context));
@@ -390,18 +378,26 @@ function validateItemContract(
     context.addIssue({ code: "custom", path: [...path, "scoring"], message: "Extended-text items require agent evaluation." });
   }
 
-  if (item.scoring.type === "agent") {
-    if (!item.evaluationRubricId || !rubricIds.has(item.evaluationRubricId)) {
+  if (item.scoring.type === "agent" && !hasRubric) {
+    context.addIssue({
+      code: "custom", path: [...path, "scoring"],
+      message: "Agent-evaluated items require a package rubric.",
+    });
+  }
+
+  if (item.interaction.type === "text_entry" && item.interaction.maximumCharacters !== undefined) {
+    const maximum = item.interaction.maximumCharacters;
+    const scoring = item.scoring;
+    const answerFits = scoring.type === "exact"
+      ? assessmentAnswerFitsLimit(scoring.answer, maximum)
+      : scoring.type !== "aliases" || scoring.answers.some(answer =>
+        assessmentAnswerFitsLimit(answer, maximum, scoring.ignorePunctuation));
+    if (!answerFits) {
       context.addIssue({
-        code: "custom", path: [...path, "evaluationRubricId"],
-        message: "Agent-evaluated items must reference a declared rubric.",
+        code: "custom", path: [...path, "interaction", "maximumCharacters"],
+        message: "The character limit must allow at least one accepted answer.",
       });
     }
-  } else if (item.evaluationRubricId) {
-    context.addIssue({
-      code: "custom", path: [...path, "evaluationRubricId"],
-      message: "Only agent-evaluated items may reference a rubric.",
-    });
   }
 
   if (item.interaction.type === "matching" && item.scoring.type === "mapping") {

@@ -8,44 +8,45 @@ import {
   toolsArtifactPath,
 } from "./shared.mjs";
 
-const invalidRepairPackage = {
-  schemaVersion: 3,
-  packageId: "biology-repair-check",
-  revision: 1,
-  title: "Biology Repair Check",
-  metadata: {
-    subject: "Biology",
-    difficulty: "standard",
-    locale: "en-US",
-    shortLabel: "Biology",
-  },
-  presentation: { accent: "green", density: "comfortable" },
-  resources: [],
-  review: { mode: "answers" },
-  rubrics: [],
-  parts: [
-    {
-      id: "questions",
-      title: "Questions",
-      navigation: "free",
-      defaultLayout: "single",
-      tools: [],
-      items: [
-        {
-          id: "cell-energy",
-          domain: "Cell biology",
-          stimulus: [],
-          prompt: [{ type: "text", text: "Which organelle produces most cellular ATP?" }],
-          interaction: {
-            type: "single_choice",
-            options: [{ id: "a", label: "Nucleus" }],
-          },
-          scoring: { type: "exact", answer: "b" },
-        },
-      ],
+function invalidRepairPackage(examplePackage) {
+  return {
+    ...examplePackage,
+    packageId: "biology-repair-check",
+    revision: 1,
+    title: "Biology Repair Check",
+    metadata: {
+      subject: "Biology",
+      difficulty: "standard",
+      locale: "en-US",
+      shortLabel: "Biology",
     },
-  ],
-};
+    presentation: { accent: "green", density: "comfortable" },
+    resources: [],
+    review: { mode: "answers" },
+    parts: [
+      {
+        id: "questions",
+        title: "Questions",
+        navigation: "free",
+        defaultLayout: "single",
+        tools: [],
+        items: [
+          {
+            id: "cell-energy",
+            domain: "Cell biology",
+            stimulus: [],
+            prompt: [{ type: "text", text: "Which organelle produces most cellular ATP?" }],
+            interaction: {
+              type: "single_choice",
+              options: [{ id: "a", label: "Nucleus" }],
+            },
+            scoring: { type: "exact", answer: "b" },
+          },
+        ],
+      },
+    ],
+  };
+}
 
 function evaluationToolSchemas(modules) {
   const never = async () => null;
@@ -84,6 +85,7 @@ function installSuccess(caseId) {
 
 function universalEval(definition, getAssessmentAuthoringKit) {
   const success = installSuccess(definition.id);
+  const kit = getAssessmentAuthoringKit(definition.template);
   return {
     name: definition.name,
     messages: [{ role: "user", type: "message", content: definition.prompt }],
@@ -91,14 +93,15 @@ function universalEval(definition, getAssessmentAuthoringKit) {
       {
         functionName: "get_assessment_authoring_kit",
         arguments: { template: definition.template },
+        result: { ok: true },
         mockOutput: {
           ok: true,
-          data: getAssessmentAuthoringKit(definition.template),
+          data: kit,
         },
       },
       {
         functionName: "install_assessment",
-        arguments: { schemaVersion: 3 },
+        arguments: { schemaVersion: kit.examplePackage.schemaVersion },
         result: { ok: true },
         mockOutput: success,
       },
@@ -114,6 +117,7 @@ function ieltsEval(definition, getIeltsAuthoringKit) {
       {
         functionName: "get_ielts_authoring_kit",
         arguments: { section: definition.section },
+        result: { ok: true },
         mockOutput: {
           ok: true,
           data: getIeltsAuthoringKit(definition.section),
@@ -148,6 +152,7 @@ function unsupportedEval(definition, getAssessmentAuthoringKit) {
       {
         functionName: "get_assessment_authoring_kit",
         arguments: { template: definition.template },
+        result: { ok: true },
         mockOutput: {
           ok: true,
           data: getAssessmentAuthoringKit(definition.template),
@@ -157,7 +162,8 @@ function unsupportedEval(definition, getAssessmentAuthoringKit) {
   };
 }
 
-function repairEval(definition) {
+function repairEval(definition, getAssessmentAuthoringKit) {
+  const invalidPackage = invalidRepairPackage(getAssessmentAuthoringKit("minimal-objective").examplePackage);
   return {
     name: definition.name,
     messages: [
@@ -166,7 +172,7 @@ function repairEval(definition) {
         role: "model",
         type: "functioncall",
         name: "install_assessment",
-        arguments: invalidRepairPackage,
+        arguments: invalidPackage,
       },
       {
         role: "user",
@@ -197,7 +203,7 @@ function repairEval(definition) {
     expectedCall: [
       {
         functionName: "install_assessment",
-        arguments: { schemaVersion: 3, packageId: "biology-repair-check" },
+        arguments: { schemaVersion: invalidPackage.schemaVersion, packageId: invalidPackage.packageId },
         result: { ok: true },
         mockOutput: installSuccess(definition.id),
       },
@@ -215,7 +221,7 @@ function buildEval(definition, getAssessmentAuthoringKit, getIeltsAuthoringKit) 
   if (definition.kind === "unsupported") {
     return unsupportedEval(definition, getAssessmentAuthoringKit);
   }
-  if (definition.kind === "repair") return repairEval(definition);
+  if (definition.kind === "repair") return repairEval(definition, getAssessmentAuthoringKit);
   throw new Error(`Unknown agent eval case kind: ${definition.kind}`);
 }
 
@@ -233,12 +239,12 @@ function browserSmokeEvals(modules) {
 
   return [
     {
-      name: "Native browser executes every home tool",
+      name: "Authoring tools install universal and IELTS practice",
       messages: [
         {
           role: "user",
           type: "message",
-          content: "Exercise each WebMCP tool registered on the assessment library.",
+          content: "Install universal and IELTS Writing practice through the authoring tools.",
         },
       ],
       expectedCall: [
@@ -257,10 +263,31 @@ function browserSmokeEvals(modules) {
         {
           functionName: "install_assessment",
           arguments: assessmentPackage,
+          result: { ok: true, data: { packageId: assessmentPackage.packageId, revision: 1, installed: true } },
         },
         {
           functionName: "install_ielts_practice_set",
           arguments: writingDocument,
+          result: { ok: true, data: { contentKey: writingDocument.contentKey, section: "writing", active: true } },
+        },
+      ],
+    },
+    {
+      name: "Installed practice survives a page reload",
+      messages: [{ role: "user", type: "message", content: "Read back the practice saved by the authoring journey." }],
+      expectedCall: [
+        {
+          functionName: "get_assessment_content",
+          arguments: { packageId: assessmentPackage.packageId },
+          result: { ok: true, data: { package: assessmentPackage, source: "agent", revision: 1, scope: { completePackage: true } } },
+        },
+        {
+          functionName: "get_practice_library",
+          arguments: { kind: "writing" },
+          result: { ok: true, data: { items: [
+            { contentKey: modules.writing.writingDocument.contentKey, active: false },
+            { contentKey: writingDocument.contentKey, title: writingDocument.name, itemCount: 2, active: true },
+          ], nextOffset: null, unavailableContentKeys: [] } },
         },
       ],
     },

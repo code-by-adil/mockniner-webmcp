@@ -32,9 +32,11 @@ describe("WebMCP help dialog", () => {
       await act(async () => root.render(<WebMcpHelpDialog open={open} onClose={onClose} />));
     };
     await render(false);
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(container.querySelector('dialog')?.open).toBe(false);
     await render(true);
-    expect(container.querySelector('[role="dialog"]')?.getAttribute("aria-modal")).toBe("true");
+    const dialog = container.querySelector('dialog')!;
+    expect(dialog.open).toBe(true);
+    expect(document.getElementById(dialog.getAttribute('aria-labelledby')!)?.textContent).toContain('Practice with your agent');
     expect(container.textContent).toContain("Practice with your agent");
     const buttons = container.querySelectorAll<HTMLButtonElement>('button[aria-label^="Copy prompt:"]');
     expect(buttons).toHaveLength(4);
@@ -46,7 +48,28 @@ describe("WebMCP help dialog", () => {
     await render(false);
     await render(true);
     expect(container.textContent).toContain("Copied");
-    await act(async () => vi.advanceTimersByTime(2000));
+    await act(async () => vi.advanceTimersByTime(2500));
     expect(container.textContent).not.toContain("Copied");
+  });
+
+  it('uses native modal opening and forwards Escape dismissal', async () => {
+    const onClose = vi.fn();
+    const showModal = vi.spyOn(HTMLDialogElement.prototype, 'showModal');
+    await act(async () => root.render(<WebMcpHelpDialog open onClose={onClose} />));
+    expect(showModal).toHaveBeenCalledOnce();
+    await act(async () => container.querySelector('dialog')!.dispatchEvent(new Event('cancel')));
+    expect(onClose).toHaveBeenCalledOnce();
+    await act(async () => root.render(<WebMcpHelpDialog open={false} onClose={onClose} />));
+    expect(container.querySelector('dialog')!.open).toBe(false);
+  });
+
+  it('keeps help text selectable and reports clipboard failure', async () => {
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('Denied'));
+    await act(async () => root.render(<WebMcpHelpDialog open onClose={vi.fn()} />));
+    const button = container.querySelector<HTMLButtonElement>('button[aria-label^="Copy prompt:"]')!;
+    await act(async () => button.click());
+    expect(button.textContent).toBe('Copy');
+    expect(container.querySelector('[role="alert"]')!.textContent).toContain('Select and copy the text');
+    expect(container.querySelector('.select-text')?.textContent).toContain('Create a short SAT-style practice test');
   });
 });

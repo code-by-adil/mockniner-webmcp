@@ -30,7 +30,9 @@ describe('pending historical result', () => {
       expect(html).not.toContain('WebMCP')
       expect(html).not.toContain('<textarea')
     } else {
-      expect(html).toContain(common.attemptId)
+      expect(html).not.toContain(common.attemptId)
+      expect(html).not.toContain('WebMCP')
+      expect(html).toContain('Pronunciation is not included.')
     }
   })
 })

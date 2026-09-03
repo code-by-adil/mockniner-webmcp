@@ -3,7 +3,7 @@ import { listeningDocument, readingDocument } from '@/content/objective'
 import { writingDocument } from '@/content/writing'
 import { satPracticeAssessment } from '@/content/sat'
 import { initialSession } from '@/domain/session'
-import { initialAssessmentSession } from '@/domain/assessmentSession'
+import { assessmentSessionReducer, initialAssessmentSession } from '@/domain/assessmentSession'
 import type { PracticeWorkspace } from './practiceNavigation'
 import { getPracticeProgress } from './practiceProgress'
 
@@ -29,8 +29,22 @@ describe('safe live progress', () => {
   it('gives the universal screen priority and preserves untimed null', () => {
     const w = workspace(); const part = satPracticeAssessment.parts[0]!
     Object.assign(w.native, { view: 'exam', currentSection: 'reading' })
-    Object.assign(w.assessment, { view: 'assessment', packageId: satPracticeAssessment.packageId, partId: part.id, itemId: part.items[0]!.id, responses: { [part.items[0]!.id]: 'SECRET' } })
+    Object.assign(w.assessment, { view: 'assessment', packageSnapshot: satPracticeAssessment, packageId: satPracticeAssessment.packageId, partId: part.id, itemId: part.items[0]!.id, responses: { [part.items[0]!.id]: 'SECRET' } })
     expect(getPracticeProgress(w)).toMatchObject({ kind: 'assessment', itemId: part.items[0]!.id, answeredCount: 1, secondsRemaining: null, timerScope: 'part' })
+  })
+  it('reads the pinned draft even when the catalog changes or no longer contains it', () => {
+    const w = workspace()
+    w.assessment = assessmentSessionReducer(w.assessment, {
+      type: 'START', assessment: satPracticeAssessment,
+      attemptId: '33333333-3333-4333-8333-333333333333',
+      startedAt: '2026-09-03T00:00:00Z', nowMs: Date.parse('2026-09-03T00:00:00Z'),
+    })
+    const pinned = getPracticeProgress(w)
+    w.assessments = [{ ...satPracticeAssessment, parts: [] }]
+    expect(getPracticeProgress(w)).toEqual(pinned)
+    w.assessments = []
+    expect(getPracticeProgress(w)).toEqual(pinned)
+    expect(pinned).toMatchObject({ kind: 'assessment', totalItems: 12, totalParts: 4 })
   })
   it('exposes no hidden progress in home, result or review views', () => {
     const w = workspace(); expect(getPracticeProgress(w)).toBeNull()

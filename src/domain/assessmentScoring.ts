@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { countWords } from "@/shared/text";
+import { normalizeAssessmentText } from "./assessmentText";
 import type {
   AssessmentItem,
   AssessmentPackage,
@@ -50,11 +51,6 @@ export const assessmentResultSchema: z.ZodType<AssessmentResult> = z.strictObjec
     total: z.number().int().nonnegative(),
   })),
 });
-
-function normalizeText(value: string, ignorePunctuation = false): string {
-  const normalized = value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
-  return ignorePunctuation ? normalized.replace(/[.,!?;:'"()]/g, "") : normalized;
-}
 
 function parseNumber(value: string): number | null {
   const normalized = value.trim();
@@ -174,12 +170,12 @@ function scoreItem(item: AssessmentItem, response: AssessmentResponse | undefine
   if (!hasAssessmentResponse(response)) return false;
   switch (item.scoring.type) {
     case "exact":
-      return typeof response === "string" && normalizeText(response) === normalizeText(item.scoring.answer);
+      return typeof response === "string" && normalizeAssessmentText(response) === normalizeAssessmentText(item.scoring.answer);
     case "aliases":
       if (typeof response !== "string") return false;
       return item.scoring.answers.some((answer) =>
-        normalizeText(response, item.scoring.type === "aliases" && item.scoring.ignorePunctuation) ===
-          normalizeText(answer, item.scoring.type === "aliases" && item.scoring.ignorePunctuation));
+        normalizeAssessmentText(response, item.scoring.type === "aliases" && item.scoring.ignorePunctuation) ===
+          normalizeAssessmentText(answer, item.scoring.type === "aliases" && item.scoring.ignorePunctuation));
     case "set":
       return Array.isArray(response) && response.length === item.scoring.answers.length &&
         item.scoring.answers.every((answer) => response.includes(answer));

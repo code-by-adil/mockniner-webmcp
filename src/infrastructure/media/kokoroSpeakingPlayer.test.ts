@@ -120,7 +120,8 @@ describe('Kokoro Speaking player lifecycle', () => {
 
   it('prepares questions serially ahead of playback and reuses decoded buffers', async () => {
     const player = new KokoroSpeakingPlayer()
-    player.preload(['First', 'Second', 'Third'])
+    const first = player.prepareAudio('First')
+    const second = player.prepareAudio('Second')
     const worker = FakeWorker.instances[0]!
     await vi.waitFor(() => expect(worker.requests).toHaveLength(1))
     worker.respond({ id: worker.requests[0]!.id, type: 'audio', audio: new Blob(['first']) })
@@ -130,12 +131,27 @@ describe('Kokoro Speaking player lifecycle', () => {
     // The second question is still generating while the first plays.
     expect(worker.requests).toHaveLength(2)
     worker.respond({ id: worker.requests[1]!.id, type: 'audio', audio: new Blob(['second']) })
-    await vi.waitFor(() => expect(worker.requests).toHaveLength(3))
-    worker.respond({ id: worker.requests[2]!.id, type: 'audio', audio: new Blob(['third']) })
-    await player.prepareAudio('Third')
+    await Promise.all([first, second])
     FakeAudioContext.instances[0]!.sources[0]!.end()
     await playback
-    expect(FakeAudioContext.instances[0]!.decodeAudioData).toHaveBeenCalledTimes(3)
+    expect(FakeAudioContext.instances[0]!.decodeAudioData).toHaveBeenCalledTimes(2)
+    player.dispose()
+  })
+
+  it('retries a failed current question without keeping its rejected preparation cached', async () => {
+    const player = new KokoroSpeakingPlayer()
+    const worker = FakeWorker.instances[0]!
+    const first = player.prepareAudio('Current question').catch(error => error)
+    await vi.waitFor(() => expect(worker.requests).toHaveLength(1))
+    worker.respond({ id: worker.requests[0]!.id, type: 'error', message: 'Generation failed.' })
+    await expect(first).resolves.toMatchObject({ message: 'Generation failed.' })
+
+    const retried = player.prepareAudio('Current question')
+    await vi.waitFor(() => expect(worker.requests).toHaveLength(2))
+    expect(worker.requests.map(request => request.text)).toEqual(['Current question', 'Current question'])
+    worker.respond({ id: worker.requests[1]!.id, type: 'audio', audio: new Blob(['retried audio']) })
+    await retried
+    expect(FakeAudioContext.instances[0]!.decodeAudioData).toHaveBeenCalledOnce()
     player.dispose()
   })
 

@@ -16,11 +16,11 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
   onComplete: (input: CompleteSpeakingAttemptInput) => Promise<unknown>
   initialPlan?: SpeakingPlan
   onConfigurePlan: (plan: SpeakingPlan) => void | Promise<void>
-  attemptId?: string
+  attemptId: string
   attemptStartedAt?: string
 }) {
   const [plan, setPlan] = useState<SpeakingPlan>(initialPlan ?? defaultSpeakingPlan)
-  const [phase, setPhaseState] = useState<SpeakingPhase>(attemptId ? 'loading' : 'setup')
+  const [phase, setPhaseState] = useState<SpeakingPhase>('loading')
   const [index, setIndex] = useState(0)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [diagnostics, setDiagnosticsState] = useState<SpeakingDiagnostics>({ preparationStage: null, error: null, recoveryAction: null })
@@ -55,12 +55,10 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
     if (mounted.current) setPhaseState(next)
   }, [])
   const persistResponse = useCallback(async (response: SpeakingRecordingInput) => {
-    if (!attemptId) return
     await draftSaves.flush()
     await saveDraftRecording(await getLocalDatabase(), attemptId, response)
   }, [attemptId])
   useEffect(() => {
-    if (!attemptId) return
     let cancelled = false
     void draftSaves.flush().then(getLocalDatabase).then(db => loadDraftRecordings(db, attemptId)).then(saved => {
       if (cancelled) return
@@ -113,16 +111,16 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       totalQuestions: planRef.current.questions.length,
       recordedAnswers: responses.current.filter(r => r.status === 'answered').length,
       skippedAnswers: responses.current.filter(r => r.status === 'skipped').length,
-      answersSaved: Boolean(attemptId) && !pendingResponse.current,
+      answersSaved: !pendingResponse.current,
     }),
   }), [bindSpeakingInterview, onConfigurePlan, attemptId, setPhase, setError, updateDiagnostics])
 
   useEffect(() => {
-    if (attemptId ? !['recording', 'starting', 'stopping', 'answer-save-error'].includes(phase) : phase === 'setup') return
+    if (!['recording', 'starting', 'stopping', 'answer-save-error'].includes(phase)) return
     const protectDraft = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
     window.addEventListener('beforeunload', protectDraft)
     return () => window.removeEventListener('beforeunload', protectDraft)
-  }, [phase, attemptId])
+  }, [phase])
 
   const startRecording = useCallback(async () => {
     if (!['thinking', 'ready'].includes(phaseRef.current)) return
@@ -152,6 +150,10 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       await player.current!.speak(speakingQuestionText(question), controller.signal, () => {
         performance.mark('speaking:question-audio-started')
         setPhase('speaking')
+        const nextQuestion = planRef.current.questions[nextIndex + 1]
+        // Prepare only the next question once the current one is playable. A
+        // resumed or retried question never waits behind a whole interview.
+        if (nextQuestion) void player.current!.prepareAudio(speakingQuestionText(nextQuestion)).catch(() => undefined)
       })
       if (!mounted.current || controller.signal.aborted) return
       if (question.preparationSeconds) timedPhase('thinking', question.preparationSeconds)
@@ -254,11 +256,8 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       stream.getTracks().forEach(track => track.stop())
       if (!mounted.current) return
       updateDiagnostics({ preparationStage: 'voice_and_recognition', recoveryAction: null })
-      const texts = planRef.current.questions.map(speakingQuestionText)
-      player.current!.preload(texts)
-      // Prepare recognition and the first question concurrently. Remaining
-      // questions keep generating without blocking the interview.
-      await Promise.all([latest.current.prepare(), player.current!.prepareAudio(texts[responses.current.length]!)])
+      const question = planRef.current.questions[responses.current.length]!
+      await Promise.all([latest.current.prepare(), player.current!.prepareAudio(speakingQuestionText(question))])
       if (mounted.current) { performance.mark('speaking:setup-finished'); await playQuestion(responses.current.length) }
     } catch (reason) {
       if (!mounted.current) return

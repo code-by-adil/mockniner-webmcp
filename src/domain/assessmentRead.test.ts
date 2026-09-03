@@ -70,13 +70,13 @@ describe('focused assessment reads', () => {
     }, satFullLengthAssessment.parts[0]] });
     const first = assessment.parts[0].items[0];
     const record = stored(assessment, { [first.id]: 'First essay.', 'second-essay': 'Other essay.' });
-    const evaluation: AssessmentEvaluation = { attemptId: record.submission.attemptId, rubricId: base.rubrics[0].id,
+    const evaluation: AssessmentEvaluation = { attemptId: record.submission.attemptId,
       overallScore: 3, summary: 'UNSCOPED_SUMMARY', strengths: ['UNSCOPED_STRENGTH'], improvements: ['UNSCOPED_IMPROVEMENT'],
       criteria: [{ criterionId: 'claim', score: 3, feedback: 'UNSCOPED_FEEDBACK', evidence: ['Other essay.'] }],
       evaluatedAt: '2026-09-03T11:01:00Z', revision: 2,
       annotations: [first.id, 'second-essay'].map(itemId => ({ itemId, originalText: itemId, suggestion: `Suggestion ${itemId}`, explanation: `Explanation ${itemId}` })) };
     const focused = readAssessmentSubmission({ ...record, evaluation }, { view: 'full', itemId: first.id });
-    expect(focused.submission.package).toHaveProperty('rubrics', base.rubrics);
+    expect(focused.submission.package).toHaveProperty('rubric', base.rubric);
     expect(focused.submission).toHaveProperty('responses', { [first.id]: 'First essay.' });
     expect(focused.evaluation).toHaveProperty('annotations', [evaluation.annotations[0]]);
     expect(focused.evaluation).toMatchObject({ revision: 2, overallScore: 3 });

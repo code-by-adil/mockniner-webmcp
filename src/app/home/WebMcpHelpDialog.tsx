@@ -1,5 +1,7 @@
-import React, { useState } from "react";
-import { Check, Copy, X } from "lucide-react";
+import type { ReactElement } from "react";
+import { X } from "lucide-react";
+import { CopyButton } from '@/shared/ui/CopyButton';
+import { handleExamDialogBackdropClick, useExamNativeDialog } from '@/shared/ui/exam/useExamNativeDialog';
 
 const PROMPT_SUGGESTIONS = [
   "Create a short SAT-style practice test focused on algebra and inference.",
@@ -14,28 +16,21 @@ export function WebMcpHelpDialog({
 }: {
   open: boolean;
   onClose: () => void;
-}): React.ReactElement | null {
-  const [copiedPromptIndex, setCopiedPromptIndex] = useState<number | null>(null);
-
-  const handleCopyPrompt = (promptText: string, index: number) => {
-    void navigator.clipboard.writeText(promptText);
-    setCopiedPromptIndex(index);
-    setTimeout(() => setCopiedPromptIndex(null), 2000);
-  };
-
-  if (!open) return null;
+}): ReactElement {
+  const dialog = useExamNativeDialog({ open, onOpenChange: next => { if (!next) onClose(); } });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/40 backdrop-blur-xs p-4 sm:p-6">
-      <div
-        className="w-full max-w-2xl max-h-[88vh] flex flex-col rounded-2xl border border-neutral-200 bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
-        role="dialog"
-        aria-modal="true"
-      >
+    <dialog
+      ref={dialog}
+      aria-labelledby="agent-help-title"
+      onClick={handleExamDialogBackdropClick}
+      className="exam-native-dialog m-auto w-[min(42rem,calc(100vw-2rem))] max-h-[88vh] open:flex flex-col rounded-2xl border border-neutral-200 bg-white p-0 shadow-2xl overflow-hidden"
+      style={{ maxWidth: '42rem' }}
+    >
         {/* Dialog Header */}
         <div className="flex items-start justify-between p-6 pb-4 border-b border-neutral-100">
           <div>
-            <h2 className="text-lg font-bold text-neutral-900 leading-tight">
+            <h2 id="agent-help-title" className="text-lg font-bold text-neutral-900 leading-tight">
               Practice with your agent
             </h2>
             <p className="text-xs text-neutral-500 mt-1">
@@ -83,9 +78,7 @@ export function WebMcpHelpDialog({
             </div>
 
             <div className="space-y-2.5">
-              {PROMPT_SUGGESTIONS.map((promptText, idx) => {
-                const isCopied = copiedPromptIndex === idx;
-                return (
+              {PROMPT_SUGGESTIONS.map((promptText) => (
                   <div
                     key={promptText}
                     className="flex items-start justify-between gap-3 rounded-xl border border-neutral-200/80 bg-neutral-50/60 p-3 text-xs text-neutral-800 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
@@ -93,31 +86,16 @@ export function WebMcpHelpDialog({
                     <p className="flex-1 leading-relaxed text-neutral-800 font-normal select-text">
                       {promptText}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyPrompt(promptText, idx)}
-                      aria-label={`Copy prompt: ${promptText}`}
+                    <CopyButton
+                      text={promptText}
+                      ariaLabel={`Copy prompt: ${promptText}`}
                       className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition-colors shadow-2xs cursor-pointer"
-                    >
-                      {isCopied ? (
-                        <>
-                          <Check size={12} className="text-emerald-600" />
-                          <span className="text-emerald-700 font-semibold">Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={12} className="text-neutral-400" />
-                          <span>Copy</span>
-                        </>
-                      )}
-                    </button>
+                    />
                   </div>
-                );
-              })}
+              ))}
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </dialog>
   );
 }

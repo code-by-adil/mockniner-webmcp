@@ -3,7 +3,7 @@ import type { KokoroListeningAudio } from "@/domain/objectiveContent";
 import { KOKORO_RUNTIME } from "./kokoroConfig";
 import { createKokoroPlan, type KokoroPlanChunk } from "./kokoroScript";
 
-export type KokoroWorkerRequest =
+export type KokoroListeningWorkerRequest =
   | {
       type: "generate";
       audio: KokoroListeningAudio;
@@ -18,7 +18,7 @@ type GeneratedKokoroChunk =
     })
   | Extract<KokoroPlanChunk, { kind: "silence" }>;
 
-export type KokoroWorkerResponse =
+export type KokoroListeningWorkerResponse =
   | { type: "planned"; totalChunks: number }
   | { type: "ready" }
   | { type: "chunk"; chunk: GeneratedKokoroChunk }
@@ -32,9 +32,9 @@ type WebGpuNavigator = Navigator & {
 type WorkerPort = {
   addEventListener: (
     type: "message",
-    listener: (event: MessageEvent<KokoroWorkerRequest>) => void,
+    listener: (event: MessageEvent<KokoroListeningWorkerRequest>) => void,
   ) => void;
-  postMessage: (message: KokoroWorkerResponse) => void;
+  postMessage: (message: KokoroListeningWorkerResponse) => void;
 };
 
 const port = globalThis as unknown as WorkerPort;

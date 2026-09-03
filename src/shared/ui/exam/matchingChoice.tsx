@@ -245,10 +245,10 @@ export function MatchingQuestionSet({
                   <span className="w-[4.25rem] shrink-0 self-center text-sm font-semibold leading-snug text-[color:var(--exam-text)] sm:w-[4.5rem]">
                     {question.label}
                   </span>
-                  {isCompactLayout ? (
                     <div
                       ref={registerSlotHost(question.questionId)}
-                      className="relative min-w-0 flex-1"
+                      className={cn("relative min-w-0", isCompactLayout ? "flex-1" : "w-full shrink-0")}
+                      style={isCompactLayout ? undefined : MATCHING_CHOICE_WIDTH_STYLE}
                     >
                       <MatchingAnswerSlot
                         options={dragOptions}
@@ -272,40 +272,6 @@ export function MatchingQuestionSet({
                         mapInteraction={mapInteraction}
                       />
                     </div>
-                  ) : (
-                    <MatchingChoiceWidth>
-                      <div
-                        ref={registerSlotHost(question.questionId)}
-                        className="relative w-full"
-                      >
-                        <MatchingAnswerSlot
-                          options={dragOptions}
-                          id={question.questionId}
-                          groupId={groupId}
-                          value={answerValue}
-                          {...(displayValue !== undefined
-                            ? { displayValue }
-                            : {})}
-                          onDrop={(value) =>
-                            handleSlotAssign(question.questionId, value)
-                          }
-                          onClear={() =>
-                            onAnswerChange(question.questionId, "")
-                          }
-                          placeholder={
-                            placeholder ?? String(question.questionId)
-                          }
-                          isReviewMode={isReviewMode}
-                          correctAnswer={getCorrectAnswer(question.questionId)}
-                          proximityActive={
-                            proximitySlotId === question.questionId
-                          }
-                          catchFlash={caughtSlotId === question.questionId}
-                          mapInteraction={mapInteraction}
-                        />
-                      </div>
-                    </MatchingChoiceWidth>
-                  )}
                 </li>
               );
             })}

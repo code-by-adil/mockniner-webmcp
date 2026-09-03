@@ -1,7 +1,7 @@
 import { parseAssessmentPackage } from "@/domain/assessment";
 
 export const greStyleAssessment = parseAssessmentPackage({
-  schemaVersion: 3,
+  schemaVersion: 4,
   packageId: "example-gre-style-diagnostic",
   revision: 2,
   title: "GRE-Style Diagnostic",
@@ -38,9 +38,7 @@ export const greStyleAssessment = parseAssessmentPackage({
     },
   ],
   review: { mode: "answers" },
-  rubrics: [
-    {
-      id: "analytical-writing",
+  rubric: {
       title: "Analytical writing rubric",
       scale: { minimum: 0, maximum: 6, step: 1 },
       criteria: [
@@ -65,8 +63,7 @@ export const greStyleAssessment = parseAssessmentPackage({
       ],
       requireEvidence: true,
       allowAnnotations: true,
-    },
-  ],
+  },
   parts: [
     {
       id: "verbal-reasoning",
@@ -308,7 +305,6 @@ export const greStyleAssessment = parseAssessmentPackage({
             placeholder: "Write your response",
           },
           scoring: { type: "agent" },
-          evaluationRubricId: "analytical-writing",
         },
       ],
     },

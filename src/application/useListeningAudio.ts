@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import type { ListeningContentDocument } from "@/domain/objectiveContent";
 import type { StoredListeningAudioChunk } from "@/infrastructure/database/listeningAudioRepository";
 import type {
-  KokoroWorkerRequest,
-  KokoroWorkerResponse,
-} from "@/infrastructure/media/kokoro.worker";
+  KokoroListeningWorkerRequest,
+  KokoroListeningWorkerResponse,
+} from "@/infrastructure/media/kokoroListening.worker";
 import { KOKORO_CACHE_VERSION } from "@/infrastructure/media/kokoroConfig";
 
 type ListeningAudioState = {
@@ -101,12 +101,12 @@ export function useListeningAudio(
       }));
 
       worker = new Worker(
-        new URL("../infrastructure/media/kokoro.worker.ts", import.meta.url),
+        new URL("../infrastructure/media/kokoroListening.worker.ts", import.meta.url),
         { type: "module" },
       );
       worker.addEventListener(
         "message",
-        (event: MessageEvent<KokoroWorkerResponse>) => {
+        (event: MessageEvent<KokoroListeningWorkerResponse>) => {
           const response = event.data;
           if (response.type === "planned") {
             update((value) => ({
@@ -151,7 +151,7 @@ export function useListeningAudio(
               worker?.postMessage({
                 type: "persisted",
                 sequence: response.chunk.sequence,
-              } satisfies KokoroWorkerRequest);
+              } satisfies KokoroListeningWorkerRequest);
             });
             void persistence.catch(fail);
             return;
@@ -170,7 +170,7 @@ export function useListeningAudio(
       worker.addEventListener("error", (event) => {
         fail(new Error(event.message || "The Kokoro worker stopped unexpectedly."));
       });
-      const request: KokoroWorkerRequest = {
+      const request: KokoroListeningWorkerRequest = {
         type: "generate",
         audio,
         completedSequences: stored.map((chunk) => chunk.sequence),

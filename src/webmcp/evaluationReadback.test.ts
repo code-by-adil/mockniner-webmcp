@@ -36,7 +36,7 @@ afterEach(async () => { await database.destroy(true) })
 
 function nativeCommands(initial: IeltsSession) {
   let state = initial
-  return createIeltsCommands({ getState: () => state, dispatch: action => { state = sessionReducer(state, action) },
+  return createIeltsCommands({ getState: () => state, dispatch: action => { state = sessionReducer(state, action) }, publishSession: next => { state = next }, persistSession: async () => {},
     getContent: () => ({ writing: writingDocument, listening: listeningDocument, reading: readingDocument }),
     setContent: vi.fn(), getContentStore: async () => createContentStore(database),
     getRepository: async () => createIeltsRepository(database),
@@ -56,11 +56,11 @@ describe('persisted evaluation readback through WebMCP', () => {
         tasks: [{ task: writingDocument.tasks[0], response: 'A measured response.', wordCount: 3 }, { task: writingDocument.tasks[1], response: 'An original essay.', wordCount: 3 }] })
       original = submission
       let state: IeltsSession = { ...initialSession, view: 'transition', currentSection: 'writing', writingSubmission: submission }
-      const commands = createIeltsCommands({ getState: () => state, dispatch: action => { state = sessionReducer(state, action) },
+      const commands = createIeltsCommands({ getState: () => state, dispatch: action => { state = sessionReducer(state, action) }, publishSession: next => { state = next }, persistSession: async () => {},
         getContent: () => ({ writing: writingDocument, listening: listeningDocument, reading: readingDocument }),
         setContent: vi.fn(), getContentStore: async () => createContentStore(database), getRepository: async () => repository })
       visibleEvaluation = () => state.review?.kind === 'writing' ? state.review.evaluation : null
-      tools = createWritingToolDefinitions({ readWritingAttempt: id => createIeltsRepository(database).readWritingAttempt(id), attachWritingEvaluation: commands.attachWritingEvaluation, getCurrentWritingAttemptId: () => attemptId }, 'results')
+      tools = createWritingToolDefinitions({ readWritingAttempt: id => createIeltsRepository(database).readWritingAttempt(id), attachWritingEvaluation: commands.attachWritingEvaluation, getCurrentWritingAttemptId: () => attemptId })
       input = { attemptId, overallBand: 6, summary: 'Initial feedback.', task1: task, task2: task }
     } else {
       const repository = createAssessmentRepository(database)
@@ -70,19 +70,18 @@ describe('persisted evaluation readback through WebMCP', () => {
       original = submission
       let state: AssessmentSession = { ...initialAssessmentSession, view: 'result', submission }
       const commands = createAssessmentCommands({ getState: () => state, dispatch: action => { state = assessmentSessionReducer(state, action) },
-        getAssessments: () => [assessment], setAssessments: vi.fn(), setHistory: vi.fn(), getRepository: async () => repository })
+        getAssessments: () => [assessment], setAssessments: vi.fn(), getRepository: async () => repository })
       visibleEvaluation = () => state.evaluation
-      tools = createAssessmentToolDefinitions({ installAssessment: commands.installAssessment, readAssessmentAttempt: id => createAssessmentRepository(database).readAttempt(id), attachEvaluation: commands.attachEvaluation, getCurrentAttemptId: () => attemptId }, 'results')
-      input = { attemptId, rubricId: 'argument-writing', overallScore: 3, summary: 'Initial feedback.',
+      tools = createAssessmentToolDefinitions({ readAssessmentAttempt: id => createAssessmentRepository(database).readAttempt(id), attachEvaluation: commands.attachEvaluation, getCurrentAttemptId: () => attemptId })
+      input = { attemptId, summary: 'Initial feedback.',
         criteria: ['claim', 'evidence'].map(criterionId => ({ criterionId, score: 3, feedback: 'A clear claim.', evidence: ['Libraries should remain accessible.'] })), strengths: ['Clear.'], improvements: ['Add detail.'], annotations: [] }
     }
     const read = async () => wire(await tools[0]!.execute({}, options()))
     const save = async (payload: Record<string, unknown>): Promise<{ ok: boolean }> => wire(await tools[1]!.execute(payload, options()))
     const first = await save(input)
     expect(first).toMatchObject({ ok: true, data: { status: 'saved', revision: 1 } })
-    // Pre-revision databases contain this exact feedback without revision metadata.
+    // Native Writing still accepts saved feedback that predates revision metadata.
     if (kind === 'writing') await database.sql`UPDATE writing_evaluations SET evaluation_json = json_remove(evaluation_json, '$.revision') WHERE attempt_id = ${attemptId}`
-    else await database.sql`UPDATE assessment_evaluations SET evaluation_json = json_remove(evaluation_json, '$.revision') WHERE attempt_id = ${attemptId}`
     expect(await save(input)).toEqual(first)
     expect(await read()).toMatchObject({ data: { evaluationRevision: 1, canAttachEvaluation: false, canReviseEvaluation: true } })
     const corrected = { ...input, summary: 'Reconsidered feedback.', expectedRevision: 1 }
@@ -92,7 +91,7 @@ describe('persisted evaluation readback through WebMCP', () => {
     expect(second).toMatchObject({ ok: true, data: { revision: 2 } })
     const invalid = kind === 'writing'
       ? { ...corrected, expectedRevision: 2, task1: { ...task, annotations: [{ id: 'bad', taskNumber: 1, originalText: 'Not in the essay.', suggestion: 'Change it.', explanation: 'Fixture.', type: 'other' }] } }
-      : { ...corrected, expectedRevision: 2, rubricId: 'not-the-submitted-rubric' }
+      : { ...corrected, expectedRevision: 2, criteria: [{ criterionId: 'unknown-criterion', score: 3, feedback: 'Incorrect target.', evidence: ['Libraries should remain accessible.'] }] }
     expect(await save(invalid)).toMatchObject({ ok: false, error: { code: kind === 'writing' ? 'INVALID_ANNOTATION' : 'EVALUATION_CONTRACT_MISMATCH' } })
     // A lost-response retry carries the old expected revision and must still succeed.
     expect(await save(corrected)).toEqual(second)
@@ -120,22 +119,24 @@ describe('persisted evaluation readback through WebMCP', () => {
       responses, result: gradeAssessment(assessment, responses) })
     let state: AssessmentSession = { ...initialAssessmentSession, view: 'result', submission }
     const commands = createAssessmentCommands({ getState: () => state, dispatch: action => { state = assessmentSessionReducer(state, action) },
-      getAssessments: () => [assessment], setAssessments: vi.fn(), setHistory: vi.fn(), getRepository: async () => repository })
-    const dependencies = { installAssessment: commands.installAssessment, attachEvaluation: commands.attachEvaluation,
+      getAssessments: () => [assessment], setAssessments: vi.fn(), getRepository: async () => repository })
+    const dependencies = { attachEvaluation: commands.attachEvaluation,
       readAssessmentAttempt: repository.readAttempt, getCurrentAttemptId: () => attemptId }
-    const tools = createAssessmentToolDefinitions(dependencies, 'evaluation')
+    const tools = createAssessmentToolDefinitions(dependencies)
     await expect(tools[0]!.execute({}, options())).resolves.toMatchObject({ ok: true, data: { evaluation: null, evaluationStatus: 'awaiting_evaluation', canAttachEvaluation: true } })
-    const input = { attemptId, rubricId: 'argument-writing', overallScore: 3,
+    const input = { attemptId,
       criteria: [{ criterionId: 'claim', score: 3, feedback: 'Clear position.', evidence: ['Libraries should remain accessible.'] },
         { criterionId: 'evidence', score: 2, feedback: 'Add a measured example.', evidence: ['Fines can discourage readers.'] }],
       summary: 'Clear claim; support needs detail.', strengths: ['Direct position.'], improvements: ['Give a concrete example.'],
       annotations: [{ itemId: 'public-library-essay', originalText: 'Fines can discourage readers.', suggestion: 'Give a specific example of this effect.', explanation: 'Evidence would make the claim persuasive.' }] }
     await expect(tools[1]!.execute(input, options())).resolves.toMatchObject({ ok: true })
     // Recreate the reader over storage, as a fresh agent on the results page would.
-    const result = wire(await createAssessmentToolDefinitions(dependencies, 'results')[0]!.execute({}, options()))
+    const result = wire(await createAssessmentToolDefinitions(dependencies)[0]!.execute({}, options()))
     const stored = await createAssessmentRepository(database).readAttempt(attemptId)
     expect(result.data.evaluation).toEqual(stored!.evaluation)
     expect(result.data.evaluation).toMatchObject(input)
+    expect(result.data.evaluation.overallScore).toBe(3) // Weighted mean 2.5, rounded to the rubric's unit step.
+    expect(result.data.evaluation).not.toHaveProperty('rubricId')
     expect(result.data.evaluation.evaluatedAt).toEqual(expect.any(String))
     expect(result.data.evaluationStatus).toBe('evaluated')
     expect(result.data.canAttachEvaluation).toBe(false)
@@ -159,7 +160,7 @@ describe('persisted evaluation readback through WebMCP', () => {
     expect(attached).toMatchObject({ ok: true })
     // Retrying the original quote-only payload matches the persisted resolved offsets.
     await expect(tools[1]!.execute(input, options())).resolves.toEqual(attached)
-    const result = wire(await createWritingToolDefinitions(dependencies, 'results')[0]!.execute({}, options()))
+    const result = wire(await createWritingToolDefinitions(dependencies)[0]!.execute({}, options()))
     const stored = await createIeltsRepository(database).readWritingAttempt(attemptId)
     expect(result.data.evaluation).toEqual(stored!.evaluation)
     expect(result.data.evaluation).toMatchObject(input)
@@ -182,7 +183,7 @@ describe('persisted evaluation readback through WebMCP', () => {
     const input = { attemptId, overallBand: 6, fluencyCoherence: 6, lexicalResource: 6, grammaticalRangeAccuracy: 6,
       summary: 'A clear but brief response.', strengths: ['Direct answer.'], improvements: ['Add detail about the area.'] }
     await expect(tools[1]!.execute(input, options())).resolves.toMatchObject({ ok: true })
-    const result = wire(await createSpeakingToolDefinitions(dependencies, 'results')[0]!.execute({}, options()))
+    const result = wire(await createSpeakingToolDefinitions(dependencies)[0]!.execute({}, options()))
     const stored = await createIeltsRepository(database).readSpeakingAttempt(attemptId)
     expect(result.data.evaluation).toEqual(stored!.evaluation)
     expect(result.data.evaluation).toMatchObject(input)

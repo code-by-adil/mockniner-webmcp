@@ -1,9 +1,9 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
+import { evaluateExecutionTrajectory } from "webmcp-evals/dist/utils.js";
+import { buildAgentEvalArtifacts } from "./prepare.mjs";
 import {
   collectCalls,
-  collectTrajectoryText,
-  loadProjectModules,
-  readCaseManifest,
+  readFinalResponseText,
 } from "./shared.mjs";
 
 function walk(value, visit) {
@@ -107,13 +107,13 @@ export function validateUniversalSemantics(caseId, assessment, issues) {
 
   if (caseId === "writing-rubric") {
     assert(
-      assessment.rubrics.length === 1,
-      `expected one rubric, received ${assessment.rubrics.length}`,
+      Boolean(assessment.rubric),
+      "missing the assessment rubric",
       issues,
     );
     assert(
-      assessment.rubrics[0]?.criteria.length === 4,
-      `expected four rubric criteria, received ${assessment.rubrics[0]?.criteria.length ?? 0}`,
+      assessment.rubric?.criteria.length === 4,
+      `expected four rubric criteria, received ${assessment.rubric?.criteria.length ?? 0}`,
       issues,
     );
     assert(
@@ -129,40 +129,32 @@ export function validateUniversalSemantics(caseId, assessment, issues) {
   }
 }
 
-function expectedRoute(definition) {
-  if (definition.kind === "universal") {
-    return ["get_assessment_authoring_kit", "install_assessment"];
-  }
-  if (definition.kind === "ielts") {
-    return ["get_ielts_authoring_kit", "install_ielts_practice_set"];
-  }
-  if (definition.kind === "unsupported") return ["get_assessment_authoring_kit"];
-  if (definition.kind === "repair") return ["install_assessment"];
-  return [];
+// These reads may inform authoring or verify its result. Other calls, including
+// every mutation and authoring-kit selection, remain part of the ordered check.
+const authoringDiscoveryTools = new Set([
+  "get_practice_context", "get_practice_library", "get_practice_history",
+  "get_practice_activity", "get_ielts_learning_summary", "get_assessment_content",
+]);
+
+export function evaluateAuthoringCalls(expected, calls) {
+  return evaluateExecutionTrajectory(expected, calls.filter(call => !authoringDiscoveryTools.has(call.functionName)));
 }
 
-function sameRoute(expected, actual) {
-  return (
-    expected.length === actual.length && expected.every((name, index) => actual[index] === name)
-  );
-}
-
-async function validateRun(definition, runIndex, reportResults, modules) {
+export function validateRun(definition, runIndex, reportResults, modules, expectedCalls) {
   const issues = [];
   const entries = reportResults.filter(
     (entry) => entry.test?.name === definition.name && (entry.runIndex ?? 1) === runIndex,
   );
   const calls = collectCalls(reportResults, definition.name, runIndex);
-  const route = calls.map((call) => call.functionName);
   assert(entries.length > 0, "evaluation runner returned no result", issues);
   assert(
-    entries.every((entry) => entry.outcome === "pass"),
-    "WebMCP call matcher reported a failure",
+    entries.every((entry) => entry.outcome !== "error"),
+    "WebMCP execution reported an error",
     issues,
   );
   assert(
-    sameRoute(expectedRoute(definition), route),
-    `expected route ${expectedRoute(definition).join(" -> ")}, received ${route.join(" -> ") || "no calls"}`,
+    evaluateAuthoringCalls(expectedCalls, calls).every(entry => entry.outcome === "pass"),
+    "Required authoring calls did not match their order, arguments or successful results, or an unexpected tool was called",
     issues,
   );
 
@@ -204,7 +196,7 @@ async function validateRun(definition, runIndex, reportResults, modules) {
   }
 
   if (definition.kind === "unsupported") {
-    const responseText = collectTrajectoryText(reportResults, definition.name, runIndex);
+    const responseText = readFinalResponseText(reportResults, definition.name, runIndex);
     assert(
       /(?:unsupported|not supported|cannot|can't)/i.test(responseText),
       "final response does not explain that the interaction is unsupported",
@@ -261,9 +253,8 @@ function enforceReleaseBar(results, release) {
 }
 
 export async function validateAgentEvalReport(reportPath, { release = false } = {}) {
-  const [manifest, modules, report] = await Promise.all([
-    readCaseManifest(),
-    loadProjectModules(),
+  const [{ manifest, modules, evals }, report] = await Promise.all([
+    buildAgentEvalArtifacts(),
     readFile(reportPath, "utf8").then(JSON.parse),
   ]);
   const reportResults = report.results?.results ?? [];
@@ -271,10 +262,20 @@ export async function validateAgentEvalReport(reportPath, { release = false } = 
   const results = [];
   for (const definition of manifest.cases) {
     for (let runIndex = 1; runIndex <= runCount; runIndex += 1) {
-      results.push(await validateRun(definition, runIndex, reportResults, modules));
+      results.push(validateRun(definition, runIndex, reportResults, modules,
+        evals.find(evaluation => evaluation.name === definition.name).expectedCall));
     }
   }
   printResults(results);
+  const validationPath = reportPath.replace(/\.json$/, "") + ".validation.json";
+  await writeFile(validationPath, `${JSON.stringify({
+    sourceReport: reportPath,
+    policy: "Ordered authoring calls with read-only discovery; application schema and request-specific validation",
+    config: report.config,
+    release,
+    results: results.map(({ definition, runIndex, issues, passed }) => ({ caseId: definition.id, runIndex, issues, passed })),
+  }, null, 2)}\n`);
+  console.log(`Application validation report: ${validationPath}`);
   enforceReleaseBar(results, release);
   return results;
 }

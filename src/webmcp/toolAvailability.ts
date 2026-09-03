@@ -1,7 +1,7 @@
-import { getPracticeLeaveBlocker, getResumablePractices } from '@/application/practiceNavigation';
+import { getPracticeLeaveBlocker, getResumablePractices, type PracticeWorkspace } from '@/application/practiceNavigation';
+import type { PracticeContext } from '@/application/practiceContext';
 import type { SpeakingProgress } from '@/application/speakingInterviewController';
 import { findContentBlockingDraft } from '@/domain/session';
-import type { WebMcpToolOptions } from './useWebMcpTools';
 
 type Availability = { status: 'available' } | { status: 'conditional'; requirement: string }
   | { status: 'blocked'; code: string; message: string };
@@ -13,12 +13,12 @@ const blocked = (code: string, message: string): Availability => ({ status: 'blo
 // entries still validate the requested ID, mode, revision and payload in their
 // domain command; discovery never reads a draft's answers or answer keys.
 export function getToolAvailability(
-  state: Pick<WebMcpToolOptions, 'context' | 'workspace' | 'nativeAuthoringEnabled' | 'assessmentToolSurface'>,
+  state: { context: PracticeContext; workspace: PracticeWorkspace },
   speaking: SpeakingProgress | { active: boolean; phase: string },
   canLeaveSpeaking: boolean,
 ): Record<string, Availability> {
   const { context, workspace } = state;
-  const home = state.nativeAuthoringEnabled && state.assessmentToolSurface === 'authoring';
+  const home = workspace.native.view === 'home' && workspace.assessment.view === 'home';
   const submission = (kind: string) => context.submissions.find(item => item.kind === kind);
   const readSubmission = (kind: string) => submission(kind) ? available
     : conditional('No visible submission of this kind. Supply attemptId from get_practice_history or explicitly request latest.');
@@ -101,4 +101,4 @@ export function summarizeToolAvailability(availability: Record<string, Availabil
   return result;
 }
 
-export const includeAuthoringExamples = (workspace: WebMcpToolOptions['workspace']) => getResumablePractices(workspace).length === 0;
+export const includeAuthoringExamples = (workspace: PracticeWorkspace) => getResumablePractices(workspace).length === 0;

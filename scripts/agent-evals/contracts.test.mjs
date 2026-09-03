@@ -22,10 +22,20 @@ describe("agent evaluation fixtures", () => {
 
   it("references only tools supplied by the production home composer", () => {
     const toolNames = new Set(artifacts.tools.map((tool) => tool.name));
-    const referencedNames = [...artifacts.evals, ...artifacts.smokeEvals]
+    const referencedNames = artifacts.evals
       .flatMap((evaluation) => evaluation.expectedCall)
       .map((call) => call.functionName);
 
     expect(referencedNames.every((name) => toolNames.has(name))).toBe(true);
+  });
+
+  it("reads the installed packages from a fresh page in the smoke journey", () => {
+    expect(artifacts.smokeEvals).toHaveLength(2);
+    expect(artifacts.smokeEvals[1].expectedCall.map(call => call.functionName)).toEqual([
+      "get_assessment_content", "get_practice_library",
+    ]);
+    expect(artifacts.smokeEvals[1].expectedCall.every(call => call.result.ok === true)).toBe(true);
+    const installed = artifacts.smokeEvals[0].expectedCall.find(call => call.functionName === "install_assessment").arguments;
+    expect(artifacts.smokeEvals[1].expectedCall[0].result.data.package).toEqual(installed);
   });
 });

@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { ArrowLeft, ArrowRight, ChevronDown } from "lucide-react";
-import type { ObjectiveFooterPart } from "@/modules/exam-engine/footerParts";
+import type { ObjectiveFooterPart } from "@/modules/ielts/exam/footerParts";
 import { scrollIntoViewNearest } from "@/shared/ui/exam/scrollIntoViewNearest";
 import { findObjectiveQuestion } from '@/shared/ui/exam/findObjectiveQuestion';
 import {

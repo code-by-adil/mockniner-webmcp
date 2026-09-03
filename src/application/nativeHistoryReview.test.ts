@@ -49,6 +49,7 @@ describe('database-backed native history review', () => {
     const repository = createIeltsRepository(database)
     let state: IeltsSession = initialSession
     const commands = createIeltsCommands({
+      publishSession: next => { state = next }, persistSession: () => {},
       getState: () => state, dispatch: action => { state = sessionReducer(state, action) },
       getContent: () => ({ listening: listeningDocument, reading: readingDocument, writing: writingDocument }),
       setContent: vi.fn(), getContentStore: async () => createContentStore(database), getRepository: async () => repository,
@@ -98,6 +99,7 @@ describe('database-backed native history review', () => {
       lexicalResource: 6, grammaticalRangeAccuracy: 6, summary: 'Test evaluation', strengths: ['Clear.'], improvements: ['More detail.'], evaluatedAt: '2026-09-03T10:02:00.000Z' })
     let state: IeltsSession = { ...initialSession, writingDrafts: { 1: 'Unrelated draft', 2: '' } }
     const commands = createIeltsCommands({ getState: () => state,
+      publishSession: next => { state = next }, persistSession: () => {},
       dispatch: action => { state = sessionReducer(state, action) },
       getContent: () => ({ listening: listeningDocument, reading: readingDocument, writing: writingDocument }),
       setContent: vi.fn(), getContentStore: async () => createContentStore(database), getRepository: async () => repository,
@@ -108,7 +110,7 @@ describe('database-backed native history review', () => {
     const tool = createSpeakingToolDefinitions({ readSpeakingAttempt: repository.readSpeakingAttempt,
       attachSpeakingEvaluation: commands.attachSpeakingEvaluation,
       getCurrentSpeakingAttemptId: () => getPracticeContext(state, initialAssessmentSession).submissions.find(s => s.kind === 'speaking')?.attemptId,
-    }, 'results')[0]!
+    })[0]!
     await expect(tool.execute({}, { signal: new AbortController().signal })).resolves.toMatchObject({ ok: true,
       data: { submission: { attemptId: submission.attemptId }, evaluation: { attemptId: submission.attemptId }, selection: { isVisible: true } } })
     commands.closeReview(); expect(state.view).toBe('home')
@@ -124,13 +126,14 @@ describe('database-backed native history review', () => {
       task1: criterion, task2: criterion, evaluatedAt: '2026-09-01T11:10:00.000Z' })
     let state: IeltsSession = { ...initialSession, currentSection: 'speaking', writingSubmission: newer }
     const commands = createIeltsCommands({ getState: () => state, dispatch: action => { state = sessionReducer(state, action) },
+      publishSession: next => { state = next }, persistSession: () => {},
       getContent: () => ({ listening: listeningDocument, reading: readingDocument, writing: writingDocument }),
       setContent: vi.fn(), getContentStore: async () => createContentStore(database), getRepository: async () => repository })
     await commands.openAttempt(older.attemptId, 'writing')
     const tool = createWritingToolDefinitions({ readWritingAttempt: repository.readWritingAttempt,
       attachWritingEvaluation: commands.attachWritingEvaluation,
       getCurrentWritingAttemptId: () => getPracticeContext(state, initialAssessmentSession).submissions.find(s => s.kind === 'writing')?.attemptId,
-    }, 'results')[0]!
+    })[0]!
     const options = { signal: new AbortController().signal }
     await expect(tool.execute({}, options)).resolves.toMatchObject({ ok: true, data: { submission: { attemptId: older.attemptId }, evaluation: { summary: 'Older evaluation.' }, selection: { isVisible: true } } })
     await expect(tool.execute({ latest: true }, options)).resolves.toMatchObject({ ok: true, data: { submission: { attemptId: newer.attemptId }, evaluation: null, canAttachEvaluation: false } })
@@ -188,6 +191,7 @@ describe('database-backed native history review', () => {
       writing: writingDocument,
     }
     const commands = createIeltsCommands({
+      publishSession: next => { state = next }, persistSession: () => {},
       getState: () => state,
       dispatch: (action) => {
         state = sessionReducer(state, action)

@@ -1,6 +1,5 @@
 import type {
   AssessmentEvaluation,
-  AssessmentHistoryEntry,
   AssessmentPackage,
   AssessmentSubmission,
 } from "@/domain/assessment";
@@ -13,10 +12,6 @@ export type AssessmentRepository = {
   loadPackages: (
     onInvalid?: InvalidAssessmentHandler,
   ) => Promise<AssessmentPackage[]>;
-  readHistory: (
-    limit?: number,
-    onInvalid?: InvalidAssessmentHandler,
-  ) => Promise<AssessmentHistoryEntry[]>;
   savePackage: (assessment: AssessmentPackage) => Promise<void>;
   deletePackage: (packageId: string) => Promise<void>;
   saveAttempt: (
@@ -28,5 +23,5 @@ export type AssessmentRepository = {
     submission: AssessmentSubmission;
     evaluation: AssessmentEvaluation | null;
   } | null>;
-  saveEvaluation: (evaluation: AssessmentEvaluation, expectedRevision?: number) => Promise<AssessmentEvaluation>;
+  saveEvaluation: (evaluation: Omit<AssessmentEvaluation, 'revision'>, expectedRevision?: number) => Promise<AssessmentEvaluation>;
 };

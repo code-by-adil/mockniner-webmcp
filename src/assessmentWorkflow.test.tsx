@@ -12,11 +12,11 @@ import {
 import {
   createAssessmentRepository,
   readAssessmentAttempt,
-  readAssessmentHistory,
   saveAssessmentAttempt,
   saveAssessmentPackage,
 } from "@/infrastructure/database/assessmentRepository";
 import { migrateDatabase } from "@/infrastructure/database/migrations";
+import { readHistoryPage } from '@/infrastructure/database/historyRepository';
 import { AssessmentResults } from "@/modules/assessment-engine/ui/AssessmentResults";
 import { createAssessmentToolDefinitions } from "@/webmcp/assessmentTools";
 
@@ -37,8 +37,6 @@ const responses = {
 
 const evaluationInput: AssessmentEvaluationInput = {
   attemptId,
-  rubricId: "analytical-writing",
-  overallScore: 4,
   criteria: [
     {
       criterionId: "reasoning",
@@ -119,22 +117,21 @@ describe("mixed universal assessment workflow", () => {
     const commands = createAssessmentCommands({
       getState: () => state, getAssessments: () => [assessment],
       dispatch: (action) => { state = assessmentSessionReducer(state, action); },
-      setAssessments: vi.fn(), setHistory: vi.fn(),
+      setAssessments: vi.fn(),
       getRepository: async () => createAssessmentRepository(database),
     });
     const tools = createAssessmentToolDefinitions({
-      installAssessment: vi.fn(),
       readAssessmentAttempt: (id) => readAssessmentAttempt(database, id),
       attachEvaluation: commands.attachEvaluation,
       getCurrentAttemptId: () => attemptId,
-    }, "evaluation");
+    });
     const submissionTool = tools.find((tool) => tool.name === "get_assessment_submission")!;
     const evaluationTool = tools.find((tool) => tool.name === "attach_assessment_evaluation")!;
 
     const submissionResult = await submissionTool.execute({}, toolOptions()) as {
       ok: true;
       data: {
-        submission: { responses: typeof responses; package: { rubrics: unknown[] } };
+        submission: { responses: typeof responses; package: { rubric: unknown } };
         evaluationStatus: string;
         canAttachEvaluation: boolean;
       };
@@ -146,7 +143,7 @@ describe("mixed universal assessment workflow", () => {
         canAttachEvaluation: true,
         submission: {
           responses: { "analytical-writing-issue": essay },
-          package: { rubrics: [expect.objectContaining({ id: "analytical-writing" })] },
+          package: { rubric: expect.objectContaining({ criteria: expect.any(Array) }) },
         },
       },
     });
@@ -178,9 +175,10 @@ describe("mixed universal assessment workflow", () => {
     const attached = await evaluationTool.execute(evaluationInput, toolOptions());
     expect(attached).toMatchObject({
       ok: true,
-      data: { status: "saved", attemptId, rubricId: "analytical-writing", overallScore: 4 },
+      data: { status: "saved", attemptId, overallScore: 4 },
       sideEffect: { visibleView: "assessment_results" },
     });
+    expect(attached).not.toHaveProperty('data.rubricId');
 
     const duplicate = await evaluationTool.execute(evaluationInput, toolOptions());
     expect(duplicate).toEqual(attached);
@@ -188,7 +186,7 @@ describe("mixed universal assessment workflow", () => {
     const restored = await readAssessmentAttempt(database, attemptId);
     expect(restored?.submission.responses["analytical-writing-issue"]).toBe(essay);
     expect(restored?.evaluation).toMatchObject(evaluationInput);
-    await expect(readAssessmentHistory(database)).resolves.toEqual([
+    expect((await readHistoryPage(database, { kind: 'assessment', limit: 10, offset: 0 })).items).toEqual([
       expect.objectContaining({ attemptId, evaluationStatus: "evaluated" }),
     ]);
 
@@ -208,6 +206,8 @@ describe("mixed universal assessment workflow", () => {
         submission={immutableAttempt!.submission}
         evaluation={immutableAttempt!.evaluation ?? undefined}
         onHome={() => undefined}
+        review={null}
+        onReviewChange={() => undefined}
       />,
     );
     const renderedText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');

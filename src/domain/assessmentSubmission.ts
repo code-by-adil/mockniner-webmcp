@@ -18,13 +18,3 @@ export type AssessmentEvaluationStatus =
   | "not_required"
   | "awaiting_evaluation"
   | "evaluated";
-
-export type AssessmentHistoryEntry = {
-  attemptId: string;
-  packageId: string;
-  title: string;
-  rawScore: number;
-  maximumScore: number;
-  evaluationStatus: AssessmentEvaluationStatus;
-  submittedAt: string;
-};

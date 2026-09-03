@@ -5,12 +5,12 @@ import { math1 } from './math1';
 import { math2 } from './math2';
 
 export const satFullLengthAssessment = parseAssessmentPackage({
-  schemaVersion: 3, packageId: 'local-sat-full-length-1', revision: 1,
+  schemaVersion: 4, packageId: 'local-sat-full-length-1', revision: 1,
   title: 'SAT-Style Practice Test 1', source: 'built-in',
   description: 'Practise with 98 questions across four timed modules, then review your answers and results by topic.',
   metadata: { subject: 'College readiness', difficulty: 'mixed', locale: 'en-US', shortLabel: 'SAT · Full length',
     disclaimer: 'Independent SAT-style practice with a fixed question sequence. Results show practice accuracy, not an official or predicted SAT score. SAT is a registered trademark of College Board. This application is not affiliated with or endorsed by College Board.' },
-  presentation: { accent: 'red', density: 'comfortable' }, review: { mode: 'answers' }, rubrics: [],
+  presentation: { accent: 'red', density: 'comfortable' }, review: { mode: 'answers' },
   resources: [{ id: 'sat-math-reference', type: 'document', title: 'Math reference', content: [
     { type: 'text', variant: 'subtitle', text: 'Circles and angles' }, { type: 'math', expression: 'A = πr²     C = 2πr\nA full circle measures 360° or 2π radians.' },
     { type: 'text', variant: 'subtitle', text: 'Triangles' }, { type: 'math', expression: 'A = ½bh\na² + b² = c² for a right triangle with hypotenuse c.' },

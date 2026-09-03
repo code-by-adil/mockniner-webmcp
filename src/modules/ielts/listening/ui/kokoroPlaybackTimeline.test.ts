@@ -75,7 +75,8 @@ describe("generated Listening playback timeline", () => {
     expect(getNextChunkIndex(0, 2, "generating", 4)).toBe(1);
     expect(getNextChunkIndex(1, 2, "generating", 4)).toBe(2);
     expect(getNextChunkIndex(3, 4, "ready", 4)).toBeNull();
-    expect(getNextChunkIndex(1, 2, "error", 4)).toBeNull();
+    expect(getNextChunkIndex(1, 2, "error", 4)).toBe(2);
+    expect(getNextChunkIndex(3, 4, "error", 4)).toBeNull();
   });
 
   it("finds a part boundary without a separate timing document", () => {

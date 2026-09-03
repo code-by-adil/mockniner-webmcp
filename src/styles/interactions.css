@@ -168,31 +168,6 @@
   height: 1.125rem;
 }
 
-@keyframes exam-header-popout-wiggle {
-  0% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(-5px);
-  }
-  40% {
-    transform: translateX(5px);
-  }
-  60% {
-    transform: translateX(-3px);
-  }
-  80% {
-    transform: translateX(3px);
-  }
-  100% {
-    transform: translateX(0);
-  }
-}
-
-.ui-layer-exam :where(.exam-header-popout-wiggle) {
-  animation: exam-header-popout-wiggle 460ms ease-in-out;
-}
-
 .ui-layer-exam :where(.exam-hide-scrollbar) {
   -ms-overflow-style: none;
   scrollbar-width: none;

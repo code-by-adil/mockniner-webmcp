@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readingDocument } from '@/content/objective';
 import { gradeObjectiveDocument } from '@/domain/objectiveScoring';
+import { getObjectiveBlockQuestionIds } from '@/domain/objectiveContent';
 import type { AnswerMap, ObjectiveSubmission } from '@/domain/types';
 import { ReadingAttemptReview } from './ReadingAttemptReview';
 
@@ -48,7 +49,11 @@ describe('saved Reading review', () => {
   async function render(submission = submittedAnswers(), backLabel = 'Back to practice') {
     function Review() {
       const [part, setPart] = useState(1);
-      return <ReadingAttemptReview document={readingDocument} submission={submission} currentPart={part} onPartChange={setPart} onExit={onExit} backLabel={backLabel} />;
+      const [question, setQuestion] = useState<number | null>(null);
+      return <ReadingAttemptReview document={readingDocument} submission={submission} currentPart={part} onPartChange={setPart} selectedQuestionId={question} onQuestionSelect={id => {
+        setQuestion(id);
+        setPart(readingDocument.parts.find(entry => entry.blocks.flatMap(getObjectiveBlockQuestionIds).includes(id))!.id);
+      }} onExit={onExit} backLabel={backLabel} />;
     }
     await act(async () => root.render(<Review />));
   }

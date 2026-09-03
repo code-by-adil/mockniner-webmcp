@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { KokoroListeningAudio } from "@/domain/objectiveContent";
 import { KOKORO_RUNTIME } from "./kokoroConfig";
 import type {
-  KokoroWorkerRequest,
-  KokoroWorkerResponse,
-} from "./kokoro.worker";
+  KokoroListeningWorkerRequest,
+  KokoroListeningWorkerResponse,
+} from "./kokoroListening.worker";
 import type { KokoroPlanChunk } from "./kokoroScript";
 
 const mocked = vi.hoisted(() => ({
@@ -43,18 +43,18 @@ const plan: KokoroPlanChunk[] = [
   },
 ];
 
-let handleMessage: ((event: MessageEvent<KokoroWorkerRequest>) => void) | null;
-let posted: ReturnType<typeof vi.fn<(message: KokoroWorkerResponse) => void>>;
+let handleMessage: ((event: MessageEvent<KokoroListeningWorkerRequest>) => void) | null;
+let posted: ReturnType<typeof vi.fn<(message: KokoroListeningWorkerResponse) => void>>;
 
 async function startWorker(completedSequences: number[]): Promise<void> {
-  await import("./kokoro.worker");
+  await import("./kokoroListening.worker");
   expect(handleMessage).not.toBeNull();
   handleMessage!({
     data: { type: "generate", audio: requestAudio, completedSequences },
-  } as MessageEvent<KokoroWorkerRequest>);
+  } as MessageEvent<KokoroListeningWorkerRequest>);
 }
 
-function responseTypes(): KokoroWorkerResponse["type"][] {
+function responseTypes(): KokoroListeningWorkerResponse["type"][] {
   return posted.mock.calls.map(([response]) => response.type);
 }
 
@@ -63,7 +63,7 @@ beforeEach(() => {
   mocked.createPlan.mockReset().mockResolvedValue(plan);
   mocked.fromPretrained.mockReset();
   handleMessage = null;
-  posted = vi.fn<(message: KokoroWorkerResponse) => void>();
+  posted = vi.fn<(message: KokoroListeningWorkerResponse) => void>();
   vi.stubGlobal("navigator", {
     gpu: { requestAdapter: vi.fn().mockResolvedValue({}) },
   });
@@ -99,7 +99,7 @@ describe("Kokoro worker protocol", () => {
 
     handleMessage!({
       data: { type: "persisted", sequence: 0 },
-    } as MessageEvent<KokoroWorkerRequest>);
+    } as MessageEvent<KokoroListeningWorkerRequest>);
     await vi.waitFor(() => {
       expect(responseTypes()).toEqual([
         "planned",
@@ -116,7 +116,7 @@ describe("Kokoro worker protocol", () => {
 
     handleMessage!({
       data: { type: "persisted", sequence: 1 },
-    } as MessageEvent<KokoroWorkerRequest>);
+    } as MessageEvent<KokoroListeningWorkerRequest>);
     await vi.waitFor(() => {
       expect(responseTypes().at(-1)).toBe("complete");
     });

@@ -3,7 +3,7 @@ import { satPracticeAssessment } from '@/content/sat'
 import { getAssessmentAuthoringKit } from '@/content/assessmentExamples'
 import { parseAssessmentPackage } from './assessmentContract'
 import { gradeAssessment } from './assessmentScoring'
-import { assessmentSubmissionForAgent } from './assessmentReview'
+import { assessmentSubmissionForAgent, resolveAssessmentReview } from './assessmentReview'
 
 describe('assessment review policy projection', () => {
   it.each(['answers', 'responses', 'none'] as const)('honors %s without modifying the stored snapshot', mode => {
@@ -36,8 +36,22 @@ describe('assessment review policy projection', () => {
     const projected = assessmentSubmissionForAgent({ attemptId: crypto.randomUUID(), packageId: assessment.packageId, package: assessment,
       responses, result: gradeAssessment(assessment, responses), startedAt: '2026-09-03T10:00:00Z', submittedAt: '2026-09-03T10:10:00Z' })
     expect(projected.responses).toEqual(responses)
-    expect(projected.package.rubrics).toEqual(assessment.rubrics)
+    expect(projected.package.rubric).toEqual(assessment.rubric)
     expect(projected.package.parts[0]!.items[0]!.id).toBe(id)
     expect(projected.result.awaitingEvaluationCount).toBe(1)
+  })
+
+  it('resolves filters and selected items from one canonical review policy', () => {
+    const assessment = satPracticeAssessment
+    const responses = { 'rw-1': 'a', 'rw-2': 'a' }
+    const submission = { attemptId: crypto.randomUUID(), packageId: assessment.packageId, package: assessment,
+      responses, result: gradeAssessment(assessment, responses), startedAt: '2026-09-03T10:00:00Z', submittedAt: '2026-09-03T10:10:00Z' }
+    expect(resolveAssessmentReview(submission, { filter: 'incorrect' })).toEqual({ filter: 'incorrect', itemId: 'rw-1' })
+    expect(resolveAssessmentReview(submission, { filter: 'unanswered' }).itemId).toBe('rw-3')
+    expect(() => resolveAssessmentReview(submission, { filter: 'incorrect', itemId: 'rw-2' })).toThrow(/Choose an itemId/)
+    expect(resolveAssessmentReview({ ...submission, package: { ...assessment, review: { mode: 'responses' } } }, { filter: 'incorrect' }))
+      .toEqual({ filter: 'all', itemId: 'rw-1' })
+    expect(() => resolveAssessmentReview({ ...submission, package: { ...assessment, review: { mode: 'none' } } }, { filter: 'all' }))
+      .toThrow(/does not allow question review/)
   })
 })

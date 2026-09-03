@@ -18,13 +18,11 @@ function renderHome(session: IeltsSession = initialSession, content: ActiveConte
       assessmentLibrary={{
         assessments: [],
         assessmentSession: initialAssessmentSession,
-        assessmentHistory: [],
         onStartAssessment: noOp,
         onResumeAssessment: noOp,
         onRestartAssessment: noOp,
         onDiscardAssessment: noOp,
         onDeleteAssessment: noOpAsync,
-        onReviewAssessment: noOpAsync,
       }}
       onStart={noOp}
       onResume={noOp}
@@ -36,7 +34,7 @@ function renderHome(session: IeltsSession = initialSession, content: ActiveConte
       }}
       onRetryListeningAudio={noOp}
       content={content}
-      learningSummary={null}
+      historyRevision="initial"
       onReviewAttempt={noOpAsync}
     />,
   );

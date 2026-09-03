@@ -54,9 +54,7 @@ async function runEvaluator(argumentsList) {
     [
       ...argumentsList,
       "--reporter",
-      "console",
       "json",
-      "html",
       "--output-dir",
       outputDirectory,
     ],
@@ -129,9 +127,9 @@ if (release) {
   }
   const aggregatePath = await aggregateReports(reports);
   await validateAgentEvalReport(aggregatePath, { release: true });
-  console.log(`\nValidated aggregate release report: ${aggregatePath}`);
+  console.log(`\nRaw aggregate execution report: ${aggregatePath}`);
 } else {
   const reportPath = await runEvaluator([...modeArguments, ...cliArguments]);
   await validateAgentEvalReport(reportPath);
-  console.log(`\nValidated report: ${reportPath}`);
+  console.log(`\nRaw execution report: ${reportPath}`);
 }

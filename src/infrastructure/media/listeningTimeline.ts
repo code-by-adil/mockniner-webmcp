@@ -15,9 +15,7 @@ export type ListeningAudioPersistedState = {
 
 export type NormalizedListeningTimeline = {
   events: Array<z.infer<typeof timelineEventSchema> & { part: number | null }>;
-  eventStarts: number[];
   silenceRanges: Array<{ start: number; end: number }>;
-  silenceStarts: number[];
   partStarts: Record<number, number>;
 };
 
@@ -53,9 +51,7 @@ export function parseListeningTimeline(
 
   return {
     events,
-    eventStarts: events.map((event) => event.start),
     silenceRanges,
-    silenceStarts: silenceRanges.map((range) => range.start),
     partStarts,
   };
 }

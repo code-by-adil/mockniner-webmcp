@@ -5,9 +5,9 @@ import type { PracticeWorkspace } from './practiceNavigation'
 import type { SpeakingProgress } from './speakingInterviewController'
 
 // Counts and navigation only. Never spread a draft, question or response here.
-export function getPracticeProgress({ native, assessment, content, assessments }: PracticeWorkspace, speaking?: SpeakingProgress) {
+export function getPracticeProgress({ native, assessment, content }: PracticeWorkspace, speaking?: SpeakingProgress) {
   if (assessment.view === 'assessment') {
-    const definition = assessments.find(p => p.packageId === assessment.packageId)
+    const definition = assessment.packageSnapshot
     const part = definition?.parts.find(p => p.id === assessment.partId)
     if (!definition || !part) return null
     const items = definition.parts.flatMap(p => p.items)

@@ -3,7 +3,6 @@ import { ArrowRight, RotateCcw, Shapes, Trash2 } from "lucide-react";
 import {
   getAssessmentDurationSeconds,
   getAssessmentItemCount,
-  type AssessmentHistoryEntry,
   type AssessmentPackage,
 } from "@/domain/assessment";
 import {
@@ -18,13 +17,11 @@ import {
 export type AssessmentLibraryProps = {
   assessments: AssessmentPackage[];
   assessmentSession: AssessmentSession;
-  assessmentHistory: AssessmentHistoryEntry[];
   onStartAssessment: (packageId: string) => void;
   onResumeAssessment: () => void;
   onRestartAssessment: () => void;
   onDiscardAssessment: () => void;
   onDeleteAssessment: (packageId: string) => Promise<void>;
-  onReviewAssessment: (attemptId: string) => Promise<void>;
 };
 
 export function AssessmentLibrary({
@@ -35,16 +32,7 @@ export function AssessmentLibrary({
   onRestartAssessment,
   onDiscardAssessment,
   onDeleteAssessment,
-}: Pick<
-  AssessmentLibraryProps,
-  | "assessments"
-  | "assessmentSession"
-  | "onStartAssessment"
-  | "onResumeAssessment"
-  | "onRestartAssessment"
-  | "onDiscardAssessment"
-  | "onDeleteAssessment"
->): ReactElement {
+}: AssessmentLibraryProps): ReactElement {
   const [lifecycleAction, setLifecycleAction] = useState<AssessmentLifecycleAction | null>(null);
   const draftPackageId = getDraftAssessmentPackageId(assessmentSession);
   const confirmLifecycleAction = async (action: AssessmentLifecycleAction) => {
@@ -174,48 +162,5 @@ export function AssessmentLibrary({
         onConfirm={confirmLifecycleAction}
       />
     </section>
-  );
-}
-
-export function AssessmentHistory({
-  history,
-  onReview,
-}: {
-  history: AssessmentHistoryEntry[];
-  onReview: (attemptId: string) => Promise<void>;
-}): ReactElement {
-  return (
-    <>
-      {history.slice(0, 3).map((attempt) => (
-        <div key={attempt.attemptId} className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <Shapes size={16} className="text-neutral-400" />
-            <div>
-              <span className="font-semibold text-neutral-800">{attempt.title}</span>
-              <span className="ml-2 text-[11px] text-neutral-400">
-                {new Date(attempt.submittedAt).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                })}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="font-bold text-neutral-900">
-              {attempt.rawScore}/{attempt.maximumScore}
-              {attempt.evaluationStatus === "awaiting_evaluation" ? " · Feedback pending" : ""}
-              {attempt.evaluationStatus === "evaluated" ? " · Feedback ready" : ""}
-            </span>
-            <button
-              type="button"
-              onClick={() => void onReview(attempt.attemptId)}
-              className="rounded border border-neutral-200 px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50"
-            >
-              Review
-            </button>
-          </div>
-        </div>
-      ))}
-    </>
   );
 }

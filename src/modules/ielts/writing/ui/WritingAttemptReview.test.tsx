@@ -61,6 +61,7 @@ describe('Writing review surface', () => {
         submission={submission}
         evaluation={evaluation}
         currentPart={2}
+        onCorrectionSelect={() => undefined}
         onPartChange={() => undefined}
         onExit={() => undefined}
       />,
@@ -95,7 +96,7 @@ describe('Writing review surface', () => {
     const saved = structuredClone(submission)
     saved.tasks[0].task.title = 'Original saved task'
     saved.tasks[0].task.prompt = 'Summarise this saved chart, not a replacement task.'
-    const markup = renderToStaticMarkup(<WritingAttemptReview submission={saved} evaluation={{ ...evaluation, revision: 2, summary: 'Revised feedback.' }} currentPart={1} onPartChange={() => undefined} onExit={() => undefined} />)
+    const markup = renderToStaticMarkup(<WritingAttemptReview submission={saved} evaluation={{ ...evaluation, revision: 2, summary: 'Revised feedback.' }} currentPart={1} onCorrectionSelect={() => undefined} onPartChange={() => undefined} onExit={() => undefined} />)
     expect(markup).toContain('Revision 2')
     expect(markup).toContain('Revised feedback.')
     expect(markup).toContain('View task and chart')
@@ -108,7 +109,7 @@ describe('Writing review surface', () => {
     expect(markup).toContain(saved.tasks[0].response)
   })
   it('keeps the history return label after evaluation', () => {
-    const markup = renderToStaticMarkup(<WritingAttemptReview submission={submission} evaluation={evaluation} currentPart={1} onPartChange={() => undefined} onExit={() => undefined} backLabel="Back to practice" />)
+    const markup = renderToStaticMarkup(<WritingAttemptReview submission={submission} evaluation={evaluation} currentPart={1} onCorrectionSelect={() => undefined} onPartChange={() => undefined} onExit={() => undefined} backLabel="Back to practice" />)
     expect(markup).toContain('aria-label="Back to practice"')
     expect(markup).not.toContain('Back to results')
   })

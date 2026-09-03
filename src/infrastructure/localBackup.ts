@@ -6,7 +6,6 @@ import { draftSaves } from './saveCoordinator';
 const STAGING_PATH = 'practice-import.sqlite3';
 export const RESTORE_PENDING_KEY = 'practice-restore-pending-v1';
 export const RESTORE_NOTICE_KEY = 'practice-restore-notice-v1';
-const LEGACY_KEYS = ['ielts-practice-session-v4', 'assessment-runtime-session-v3'];
 const MAX_BACKUP_BYTES = 256 * 1024 * 1024;
 // Closing the dialog and immediately choosing another file must not race cleanup.
 let stagingWork: Promise<unknown> = Promise.resolve();
@@ -49,6 +48,12 @@ async function prepare(file: File) {
 
 export const prepareBackupImport = (file: File) => queueStaging(() => prepare(file));
 
+export async function hasArchivedDrafts(): Promise<boolean> {
+  const database = await getLocalDatabase();
+  const rows = await database.sql`SELECT 1 FROM storage_imports WHERE status = 'unavailable' LIMIT 1`;
+  return rows.length > 0;
+}
+
 export async function downloadLocalBackup() {
   await draftSaves.flush();
   const file = await (await getLocalDatabase()).getDatabaseFile();
@@ -77,8 +82,6 @@ export async function restorePendingBackup() {
       throw error instanceof BackupValidationError ? error
         : new Error('The backup could not be saved. Your current data is unchanged. Check available storage, then retry or cancel.');
     }
-    // Do not let a previous browser's legacy drafts reappear after replacement.
-    for (const key of LEGACY_KEYS) localStorage.removeItem(key);
     localStorage.removeItem(RESTORE_PENDING_KEY);
     try { sessionStorage.setItem(RESTORE_NOTICE_KEY, 'Backup imported. Your saved practice is ready.'); } catch { /* Restoration does not depend on a notice. */ }
     await staging.deleteDatabaseFile(undefined, true).catch(() => {});

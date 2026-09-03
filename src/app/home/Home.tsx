@@ -9,8 +9,7 @@ import {
   PlayCircle,
   RotateCcw,
 } from "lucide-react";
-import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
-import { StorageButton } from '@/app/WorkspaceStorage';
+import { PracticeHeader } from '@/app/layouts/PracticeHeader';
 import { SECTION_META, SECTION_ORDER } from "@/domain/sections";
 import {
   getResumableSection,
@@ -21,7 +20,8 @@ import {
 import type { SectionKey } from "@/domain/types";
 import type { ActiveContentDocuments } from "@/domain/contentDocument";
 import type { ListeningAudioSession } from "@/application/useListeningAudio";
-import type { LearningSummary } from "@/domain/learningSummary";
+import { usePracticeHistory } from '@/application/usePracticeHistory';
+import type { HistoryKind } from '@/infrastructure/database/historyRepository';
 import {
   AssessmentLibrary,
   type AssessmentLibraryProps,
@@ -39,10 +39,10 @@ type HomeProps = {
   listeningAudio: ListeningAudioSession;
   onRetryListeningAudio: () => void;
   content: ActiveContentDocuments;
-  learningSummary: LearningSummary | null;
+  historyRevision: string;
   onReviewAttempt: (
     attemptId: string,
-    section: "listening" | "reading" | "writing" | "speaking",
+    kind: HistoryKind,
   ) => Promise<void>;
 };
 
@@ -81,11 +81,12 @@ export function Home({
   listeningAudio,
   onRetryListeningAudio,
   content,
-  learningSummary,
+  historyRevision,
   onReviewAttempt,
   assessmentLibrary,
 }: HomeProps): React.ReactElement {
   const [toolsModalOpen, setToolsModalOpen] = useState(false);
+  const history = usePracticeHistory(historyRevision);
   const listeningReady = listeningAudio.readyToPlay;
   const fullDraft = findIeltsDraft(session, 'full', 'listening');
   const resumableFullExamSection = fullDraft ? getResumableSection(fullDraft) : null;
@@ -94,38 +95,18 @@ export function Home({
 
   return (
     <div className="min-h-screen w-full bg-[#fafafa] text-neutral-900 font-sans selection:bg-neutral-200 flex flex-col">
-      {/* Unified Top Header Bar */}
-      <header className="w-full border-b border-neutral-200/80 bg-white sticky top-0 z-30">
-        <div className="max-w-[1400px] mx-auto flex h-[60px] items-center justify-between px-4 sm:px-8">
-          <div className="flex items-center gap-2 sm:gap-6 min-w-0">
-            <AssessmentLabBrand />
-            <div className="hidden sm:flex flex-col text-xs border-l pl-6 h-8 justify-center min-w-0">
-              <span className="font-bold text-neutral-900 leading-tight">
-                Practice
-              </span>
-              <span className="text-neutral-500 text-[11px] truncate leading-tight">
-                IELTS and custom assessments
-              </span>
-            </div>
-          </div>
-
-          <StorageButton canImport />
-        </div>
-      </header>
+      <PracticeHeader canImport />
 
       {/* Main Page Content */}
       <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-8 lg:px-12 py-8 lg:py-10 space-y-10">
-        {/* Title & Philosophy Block */}
         <div className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-950">
             Choose your practice
           </h1>
           <p className="text-base text-neutral-600 leading-relaxed font-normal max-w-3xl">
-            Create practice with your agent, answer the questions here, and review your results.
+            Choose a ready-made test or ask your agent to create practice for you.
+            Complete it here, then review your results and feedback.
           </p>
-          <div className="border-l-2 border-neutral-300 pl-4 py-1 text-sm text-neutral-600 italic">
-            Start with a ready-made test or ask your agent to create one for you.
-          </div>
         </div>
 
         {/* Full Exam Simulation Card */}
@@ -297,10 +278,8 @@ export function Home({
         </section>
 
         <RecentAttempts
-          assessmentHistory={assessmentLibrary.assessmentHistory}
-          onReviewAssessment={assessmentLibrary.onReviewAssessment}
-          learningSummary={learningSummary}
-          onReviewAttempt={onReviewAttempt}
+          history={history}
+          onReview={onReviewAttempt}
         />
 
         {/* Signature Monospace Callout */}

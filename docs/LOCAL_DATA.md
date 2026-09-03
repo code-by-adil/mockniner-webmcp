@@ -26,14 +26,17 @@ audio survives reload even if transcription fails. Resuming continues at the
 next unanswered question; completed transcripts are reused. A recording still in
 progress is not saved. Agents cannot read draft recordings or transcripts.
 
-## Older saved data
+## Format changes
 
-Legacy `localStorage` drafts are imported once. Their raw values are retained in
-`storage_imports`; the original key is removed only after a successful import.
-Invalid records are kept and reported, not replaced with empty data. Migration 9
-archives incompatible older universal tables under `legacy_*_v8` names, and
-migration 10 accepts older audio-only Speaking records. Recovery applies to
-records retained in the database or a backup.
+SQLite is the only draft runtime. Older localStorage drafts are no longer read
+or imported. Removing that implementation does not delete the old browser keys.
+Previously retained native recovery records remain in database exports.
+
+Custom-assessment schema version 4 uses one rubric and calculates overall scores
+locally. Migration 14 retires old custom packages, drafts, submitted attempts,
+evaluations, activity, and archived custom tables. It does not remove native
+IELTS content, drafts, submissions, recordings, or feedback. Earlier custom
+formats are not converted.
 
 ## Backups
 
@@ -54,16 +57,15 @@ voice-model caches are not included. Backup files are unencrypted and remain on
 the device. Store them securely. Clearing site data removes local work even when
 persistent storage has been granted.
 
-Imports accept current-format SQLite backups and version 12 backups made before
-objective explanations were added, up to 256 MB. Version 12 imports start with
-no saved objective explanations. Validation runs against a separate staging
+Imports accept current-format SQLite backups up to 256 MB. Older backup formats
+are rejected. Validation runs against a separate staging
 file; unsupported versions, damaged files, unexpected tables, views and triggers
 are rejected. Only rows are copied into application-owned tables, in one
 transaction. An import failure rolls back the replacement. A confirmed restore
 runs under the single-writer lock, before application hooks and WebMCP mount, so
 stale autosaves cannot overwrite restored work. If interrupted, the next load
-retries the pending import; a failed import offers Retry and Cancel. Older
-archived tables remain inert recovery data, not executable imported SQL.
+retries the pending import; a failed import offers Retry and Cancel. Imported
+files never supply executable SQL.
 
 ## Scoring and feedback records
 

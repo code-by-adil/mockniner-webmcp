@@ -37,22 +37,19 @@ describe("listening audio controls", () => {
     }
   });
 
-  it("keeps bundled-only focus, shrink, and animation classes explicit", () => {
+  it("keeps shared focus and layout classes on the controls", () => {
     const html = renderToStaticMarkup(
-      <ListeningAudioActions placement="header-popout" popoutClassName="exam-header-popout-wiggle">
+      <ListeningAudioActions placement="header-popout">
         <ListeningSkipPrompt
           onSkip={() => undefined}
           onDismiss={() => undefined}
           dismissLabel="Dismiss jump audio to Part 2"
-          actionClassName="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
-          dismissClassName="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
         >
           Jump audio to Part 2
         </ListeningSkipPrompt>
       </ListeningAudioActions>,
     );
     expect(html).toContain("exam-audio-popout");
-    expect(html).toContain("exam-header-popout-wiggle");
     expect(html).toContain("focus-visible:ring-black/30");
     expect(html).toContain("shrink-0");
     expect(html).toContain("Jump audio to Part 2");

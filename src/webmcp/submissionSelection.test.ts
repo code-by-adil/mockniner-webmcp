@@ -25,8 +25,8 @@ function harness(kind: 'assessment' | 'writing' | 'speaking') {
   const getVisibleId = () => visible
   // Each factory gets its correctly typed repository interface. The shared fake
   // only changes identity, matching the repository's latest-on-undefined rule.
-  const tools = kind === 'assessment' ? createAssessmentToolDefinitions({ installAssessment: vi.fn(), attachEvaluation: vi.fn(),
-    readAssessmentAttempt: async id => await read(id) as { submission: AssessmentSubmission; evaluation: null }, getCurrentAttemptId: getVisibleId }, 'evaluation')
+  const tools = kind === 'assessment' ? createAssessmentToolDefinitions({ attachEvaluation: vi.fn(),
+    readAssessmentAttempt: async id => await read(id) as { submission: AssessmentSubmission; evaluation: null }, getCurrentAttemptId: getVisibleId })
     : kind === 'writing' ? createWritingToolDefinitions({ attachWritingEvaluation: vi.fn(),
       readWritingAttempt: async id => await read(id) as { submission: WritingSubmission; evaluation: null }, getCurrentWritingAttemptId: getVisibleId })
       : createSpeakingToolDefinitions({ attachSpeakingEvaluation: vi.fn(),

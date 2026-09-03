@@ -4,9 +4,9 @@ The application has two complementary test layers:
 
 - Vitest verifies schemas, handlers, state transitions, grading, persistence,
   and rendering deterministically.
-- `webmcp-evals` checks whether a real model can understand the complete set of
-  tools available on the library screen and complete an authoring request from
-  natural language.
+- Model evaluations check whether a real model can complete an authoring
+  request from natural language. Browser runs discover the full live catalog;
+  static runs use the authoring subset.
 
 The model suite runs as development tooling, separately from the application.
 
@@ -32,11 +32,13 @@ fixtures cover this authoring subset. Live browser runs discover the full
 registered catalog. Each tool checks the current practice state before allowing
 an action.
 
-The first four requests must call the smallest relevant universal authoring kit
-and then `install_assessment`. IELTS Reading must call `get_ielts_authoring_kit`
-for Reading and then `install_ielts_practice_set`. Passage-text selection must
-stop after reading the GRE-style kit and explain the unsupported capability;
-calling either installation tool fails the case.
+The first four requests must call the relevant universal authoring kit and then
+`install_assessment`. IELTS Reading must call `get_ielts_authoring_kit` for Reading
+and then `install_ielts_practice_set`. Read-only context, library, history,
+activity, learning-summary and installed-content calls are allowed around those
+steps. Wrong-family writes, extra mutations and incorrect ordering fail.
+Passage-text selection must read the GRE-style kit and explain the unsupported
+capability in the final response. Calling either installation tool fails the case.
 
 The report validator checks tool selection and parses each generated package
 against the application schema. It also checks the request-specific contract:
@@ -72,6 +74,11 @@ Vitest verifies these contracts without creating files under `.evals`:
 - GRE coverage still declares passage selection unsupported and official score
   reporting limited;
 - every natural-language case compiles to a valid `webmcp-evals` trajectory.
+- read-only discovery does not invalidate a correct authoring route;
+- application rejections and missing persisted content fail the browser smoke
+  assertions, even when the browser reports successful callback execution;
+- unsupported-capability checks use the final response, never internal reasoning
+  or earlier messages.
 
 These tests use no model and no API key. Evaluation commands generate their
 ignored JSON inputs before running. To generate the inputs without evaluating
@@ -89,13 +96,18 @@ Start the application, then run the deterministic browser journey:
 npm run eval:agent:smoke -- --chrome-channel chrome-canary --verbose
 ```
 
-Set `AGENT_EVAL_URL` to test another local or deployed URL. The package script
-generates the fixture, then calls the upstream `smoke` command directly. The
-upstream runner resolves matcher constraints to concrete arguments, opens a
-fresh page per case, and calls every tool registered on the library screen. It
-checks real discovery, callback execution, local persistence, and structured
-failure handling without a model or API key. Use the model evaluations to check
-natural-language tool selection.
+Set `AGENT_EVAL_URL` to test another local or deployed URL. The script uses the
+pinned upstream browser runner with application result assertions. Every call
+must return `ok: true`; an `{ ok: false, error }` response stops that journey.
+The first page reads the learning summary and authoring kits, then installs one
+universal assessment and one native IELTS Writing set. A fresh page in the same
+temporary browser profile reads back the complete universal package and the
+saved Writing library entry, including its active selection.
+
+This is an authoring and persistence smoke test, not coverage of all registered
+tools or the full learner-to-feedback workflow. It uses no model or API key and
+saves a JSON report under `.evals/agent-authoring/reports`. Model evaluations
+check natural-language tool selection separately.
 
 ## Static model evaluation
 
@@ -111,8 +123,8 @@ tools return their real generated authoring-kit payloads through deterministic
 mock results; mutation tools return success-shaped mocks. The report gate still
 validates the model's generated arguments with the application parsers.
 
-Each run writes JSON and HTML reports to its own directory under
-`.evals/agent-authoring/reports`.
+Each run writes a raw execution JSON report and an application validation JSON
+report to its own directory under `.evals/agent-authoring/reports`.
 
 ## Live browser evaluation
 
@@ -149,9 +161,16 @@ With the development server running, execute:
 npm run eval:agent:release -- --backend vercel --model openai:gpt-5.4 --chrome-channel chrome-canary
 ```
 
-For ordinary local and browser evaluations, the wrapper delegates execution,
-`--runs`, matcher constraints, and report rendering to `webmcp-evals`, then
-applies the application-specific semantic validator to the JSON report.
+The wrapper delegates model and browser execution to `webmcp-evals`. The
+application validator removes permitted read-only discovery calls, then applies
+the upstream matcher to the essential ordered calls and checks the generated
+content with the application parsers. Successful installation results are
+required. The final response must explain an unsupported request.
+
+The `.validation.json` report and command exit status are the release verdict.
+Raw upstream reports retain the full trajectory for diagnosis; their strict
+matcher may mark permitted discovery calls as unexpected. That raw verdict is
+not used as the application gate. Execution errors still fail.
 
 Release mode defaults to five runs per case. It retains one extra behavior the
 upstream runner does not provide: the wrapper launches a separate temporary
@@ -163,8 +182,8 @@ gate requires:
 - at least 80% for every individual case;
 - 100% correct routing for native IELTS Reading;
 - 100% refusal to approximate unsupported passage selection;
-- every counted pass to satisfy both the upstream call matcher and the local
-  semantic package gate.
+- every counted pass to satisfy the ordered authoring contract and the semantic
+  package checks.
 
 Pass `--runs` explicitly to change only the sample count. The thresholds stay
 fixed. Reports identify the tested model and version. Repeat evaluations when
@@ -176,6 +195,10 @@ The suite pins `webmcp-evals` to `0.0.4` for reproducible runs. It is an
 Apache-2.0 development dependency maintained in the [GoogleChromeLabs WebMCP
 tools
 repository](https://github.com/GoogleChromeLabs/webmcp-tools/tree/main/webmcp-evals).
-Before upgrading, rerun the deterministic tests and inspect changes to its
-tool-schema mapping, browser launch flags, trajectory matching, and report
-format.
+The smoke adapter uses its pinned browser registry and runner modules. Before
+upgrading, rerun the deterministic tests and inspect changes to result handling,
+tool-schema mapping, browser launch flags, trajectory matching, and report format.
+
+The checks follow [Chrome's evaluation guidance](https://developer.chrome.com/docs/ai/webmcp/evals)
+for tool outputs, visible changes, failures and multi-step user journeys. Browser
+transport completion alone is not an application success assertion.

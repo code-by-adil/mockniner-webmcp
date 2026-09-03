@@ -24,7 +24,7 @@ function renderResults(reviewMode: AssessmentPackage["review"]["mode"]): string 
   };
 
   return renderToStaticMarkup(
-    <AssessmentResults submission={submission} onHome={() => undefined} />,
+    <AssessmentResults submission={submission} onHome={() => undefined} review={null} onReviewChange={() => undefined} />,
   );
 }
 
@@ -73,13 +73,17 @@ describe("universal assessment result review policy", () => {
       startedAt: '2026-09-03T10:00:00.000Z',
       submittedAt: '2026-09-03T10:05:00.000Z',
     };
-    const html = renderToStaticMarkup(<AssessmentResults submission={submission} onHome={() => undefined} />);
+    const html = renderToStaticMarkup(<AssessmentResults submission={submission} onHome={() => undefined} review={null} onReviewChange={() => undefined} />);
     expect(html).toContain('Ready for feedback');
     expect(html).toContain('Get feedback on your responses');
     expect(html).toContain('Review responses');
     expect(html).not.toContain('0% correct');
     expect(html).not.toContain('Correct answers');
     expect(html).not.toContain('0% correct');
+    expect(html).toContain('1 question');
+    expect(html).not.toContain('1 questions');
+    expect(html).toContain('1 part');
+    expect(html).not.toContain('1 parts');
   });
 
   it('keeps objective and rubric scores visible in an evaluated mixed assessment', () => {
@@ -96,13 +100,13 @@ describe("universal assessment result review policy", () => {
       startedAt: '2026-09-03T10:00:00.000Z',
       submittedAt: '2026-09-03T10:05:00.000Z',
     };
-    const rubric = assessment.rubrics[0];
+    const rubric = assessment.rubric!;
     const evaluation: AssessmentEvaluation = {
-      attemptId: submission.attemptId, rubricId: rubric.id, overallScore: 3,
+      attemptId: submission.attemptId, overallScore: 3,
       criteria: rubric.criteria.map(criterion => ({ criterionId: criterion.id, score: 3, feedback: 'Develop this argument.', evidence: ['A saved essay response.'] })),
       summary: 'Evaluation complete.', revision: 2, strengths: ['Clear position.'], improvements: ['Add examples.'], annotations: [], evaluatedAt: '2026-09-03T10:06:00.000Z',
     };
-    const html = renderToStaticMarkup(<AssessmentResults submission={submission} evaluation={evaluation} onHome={() => undefined} />);
+    const html = renderToStaticMarkup(<AssessmentResults submission={submission} evaluation={evaluation} onHome={() => undefined} review={null} onReviewChange={() => undefined} />);
     expect(html).toContain('50% correct');
     expect(html).toContain('Evaluation score');
     expect(html).toContain('Evaluation complete.');
@@ -125,7 +129,7 @@ describe("universal assessment result review policy", () => {
     };
 
     const html = renderToStaticMarkup(
-      <AssessmentAnswerReview submission={submission} initialItemId="verbal-text-completion" />,
+      <AssessmentAnswerReview submission={submission} selection={{ filter: 'all', itemId: 'verbal-text-completion' }} onSelectionChange={() => undefined} />,
     );
     expect(html).toContain('aria-label="Blank 1"');
     expect(html).toContain("inconclusive");

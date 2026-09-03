@@ -1,9 +1,7 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
-  useReducer,
   useRef,
   useState,
 } from "react";
@@ -18,7 +16,6 @@ import {
 } from "@/domain/contentDocument";
 import { createIeltsCommands } from "./ieltsCommands";
 import { reportHandledError } from "@/shared/reportHandledError";
-import type { LearningSummary } from "@/domain/learningSummary";
 import { flushSync } from 'react-dom';
 
 const bundledContent = [listeningDocument, readingDocument, writingDocument];
@@ -43,10 +40,10 @@ async function getContentStore() {
   );
 }
 
-const defaultPersistence = { getRepository, getContentStore };
+const defaultPersistence = { getRepository, getContentStore, getDraftRepository };
 
 export function useIeltsApplication(persistence = defaultPersistence) {
-  const [state, dispatch] = useReducer(sessionReducer, initialSession);
+  const [state, setState] = useState(initialSession);
   const [content, setContent] = useState<ActiveContentDocuments>({
     listening: listeningDocument,
     reading: readingDocument,
@@ -54,23 +51,29 @@ export function useIeltsApplication(persistence = defaultPersistence) {
   });
   const [contentReady, setContentReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [learningSummary, setLearningSummary] =
-    useState<LearningSummary | null>(null);
   const current = useRef({ state, content });
-  useLayoutEffect(() => {
-    current.current = { state, content };
-  }, [state, content]);
   const getState = useCallback(() => current.current.state, []);
   const getContent = useCallback(() => current.current.content, []);
+  const publishSession = useCallback((session: typeof state) => {
+    current.current.state = session;
+    flushSync(() => setState(session));
+  }, []);
+  const publishContent = useCallback((documents: ActiveContentDocuments) => {
+    current.current.content = documents;
+    flushSync(() => setContent(documents));
+  }, []);
   const save = useCallback((session: typeof state) => {
     const documents = getContent();
-    draftSaves.enqueue('ielts', async () => (await getDraftRepository()).saveIelts(session, documents));
-  }, [getContent]);
+    draftSaves.enqueue('ielts', async () => (await persistence.getDraftRepository()).saveIelts(session, documents));
+  }, [getContent, persistence]);
   const dispatchAndSave = useCallback((action: SessionAction) => {
     const next = sessionReducer(getState(), action);
-    flushSync(() => dispatch(action));
+    if (action.type === 'SET_ANSWER' || action.type === 'SET_WRITING' || action.type === 'SET_LISTENING_PLAYBACK' || action.type === 'TICK') {
+      current.current.state = next;
+      setState(next);
+    } else publishSession(next);
     save(next);
-  }, [getState, save]);
+  }, [getState, publishSession, save]);
   // The factory stores these getters. It only reads them when a command runs after commit.
   const commands = useMemo(
     () =>
@@ -79,18 +82,20 @@ export function useIeltsApplication(persistence = defaultPersistence) {
         getState,
         getContent,
         dispatch: dispatchAndSave,
+        publishSession,
         persistSession: async session => {
           await draftSaves.flush();
-          await (await getDraftRepository()).saveIelts(session, getContent());
+          await (await persistence.getDraftRepository()).saveIelts(session, getContent());
+          draftSaves.clearError();
         },
         flushDrafts: draftSaves.flush,
         // External installation callers must observe the new content and its
         // derived audio status before the installation promise resolves.
-        setContent: documents => flushSync(() => setContent(documents)),
+        setContent: publishContent,
         getRepository: persistence.getRepository,
         getContentStore: persistence.getContentStore,
       }),
-    [getState, getContent, persistence, dispatchAndSave],
+    [getState, getContent, persistence, dispatchAndSave, publishSession, publishContent],
   );
 
   useEffect(() => {
@@ -101,11 +106,11 @@ export function useIeltsApplication(persistence = defaultPersistence) {
     ])
       .then(async ([documents, reader]) => {
         const active = documents.reduce(replaceActiveContent, { listening: listeningDocument, reading: readingDocument, writing: writingDocument });
-        const drafts = await getDraftRepository();
-        const restored = await drafts.loadIelts(reader, active);
+        const drafts = await persistence.getDraftRepository();
+        const restored = await drafts.loadIelts(reader);
         if (cancelled) return;
-        setContent(restored.documents.reduce(replaceActiveContent, active));
-        dispatch({ type: "RESTORE", session: restored.session });
+        publishContent(restored.documents.reduce(replaceActiveContent, active));
+        publishSession(sessionReducer(getState(), { type: 'RESTORE', session: restored.session }));
         setContentReady(true);
       })
       .catch((error) => {
@@ -118,29 +123,7 @@ export function useIeltsApplication(persistence = defaultPersistence) {
     return () => {
       cancelled = true;
     };
-  }, [persistence]);
-  useEffect(() => {
-    if (state.view !== "home") return;
-    let cancelled = false;
-    void persistence
-      .getRepository()
-      .then((repository) => repository.readLearningSummary(5))
-      .then((summary) => {
-        if (!cancelled) setLearningSummary(summary);
-      })
-      .catch((error) =>
-        reportHandledError(error, { feature: "attempt-history-load" }),
-      );
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    state.view,
-    state.completedSections,
-    state.writingEvaluation,
-    state.speakingEvaluation,
-    persistence,
-  ]);
+  }, [persistence, getState, publishSession, publishContent]);
   const loadPracticeContent = useCallback(async (key: string) => (await persistence.getContentStore()).loadByKey(key), [persistence]);
-  return { state, content, contentReady, loadError, learningSummary, commands, loadPracticeContent };
+  return { state, content, contentReady, loadError, commands, loadPracticeContent };
 }

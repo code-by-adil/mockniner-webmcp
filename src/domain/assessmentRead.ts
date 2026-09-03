@@ -23,10 +23,10 @@ export function selectAssessmentContent(assessment: AssessmentPackage, scope: As
     throw new ApplicationError('ASSESSMENT_SCOPE_NOT_FOUND', 'No readable part/item matches. Use view summary to discover permitted IDs; an item must belong to the requested part.', true);
   }
   const resourceIds = new Set(parts.flatMap(part => part.tools.flatMap(tool => tool.type === 'reference_document' ? [tool.resourceId] : [])));
-  const rubricIds = new Set(parts.flatMap(part => part.items.flatMap(item => item.evaluationRubricId ? [item.evaluationRubricId] : [])));
+  const hasAgentItems = parts.some(part => part.items.some(item => item.scoring.type === 'agent'));
   return { ...assessment, parts,
     resources: assessment.resources.filter(resource => resourceIds.has(resource.id)),
-    rubrics: assessment.rubrics.filter(rubric => rubricIds.has(rubric.id)) };
+    rubric: hasAgentItems ? assessment.rubric : undefined };
 }
 
 export function assessmentOutline(assessment: AssessmentPackage) {
@@ -47,8 +47,8 @@ export function readAssessmentSubmission(stored: { submission: AssessmentSubmiss
   const content = selectAssessmentContent(submission.package, scope, permitted);
   const selectedIds = new Set(content.parts.flatMap(part => part.items.map(item => item.id)));
   const { itemResults, ...totals } = submission.result;
-  const evaluationSummary = evaluation ? { attemptId: evaluation.attemptId, rubricId: evaluation.rubricId,
-    overallScore: evaluation.overallScore, revision: evaluation.revision ?? 1, evaluatedAt: evaluation.evaluatedAt } : null;
+  const evaluationSummary = evaluation ? { attemptId: evaluation.attemptId,
+    overallScore: evaluation.overallScore, revision: evaluation.revision, evaluatedAt: evaluation.evaluatedAt } : null;
   const resultScope = { ...scope, partial: true, resultTotals: 'assessment',
     evaluation: scope.view === 'summary' ? 'summary' : 'selected_annotations' };
   if (scope.view === 'summary') return {

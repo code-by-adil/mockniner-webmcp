@@ -41,7 +41,7 @@ export function AssessmentBoundaryDialog({
             : "You cannot return to this part after continuing."}
           {unansweredCount ? ` ${unansweredCount} ${unansweredLabel} unanswered.` : ""}
           {constrainedResponseCount
-            ? ` ${constrainedResponseCount} ${constrainedLabel} not meet the declared limits and will be submitted as written.`
+            ? ` ${constrainedResponseCount} ${constrainedLabel} not meet the question requirements and will be submitted as written.`
             : ""}
         </p>
         <div className="mt-6 flex justify-end gap-2">

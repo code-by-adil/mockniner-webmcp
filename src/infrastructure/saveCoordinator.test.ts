@@ -22,4 +22,16 @@ describe('shared save coordinator', () => {
     expect(save).toHaveBeenCalledTimes(2);
     expect(queue.getSnapshot().pending).toBe(false);
   });
+  it('clears a resolved command error without hiding a pending failed write', async () => {
+    const queue = createSaveCoordinator();
+    queue.reportFailure(new Error('A command failed.'));
+    queue.clearError();
+    expect(queue.getSnapshot()).toEqual({ pending: false, error: null });
+    const save = vi.fn().mockRejectedValueOnce(new Error('Draft save failed.')).mockResolvedValue(undefined);
+    queue.enqueue('draft', save);
+    await expect(queue.flush()).rejects.toThrow('Draft save failed.');
+    queue.clearError();
+    expect(queue.getSnapshot()).toEqual({ pending: true, error: 'Draft save failed.' });
+    await queue.flush();
+  });
 });

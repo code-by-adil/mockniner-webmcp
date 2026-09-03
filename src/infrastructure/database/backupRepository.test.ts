@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SQLocal } from 'sqlocal';
-import { migrateDatabase } from './migrations';
+import { DATABASE_MIGRATION_VERSIONS, migrateDatabase } from './migrations';
 import { inspectBackup, restoreBackup } from './backupRepository';
 import { createDraftRepository } from './draftRepository';
 import { createIeltsRepository } from './ieltsRepository';
@@ -29,15 +29,11 @@ beforeEach(async () => {
 afterEach(async () => { await source.destroy(true); await destination.destroy(true); vi.unstubAllGlobals(); });
 
 describe('local backup replacement', () => {
-  it('restores version 12 backups without inventing explanations or breaking the next migration', async () => {
-    await source.sql`DROP TABLE objective_explanations`;
-    await source.sql`DELETE FROM app_schema_migrations WHERE version = 13`;
-    await source.sql`INSERT INTO attempts VALUES ('legacy', 'reading', 'original', 'submitted', ${now}, ${now})`;
-    await restoreBackup(source, destination);
-    await migrateDatabase(destination);
-    expect(await destination.sql`SELECT id FROM attempts`).toEqual([{ id: 'legacy' }]);
-    expect(await destination.sql`SELECT * FROM objective_explanations`).toEqual([]);
-    expect(await source.sql`SELECT version FROM app_schema_migrations WHERE version = 13`).toEqual([]);
+  it('rejects older backups before replacing current practice', async () => {
+    await source.sql`DELETE FROM app_schema_migrations WHERE version = 14`;
+    await destination.sql`INSERT INTO attempts VALUES ('current', 'reading', 'original', 'submitted', ${now}, ${now})`;
+    await expect(restoreBackup(source, destination)).rejects.toThrow('older storage format');
+    expect(await destination.sql`SELECT id FROM attempts`).toEqual([{ id: 'current' }]);
   });
   it('round-trips drafts, pinned content, raw recordings, submissions, feedback, audio and activity without merging', async () => {
     let draft = sessionReducer(initialSession, { type: 'START', section: 'writing', mode: 'section', attemptId: crypto.randomUUID(), startedAt: now });
@@ -58,7 +54,7 @@ describe('local backup replacement', () => {
     await restoreBackup(source, destination);
     const tables = await source.sql<{ name: string }>`SELECT name FROM sqlite_master WHERE type = 'table' AND name <> 'sqlite_sequence'`;
     for (const { name } of tables) expect(await destination.sql(`SELECT * FROM "${name}"`), name).toEqual(await source.sql(`SELECT * FROM "${name}"`));
-    const restored = await createDraftRepository(destination).loadIelts(createIeltsRepository(destination), content);
+    const restored = await createDraftRepository(destination).loadIelts(createIeltsRepository(destination));
     expect(restored.session.writingDrafts[1]).toBe('My unfinished essay.');
     expect(new Uint8Array(await (await source.getDatabaseFile()).arrayBuffer())).toEqual(new Uint8Array(await before.arrayBuffer()));
     // A restart after commit but before clearing the import intent is safe to retry.
@@ -66,14 +62,10 @@ describe('local backup replacement', () => {
     expect(await destination.sql`SELECT id FROM attempts`).toEqual([{ id: 'native' }]);
   });
 
-  it('preserves legacy tables as inert data without importing their SQL', async () => {
+  it('rejects retired custom-assessment archives', async () => {
     await source.sql`CREATE TABLE legacy_assessment_packages_v8 (package_id TEXT PRIMARY KEY, document_json TEXT NOT NULL)`;
     await source.sql`INSERT INTO legacy_assessment_packages_v8 VALUES ('old', 'original legacy document')`;
-    await destination.sql`CREATE TABLE legacy_assessment_packages_v8 (package_id TEXT PRIMARY KEY)`;
-    await destination.sql`INSERT INTO legacy_assessment_packages_v8 VALUES ('replaced')`;
-    await restoreBackup(source, destination);
-    expect(await destination.sql`SELECT * FROM legacy_assessment_packages_v8`).toEqual([{ package_id: 'old', document_json: 'original legacy document' }]);
-    await inspectBackup(destination, source);
+    await expect(restoreBackup(source, destination)).rejects.toThrow('not a compatible practice backup');
   });
 
   it('rolls back every replacement if an insert fails', async () => {
@@ -82,7 +74,7 @@ describe('local backup replacement', () => {
     await destination.sql`CREATE TRIGGER fail_restore BEFORE INSERT ON attempts BEGIN SELECT RAISE(ABORT, 'injected quota failure'); END`;
     await expect(restoreBackup(source, destination)).rejects.toThrow('injected quota failure');
     expect(await destination.sql`SELECT id FROM attempts`).toEqual([{ id: 'keep-me' }]);
-    expect(await destination.sql`SELECT version FROM app_schema_migrations`).toHaveLength(11);
+    expect(await destination.sql`SELECT version FROM app_schema_migrations`).toHaveLength(DATABASE_MIGRATION_VERSIONS.length);
   });
 
   it.each(['trigger', 'view', 'extra table', 'missing table', 'altered columns', 'future version', 'missing migration'])('rejects %s before changing current data', async kind => {

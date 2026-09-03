@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SQLocal } from 'sqlocal'
-import { migrateDatabase } from './migrations'
+import { DATABASE_MIGRATION_VERSIONS, migrateDatabase } from './migrations'
 import { readLearningSummary } from './attemptRepository'
 import {
   readSpeakingAttempt,
@@ -133,7 +133,7 @@ describe('Speaking SQLite repository', () => {
     const rows = await database.sql<{ version: number }>`
       SELECT version FROM app_schema_migrations ORDER BY version
     `
-    expect(rows.map((row) => Number(row.version))).toEqual([1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13])
+    expect(rows.map((row) => Number(row.version))).toEqual(DATABASE_MIGRATION_VERSIONS)
   })
 
   it('stores one transcript-based evaluation and marks the attempt evaluated', async () => {

@@ -23,16 +23,12 @@ const button = () => host.querySelector('button')!
 const click = () => act(async () => button().click())
 
 describe('copyable Speaking evaluation prompt', () => {
-  it('targets the exact attempt and states attachment and evidence boundaries', () => {
+  it('requests feedback for the visible attempt without exposing tool instructions', () => {
     const prompt = host.querySelector('blockquote')!.textContent!
-    expect(prompt).toMatch(/^Evaluate my IELTS Speaking interview/)
-    expect(prompt.endsWith(`Attempt ID: ${attemptId}`)).toBe(true)
-    expect(prompt.split(attemptId)).toHaveLength(2)
-    expect(prompt).toContain("this page's WebMCP tools")
-    expect(prompt).toContain('attach the structured evaluation to this same attempt')
-    expect(prompt).toContain('Do not score pronunciation or infer delivery from text')
-    expect(prompt).toContain('blank/skipped answers as missing evidence')
-    expect(prompt).toContain('without inventing band scores')
+    expect(prompt).toBe('Review my IELTS Speaking interview and add feedback to the attempt open on this page.')
+    expect(prompt).not.toContain(attemptId)
+    expect(prompt).not.toContain('WebMCP')
+    expect(host.textContent).toContain('Pronunciation is not included.')
     expect(prompt).not.toContain('latest')
   })
   it('copies exactly the visible prompt and reports success only after the clipboard resolves', async () => {
@@ -45,15 +41,15 @@ describe('copyable Speaking evaluation prompt', () => {
     expect(host.querySelector('[role="status"]')!.textContent).toBe('')
     await act(async () => copied())
     expect(button().textContent).toBe('Copied')
-    expect(host.querySelector('[role="status"]')!.textContent).toContain('Prompt copied')
+    expect(host.querySelector('[role="status"]')!.textContent).toContain('Text copied')
     await act(async () => vi.advanceTimersByTimeAsync(2500))
-    expect(button().textContent).toBe('Copy prompt')
+    expect(button().textContent).toBe('Copy request')
   })
   it('shows a recoverable error rather than false success when clipboard permission is denied', async () => {
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new DOMException('Denied', 'NotAllowedError')).mockResolvedValue(undefined)
     await click()
-    expect(host.querySelector('[role="alert"]')!.textContent).toContain('Select and copy the prompt')
-    expect(button().textContent).toBe('Copy prompt')
+    expect(host.querySelector('[role="alert"]')!.textContent).toContain('Select and copy the text')
+    expect(button().textContent).toBe('Copy request')
     await click()
     expect(writeText).toHaveBeenCalledTimes(2)
     expect(button().textContent).toBe('Copied')

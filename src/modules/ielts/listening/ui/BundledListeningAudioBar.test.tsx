@@ -3,9 +3,9 @@ import { act, StrictMode, type ComponentProps } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BundledListeningAudioBar } from "./BundledListeningAudioBar";
-import { getListeningAudioSources } from '@/infrastructure/media/listeningAudio';
+import { getBundledListeningSources } from '@/infrastructure/media/bundledListeningAssets';
 
-const { audioUrl, timelineUrl } = getListeningAudioSources('local-original');
+const { audioUrl, timelineUrl } = getBundledListeningSources('local-original');
 
 const timeline = {
   events: [
@@ -113,6 +113,7 @@ describe("bundled Listening media lifecycle", () => {
 
   it("restores the saved cursor before autoplay and permits Play after autoplay is blocked", async () => {
     const audio = await render({ hydrateState: { currentTimeSec: 42, volume: 0.6 } });
+    expect(onPersistState).not.toHaveBeenCalled();
     vi.mocked(audio.play).mockImplementation(async function (this: HTMLAudioElement) {
       expect(this.currentTime).toBe(42);
       throw new DOMException("User activation required", "NotAllowedError");
@@ -120,6 +121,7 @@ describe("bundled Listening media lifecycle", () => {
     await loadMetadata(audio);
     expect(audio.currentTime).toBe(42);
     expect(audio.volume).toBe(0.6);
+    expect(onPersistState).toHaveBeenLastCalledWith({ currentTimeSec: 42, volume: 0.6 });
 
     vi.mocked(audio.play).mockImplementation(async function (this: HTMLAudioElement) {
       expect(this.currentTime).toBe(42);
@@ -130,6 +132,23 @@ describe("bundled Listening media lifecycle", () => {
     expect(container.textContent).not.toContain("Play");
     await act(async () => audio.pause());
     expect(onUiStatus).toHaveBeenLastCalledWith(expect.objectContaining({ state: "paused" }));
+  });
+
+  it("does not overwrite a saved cursor when muted or exited before metadata loads", async () => {
+    await render({ hydrateState: { currentTimeSec: 42, volume: 0.6 } });
+    await render({ hydrateState: { currentTimeSec: 42, volume: 0.6 }, isMuted: true });
+    expect(onPersistState).not.toHaveBeenCalled();
+    await act(async () => root.render(null));
+    expect(onPersistState).not.toHaveBeenCalled();
+  });
+
+  it("applies a part jump requested before metadata without persisting the loading reset", async () => {
+    const audio = await render({ currentPart: 2, hydrateState: { currentTimeSec: 42, volume: 0.6 } });
+    await click("Jump audio to Part 2");
+    expect(onPersistState).not.toHaveBeenCalled();
+    await loadMetadata(audio);
+    expect(audio.currentTime).toBeCloseTo(60.01);
+    expect(onPersistState).toHaveBeenLastCalledWith({ currentTimeSec: 60.01, volume: 0.6 });
   });
 
   it("keeps the source stable through rerenders, silence skipping, and timeline jumps", async () => {

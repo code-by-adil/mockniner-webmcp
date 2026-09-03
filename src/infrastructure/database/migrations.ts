@@ -228,6 +228,26 @@ const migrations = [
       )`,
     ],
   },
+  {
+    version: 14,
+    statements: [
+      `DELETE FROM practice_drafts WHERE family = 'assessment'`,
+      `DELETE FROM practice_activity WHERE kind = 'assessment'`,
+      `DELETE FROM assessment_evaluations`,
+      `DELETE FROM assessment_attempts`,
+      `DROP TABLE assessment_packages`,
+      `CREATE TABLE assessment_packages (
+        package_id TEXT PRIMARY KEY,
+        schema_version INTEGER NOT NULL CHECK (schema_version = 4),
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        document_json TEXT NOT NULL,
+        installed_at TEXT NOT NULL
+      )`,
+      `DROP TABLE IF EXISTS legacy_assessment_evaluations_v8`,
+      `DROP TABLE IF EXISTS legacy_assessment_attempts_v8`,
+      `DROP TABLE IF EXISTS legacy_assessment_packages_v8`,
+    ],
+  },
 ] as const
 
 export const DATABASE_VERSION = migrations.at(-1)!.version
@@ -251,16 +271,10 @@ export async function migrateDatabase(database: SQLocal): Promise<void> {
     for (const migration of migrations) {
       if (appliedVersions.has(migration.version)) continue
 
-      // Earlier universal schemas cannot be interpreted as version 3. Preserve
-      // their tables for export/recovery instead of deleting the learner's work.
       if (migration.version === 9) {
-        const existing = await transaction.sql<{ name: string }>`SELECT name FROM sqlite_master WHERE type = 'table'`
         for (const name of ['assessment_evaluations', 'assessment_attempts', 'assessment_packages']) {
-          if (existing.some(table => table.name === name)) {
-            await transaction.sql(`ALTER TABLE ${name} RENAME TO legacy_${name}_v8`)
-          }
+          await transaction.sql(`DROP TABLE IF EXISTS ${name}`)
         }
-        await transaction.sql('DROP INDEX IF EXISTS assessment_attempts_package_submitted_at')
       }
 
       for (const statement of migration.statements) {

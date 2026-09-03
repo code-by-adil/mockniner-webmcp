@@ -22,7 +22,7 @@ import { createObjectiveReviewTool } from '@/webmcp/objectiveReviewTool'
 import { createObjectiveExplanationTool } from '@/webmcp/objectiveExplanationTool'
 import { restoreBackup } from '@/infrastructure/database/backupRepository'
 import { createAssessmentContentTool } from '@/webmcp/assessmentContentTool'
-import { createAssessmentToolDefinitions } from '@/webmcp/assessmentTools'
+import { createAssessmentAuthoringToolDefinitions } from '@/webmcp/assessmentTools'
 
 let database: SQLocal
 const dates = { startedAt: '2026-09-01T10:00:00.000Z', submittedAt: '2026-09-01T10:15:00.000Z' }
@@ -45,9 +45,10 @@ function setup() {
   const nativeRepository = createIeltsRepository(database)
   const assessmentRepository = createAssessmentRepository(database)
   const native = createIeltsCommands({ getState: () => workspace.native, dispatch: action => { workspace.native = sessionReducer(workspace.native, action) },
+    publishSession: next => { workspace.native = next }, persistSession: () => {},
     getContent: () => workspace.content, setContent: content => { workspace.content = content }, getRepository: async () => nativeRepository, getContentStore: async () => contentStore })
   const assessment = createAssessmentCommands({ getState: () => workspace.assessment, dispatch: action => { workspace.assessment = assessmentSessionReducer(workspace.assessment, action) },
-    getAssessments: () => workspace.assessments, setAssessments: update => { workspace.assessments = update(workspace.assessments) }, setHistory: vi.fn(), getRepository: async () => assessmentRepository })
+    getAssessments: () => workspace.assessments, setAssessments: update => { workspace.assessments = update(workspace.assessments) }, getRepository: async () => assessmentRepository })
   const deps = { getWorkspace: () => workspace, native, assessment, loadContent: contentStore.loadByKey }
   const navigate = createPracticeNavigation(deps)
   return { workspace, nativeRepository, assessmentRepository, native, assessment, navigate, deps, contentStore }
@@ -72,8 +73,7 @@ describe('semantic practice navigation and discovery', () => {
     const lastPart = replacement.parts.at(-1)!
     lastPart.items.at(-1)!.prompt = [{ type: 'text', text: 'Revised final question with the same response contract.' }]
     replacement.revision += 1
-    const install = createAssessmentToolDefinitions({ installAssessment: h.assessment.installAssessment, readAssessmentAttempt: h.assessmentRepository.readAttempt,
-      attachEvaluation: h.assessment.attachEvaluation, getCurrentAttemptId: () => undefined }).find(tool => tool.name === 'install_assessment')!
+    const install = createAssessmentAuthoringToolDefinitions({ installAssessment: h.assessment.installAssessment }).find(tool => tool.name === 'install_assessment')!
     await expect(install.execute(replacement, options)).resolves.toMatchObject({ ok: true })
     h.workspace.assessments = await h.assessmentRepository.loadPackages()
     const changed = h.workspace.assessments.find(assessment => assessment.packageId === packageId)!
@@ -393,6 +393,87 @@ describe('semantic practice navigation and discovery', () => {
     resolve({ ...readingDocument, contentKey: 'other-reading' })
     await expect(first).rejects.toMatchObject({ code: 'ACTIVE_ATTEMPT' })
     expect(h.workspace.content.reading.contentKey).toBe(readingDocument.contentKey)
+  })
+
+  it('does not start or publish an assessment when pausing IELTS fails', async () => {
+    const h = setup()
+    h.native.start('section', 'reading')
+    const before = structuredClone(h.workspace)
+    const pause = vi.fn(async () => { throw new Error('Draft save failed') })
+    const navigate = createPracticeNavigation({ ...h.deps, native: { ...h.native, goHome: pause } })
+    await expect(navigate({ action: 'start', kind: 'assessment', packageId: satPracticeAssessment.packageId })).rejects.toThrow('Draft save failed')
+    expect(h.workspace).toEqual(before)
+    const saved = await h.assessmentRepository.saveAttempt({ ...dates, attemptId: crypto.randomUUID(), packageId: satPracticeAssessment.packageId,
+      package: satPracticeAssessment, responses: {}, result: gradeAssessment(satPracticeAssessment, {}) })
+    await expect(navigate({ action: 'result', kind: 'assessment', attemptId: saved.attemptId })).rejects.toThrow('Draft save failed')
+    expect(h.workspace).toEqual(before)
+    pause.mockClear()
+    await expect(navigate({ action: 'result', kind: 'assessment', attemptId: saved.attemptId, location: { itemId: 'missing' } })).rejects.toMatchObject({ code: 'REVIEW_LOCATION_NOT_FOUND' })
+    expect(pause).not.toHaveBeenCalled()
+    expect(h.workspace).toEqual(before)
+  })
+
+  it('cancels a tool navigation during content loading before installation or state changes', async () => {
+    const h = setup()
+    let resolve!: (value: typeof readingDocument) => void
+    const pending = new Promise<typeof readingDocument>(done => { resolve = done })
+    const navigate = createPracticeNavigation({ ...h.deps, loadContent: () => pending })
+    const open = createPracticeTools({ readLibrary: vi.fn(), readHistory: vi.fn(), navigate }).find(tool => tool.name === 'open_practice')!
+    const controller = new AbortController()
+    const before = structuredClone(h.workspace)
+    const opening = open.execute({ action: 'start', kind: 'reading', contentKey: 'cancelled-reading' }, { signal: controller.signal })
+    const rejected = expect(opening).rejects.toMatchObject({ name: 'AbortError' })
+    controller.abort()
+    resolve({ ...readingDocument, contentKey: 'cancelled-reading' })
+    await rejected
+    expect(h.workspace).toEqual(before)
+    expect(await h.contentStore.loadByKey('cancelled-reading')).toBeNull()
+    await navigate({ action: 'start', kind: 'reading' })
+    expect(h.workspace.native.view).toBe('exam')
+  })
+
+  it.each(['writing', 'assessment'] as const)('does not publish a %s result when cancellation arrives during its read', async kind => {
+    const h = setup()
+    const attemptId = crypto.randomUUID()
+    if (kind === 'writing') await h.nativeRepository.saveWritingAttempt({ ...dates, attemptId, contentKey: writingDocument.contentKey,
+      tasks: [{ task: writingDocument.tasks[0], response: 'First answer.', wordCount: 2 }, { task: writingDocument.tasks[1], response: 'Second answer.', wordCount: 2 }] })
+    else await h.assessmentRepository.saveAttempt({ ...dates, attemptId, packageId: satPracticeAssessment.packageId, package: satPracticeAssessment,
+      responses: {}, result: gradeAssessment(satPracticeAssessment, {}) })
+    h.native.start('section', 'reading')
+    const before = structuredClone(h.workspace)
+    let release!: () => void
+    let began!: () => void
+    const held = new Promise<void>(resolve => { release = resolve })
+    const reading = new Promise<void>(resolve => { began = resolve })
+    if (kind === 'writing') {
+      const read = h.nativeRepository.readWritingAttempt
+      vi.spyOn(h.nativeRepository, 'readWritingAttempt').mockImplementationOnce(async id => { began(); await held; return read(id) })
+    } else {
+      const read = h.assessmentRepository.readAttempt
+      vi.spyOn(h.assessmentRepository, 'readAttempt').mockImplementationOnce(async id => { began(); await held; return read(id) })
+    }
+    const controller = new AbortController()
+    const opening = h.navigate({ action: 'result', kind, attemptId }, { signal: controller.signal })
+    const rejected = expect(opening).rejects.toMatchObject({ name: 'AbortError' })
+    await reading
+    controller.abort()
+    release()
+    await rejected
+    expect(h.workspace).toEqual(before)
+  })
+
+  it('shares its in-flight navigation lock between UI and tool calls', async () => {
+    const h = setup()
+    let release!: () => void
+    const pending = new Promise<void>(resolve => { release = resolve })
+    const navigate = createPracticeNavigation({ ...h.deps, native: { ...h.native, goHome: async () => { await pending; await h.native.goHome() } } })
+    const opening = navigate({ action: 'start', kind: 'assessment', packageId: satPracticeAssessment.packageId })
+    const open = createPracticeTools({ readLibrary: vi.fn(), readHistory: vi.fn(), navigate }).find(tool => tool.name === 'open_practice')!
+    await expect(open.execute({ action: 'library' }, { signal: new AbortController().signal })).resolves.toMatchObject({ ok: false, error: { code: 'NAVIGATION_BUSY' } })
+    release()
+    await opening
+    expect(h.workspace.assessment.view).toBe('assessment')
+    expect(h.workspace.native.view).toBe('home')
   })
 
   it.each(['writing', 'speaking'] as const)('opens and evaluates a pending historical %s result without replacing the current draft', async kind => {

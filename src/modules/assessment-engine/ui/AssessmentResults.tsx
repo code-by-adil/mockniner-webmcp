@@ -1,23 +1,16 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import type { AssessmentEvaluation, AssessmentSubmission } from '@/domain/assessment';
 import { ResultAction, ResultBreakdown, ResultScore, ResultsLayout } from '@/shared/ui/results/ResultsLayout';
-import { AssessmentAnswerReview, type ReviewFilter } from './AssessmentAnswerReview';
+import { AssessmentAnswerReview } from './AssessmentAnswerReview';
 import { AssessmentEvaluationPanel } from './AssessmentEvaluationPanel';
 import { getAssessmentThemeStyle } from './assessmentTheme';
-import type { AssessmentReviewSelection } from '@/domain/assessmentReview';
+import type { AssessmentReviewFilter, AssessmentReviewSelection } from '@/domain/assessmentReview';
 
-type Props = { submission: AssessmentSubmission; evaluation?: AssessmentEvaluation; onHome: () => void; review?: AssessmentReviewSelection | null; onReviewChange?: (review: AssessmentReviewSelection | null) => void };
-export function AssessmentResults(props: Props) {
-  return <AssessmentResultsView key={props.submission.attemptId} {...props} />;
-}
-
-function AssessmentResultsView({ submission, evaluation, onHome, review: controlledReview, onReviewChange }: Props) {
-  const [localReview, setLocalReview] = useState<AssessmentReviewSelection | null>(null);
-  const review = onReviewChange ? controlledReview ?? null : localReview;
-  const setReview = onReviewChange ?? setLocalReview;
+type Props = { submission: AssessmentSubmission; evaluation?: AssessmentEvaluation; onHome: () => void; review: AssessmentReviewSelection | null; onReviewChange: (review: AssessmentReviewSelection | null) => void };
+export function AssessmentResults({ submission, evaluation, onHome, review, onReviewChange }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const { result, package: assessment } = submission;
-  const rubric = evaluation ? assessment.rubrics.find(entry => entry.id === evaluation.rubricId) : undefined;
+  const rubric = assessment.rubric;
   const awaitingFeedback = !evaluation && result.awaitingEvaluationCount > 0;
   const canReview = assessment.review.mode !== 'none';
   const showAnswers = assessment.review.mode === 'answers';
@@ -26,27 +19,29 @@ function AssessmentResultsView({ submission, evaluation, onHome, review: control
   const incorrect = result.itemResults.filter(item => item.answered && item.correct === false).length;
   const unanswered = result.totalItems - result.answeredCount;
   const resultById = new Map(result.itemResults.map(item => [item.itemId, item]));
+  const questionCount = `${result.totalItems} ${result.totalItems === 1 ? 'question' : 'questions'}`;
+  const partCount = `${assessment.parts.length} ${assessment.parts.length === 1 ? 'part' : 'parts'}`;
 
-  function openReview(filter: ReviewFilter = 'all', itemId?: string) {
-    setReview({ filter, itemId });
+  function openReview(filter: AssessmentReviewFilter = 'all', itemId?: string) {
+    onReviewChange({ filter, itemId });
     requestAnimationFrame(() => { contentRef.current?.focus({ preventScroll: true }); window.scrollTo({ top: 0 }); });
   }
   function closeReview() {
-    setReview(null);
+    onReviewChange(null);
     requestAnimationFrame(() => { contentRef.current?.focus({ preventScroll: true }); window.scrollTo({ top: 0 }); });
   }
 
   return <ResultsLayout title={assessment.title} onBack={review ? closeReview : onHome} backLabel={review ? 'Back to results' : 'Back to practice'} style={getAssessmentThemeStyle(assessment.presentation.accent)}
-    subtitle={review ? `${showAnswers ? 'Answer review' : 'Response review'} · ${result.totalItems} questions` : <><time dateTime={submission.submittedAt}>{new Date(submission.submittedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</time> · {assessment.parts.length} parts · {result.totalItems} questions</>}
+    subtitle={review ? `${showAnswers ? 'Answer review' : 'Response review'} · ${questionCount}` : <><time dateTime={submission.submittedAt}>{new Date(submission.submittedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</time> · {partCount} · {questionCount}</>}
     footer={assessment.metadata.disclaimer} compactHeading={review !== null}>
     <div ref={contentRef} tabIndex={-1} className="min-w-0 scroll-mt-6 outline-none">
-      {review && canReview ? <AssessmentAnswerReview submission={submission} evaluation={evaluation} selection={review} onSelectionChange={setReview} /> : <>
+      {review && canReview ? <AssessmentAnswerReview submission={submission} evaluation={evaluation} selection={review} onSelectionChange={onReviewChange} /> : <>
         <div className={`grid min-w-0 gap-8 ${result.domains.length ? 'lg:grid-cols-[minmax(0,1fr)_240px] lg:gap-10' : ''}`}>
           <div className="min-w-0">
             <ResultScore label={percentage !== null ? 'Correct answers' : evaluation ? 'Evaluation score' : 'Submission saved'}
               score={percentage !== null ? result.rawScore : evaluation ? evaluation.overallScore : <span className="text-3xl">{awaitingFeedback ? 'Ready for feedback' : 'Responses saved'}</span>}
               maximum={percentage !== null ? result.maximumScore : rubric?.scale.maximum}
-              detail={percentage !== null ? `${percentage}% correct across objective questions` : undefined}
+              detail={percentage !== null ? `${percentage}% correct on ${result.maximumScore === 1 ? 'the objective question' : 'objective questions'}` : undefined}
               metrics={[
                 { label: 'Answered', value: result.answeredCount },
                 { label: 'Unanswered', value: unanswered },
@@ -60,7 +55,7 @@ function AssessmentResultsView({ submission, evaluation, onHome, review: control
               </> : undefined} />
             <ResultBreakdown title="Results by part" rows={assessment.parts.map(part => {
               const items = part.items.flatMap(item => resultById.get(item.id) ?? []);
-              return { id: part.id, label: [part.groupTitle, part.title].filter(Boolean).join(' · '), detail: `${part.items.length} questions`,
+              return { id: part.id, label: [part.groupTitle, part.title].filter(Boolean).join(' · '), detail: `${part.items.length} ${part.items.length === 1 ? 'question' : 'questions'}`,
                 total: items.length, correct: showAnswers ? items.filter(item => item.correct === true).length : undefined, unanswered: items.filter(item => !item.answered).length,
                 unscored: items.filter(item => item.correct === null).length,
                 pending: evaluation ? 0 : items.filter(item => item.correct === null).length,

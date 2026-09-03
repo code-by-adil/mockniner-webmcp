@@ -133,13 +133,15 @@ Universal assessment tools:
   Use `view: "summary"` to discover permitted part/item IDs, aggregate results
   and evaluation metadata without question text or responses. Add `partId` or
   `itemId` to a full read to retrieve only matching content, responses, per-item
-  results, required references/rubrics, and annotations. Supplying both IDs
+  results, required references, the package rubric, and annotations. Supplying both IDs
   requires the item to belong to that part. `scope.partial` labels partial reads;
   result totals and evaluation scores remain assessment-wide. Global evaluation
   prose and criterion feedback appear only in an unfiltered full read. The
   existing no-filter behavior remains a full read of the selected submission.
-- `attach_assessment_evaluation` validates and saves rubric feedback to the
-  current visible submission.
+- `attach_assessment_evaluation` validates and saves criterion scores and
+  feedback to the current visible submission. The app calculates the overall
+  score using the package rubric's weights and scale. The input contains no
+  rubric ID or agent-supplied overall score.
 
 For a large submitted assessment, first call
 `get_assessment_submission({"attemptId":"<uuid>","view":"summary"})`, then

@@ -1,13 +1,11 @@
 import { builtInAssessments } from "@/content/builtInAssessments";
 import {
   assessmentEvaluationInputSchema,
-  getAssessmentEvaluationStatus,
   gradeAssessment,
   parseAssessmentAuthoringPackage,
-  validateAssessmentEvaluation,
+  prepareAssessmentEvaluation,
   type AssessmentEvaluation,
   type AssessmentEvaluationInput,
-  type AssessmentHistoryEntry,
   type AssessmentPackage,
   type AssessmentResponse,
   type AssessmentSubmission,
@@ -39,7 +37,7 @@ export type AssessmentApplicationCommands = {
   completePart: (partId: string) => void;
   expirePart: (partId: string) => void;
   submit: () => Promise<AssessmentSubmission>;
-  openAttempt: (attemptId: string, itemId?: string) => Promise<void>;
+  openAttempt: (attemptId: string, itemId?: string, options?: { signal?: AbortSignal; beforeOpen?: () => void | Promise<void> }) => Promise<void>;
   setReview: (review: import('@/domain/assessmentReview').AssessmentReviewSelection | null) => void;
   attachEvaluation: (
     input: AssessmentEvaluationInput,
@@ -64,9 +62,6 @@ type Dependencies = {
   setAssessments: (
     update: (current: AssessmentPackage[]) => AssessmentPackage[],
   ) => void;
-  setHistory: (
-    update: (current: AssessmentHistoryEntry[]) => AssessmentHistoryEntry[],
-  ) => void;
   getRepository: () => Promise<AssessmentRepository>;
   flushDrafts?: () => Promise<void>;
 };
@@ -76,7 +71,6 @@ export function createAssessmentCommands({
   getAssessments,
   dispatch,
   setAssessments,
-  setHistory,
   getRepository,
   flushDrafts = async () => {},
 }: Dependencies): AssessmentApplicationCommands {
@@ -242,24 +236,6 @@ export function createAssessmentCommands({
       const saving = (async () => {
         await flushDrafts();
         const submission = await (await getRepository()).saveAttempt(snapshot);
-        setHistory((current) =>
-          [
-            {
-              attemptId: submission.attemptId,
-              packageId: submission.packageId,
-              title: submission.package.title,
-              rawScore: submission.result.rawScore,
-              maximumScore: submission.result.maximumScore,
-              evaluationStatus: getAssessmentEvaluationStatus(
-                submission.result,
-              ),
-              submittedAt: submission.submittedAt,
-            },
-            ...current.filter(
-              (attempt) => attempt.attemptId !== submission.attemptId,
-            ),
-          ].slice(0, 10),
-        );
         dispatch({ type: "COMPLETE", submission });
         return submission;
       })();
@@ -275,18 +251,22 @@ export function createAssessmentCommands({
       if (state.view !== 'result' || !state.submission) throw new ApplicationError('NO_VISIBLE_REVIEW', 'Open a submitted assessment first.', true);
       dispatch({ type: 'SET_REVIEW', review: review ? resolveAssessmentReview(state.submission, review) : null });
     },
-    async openAttempt(attemptId, itemId) {
+    async openAttempt(attemptId, itemId, options) {
       const stored = await (await getRepository()).readAttempt(attemptId);
+      options?.signal?.throwIfAborted();
       if (!stored)
         throw new ApplicationError(
           "ASSESSMENT_SUBMISSION_NOT_FOUND",
           `Assessment attempt ${attemptId} was not found.`,
         );
+      const review = itemId ? resolveAssessmentReview(stored.submission, { filter: 'all', itemId }) : undefined;
+      await options?.beforeOpen?.();
+      options?.signal?.throwIfAborted();
       dispatch({
         type: "OPEN_SUBMISSION",
         submission: stored.submission,
         evaluation: stored.evaluation,
-        review: itemId ? resolveAssessmentReview(stored.submission, { filter: 'all', itemId }) : undefined,
+        review,
       });
     },
     async attachEvaluation(input) {
@@ -307,8 +287,9 @@ export function createAssessmentCommands({
           "ATTEMPT_NOT_CURRENT",
           `Assessment attempt ${parsed.attemptId} is not the current visible submission.`,
         );
+      let feedback: ReturnType<typeof prepareAssessmentEvaluation>;
       try {
-        validateAssessmentEvaluation(stored.submission, parsed);
+        feedback = prepareAssessmentEvaluation(stored.submission, parsed);
       } catch (error) {
         if (error instanceof Error)
           throw new ApplicationError(
@@ -318,15 +299,8 @@ export function createAssessmentCommands({
           );
         throw error;
       }
-      const { expectedRevision, ...feedback } = parsed;
+      const { expectedRevision } = parsed;
       const evaluation = await repository.saveEvaluation({ ...feedback, evaluatedAt: new Date().toISOString() }, expectedRevision);
-      setHistory((current) =>
-        current.map((attempt) =>
-          attempt.attemptId === evaluation.attemptId
-            ? { ...attempt, evaluationStatus: "evaluated" }
-            : attempt,
-        ),
-      );
       dispatch({ type: "ATTACH_EVALUATION", evaluation });
       return evaluation;
     },

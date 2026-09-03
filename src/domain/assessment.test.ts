@@ -4,7 +4,6 @@ import { greStyleAssessment } from "@/content/gre";
 import { satPracticeAssessment } from "@/content/sat";
 import {
   ASSESSMENT_AUTHORING_TEMPLATE_IDS,
-  assessmentEvaluationInputSchema,
   getAssessmentItemLayout,
   getAssessmentPartResources,
   getAssessmentResponseGuidance,
@@ -12,15 +11,13 @@ import {
   parseAssessmentAuthoringPackage,
   parseAssessmentPackage,
   stripAssessmentAnswers,
-  validateAssessmentEvaluation,
   type AssessmentPackage,
-  type AssessmentSubmission,
 } from "./assessment";
 
 function scoringContract(): AssessmentPackage {
   const prompt = [{ type: "text" as const, text: "Answer this question." }];
   return parseAssessmentPackage({
-    schemaVersion: 3 as const,
+    schemaVersion: 4 as const,
     packageId: "scoring-contract",
     revision: 1,
     title: "Scoring contract",
@@ -95,7 +92,7 @@ describe("assessment domain", () => {
   });
 
   it("derives runtime resources and layouts directly from the validated package", () => {
-    expect(satPracticeAssessment.schemaVersion).toBe(3);
+    expect(satPracticeAssessment.schemaVersion).toBe(4);
     expect(satPracticeAssessment.parts.map((part) => part.id)).toEqual([
       "rw-module-1", "rw-module-2", "math-module-1", "math-module-2",
     ]);
@@ -198,7 +195,7 @@ describe("assessment domain", () => {
     });
 
     const writing = parseAssessmentPackage({
-      schemaVersion: 3,
+      schemaVersion: 4,
       packageId: "limited-writing",
       revision: 1,
       title: "Limited writing",
@@ -211,15 +208,13 @@ describe("assessment domain", () => {
           prompt: [{ type: "text", text: "Respond." }],
           interaction: { type: "extended_text", minimumWords: 3, maximumWords: 5 },
           scoring: { type: "agent" },
-          evaluationRubricId: "quality",
         }],
       }],
-      rubrics: [{
-        id: "quality",
+      rubric: {
         title: "Quality",
         scale: { minimum: 0, maximum: 4, step: 1 },
         criteria: [{ id: "quality", label: "Quality", description: "Response quality." }],
-      }],
+      },
     });
     expect(getAssessmentResponseGuidance(writing.parts[0]!.items[0]!, "Two words")).toEqual({
       instruction: "Write 3 to 5 words.",
@@ -236,7 +231,7 @@ describe("assessment domain", () => {
   it("keeps every authoring example valid and omits application-owned provenance", () => {
     ASSESSMENT_AUTHORING_TEMPLATE_IDS.forEach((template) => {
       const kit = getAssessmentAuthoringKit(template);
-      expect(parseAssessmentAuthoringPackage(kit.examplePackage).schemaVersion).toBe(3);
+      expect(parseAssessmentAuthoringPackage(kit.examplePackage).schemaVersion).toBe(4);
       expect(kit.examplePackage).not.toHaveProperty("source");
       expect(kit.nextAction).toContain("install_assessment");
     });
@@ -246,101 +241,28 @@ describe("assessment domain", () => {
     expect(JSON.stringify(stripAssessmentAnswers(satPracticeAssessment))).not.toContain('"scoring"');
   });
 
-  it("validates evaluation evidence against an immutable subjective submission", () => {
-    const assessment = parseAssessmentPackage({
-      schemaVersion: 3,
-      packageId: "argument-writing",
-      revision: 1,
-      title: "Argument writing",
-      source: "built-in",
-      review: { mode: "responses" },
-      rubrics: [{
-        id: "argument", title: "Argument rubric",
-        scale: { minimum: 0, maximum: 4, step: 1 },
-        criteria: [{ id: "claim", label: "Claim", description: "Quality of the central claim." }],
-        requireEvidence: true, allowAnnotations: true,
-      }],
-      parts: [{
-        id: "writing", title: "Writing", navigation: "linear",
-        items: [{
-          id: "essay-1", stimulus: [],
-          prompt: [{ type: "text", text: "Make an argument." }],
-          interaction: { type: "extended_text", minimumWords: 1 },
-          scoring: { type: "agent" }, evaluationRubricId: "argument",
-        }],
-      }],
-    });
-    const conflictingRubrics = structuredClone(assessment);
-    conflictingRubrics.rubrics.push({
-      ...conflictingRubrics.rubrics[0]!,
-      id: "second-rubric",
-    });
-    conflictingRubrics.parts[0]!.items.push({
-      ...conflictingRubrics.parts[0]!.items[0]!,
-      id: "essay-2",
-      evaluationRubricId: "second-rubric",
-    });
-    expect(() => parseAssessmentPackage(conflictingRubrics)).toThrow(/share one rubric/);
-    const responses = { "essay-1": "Public libraries strengthen local communities." };
-    const submission: AssessmentSubmission = {
-      attemptId: "33333333-3333-4333-8333-333333333333",
-      packageId: assessment.packageId,
-      package: assessment,
-      responses,
-      result: gradeAssessment(assessment, responses),
-      startedAt: "2026-09-02T10:00:00.000Z",
-      submittedAt: "2026-09-02T10:10:00.000Z",
-    };
-    const evaluation = assessmentEvaluationInputSchema.parse({
-      attemptId: submission.attemptId,
-      rubricId: "argument",
-      overallScore: 3,
-      criteria: [{
-        criterionId: "claim", score: 3, feedback: "Direct and relevant.",
-        evidence: ["strengthen local communities"],
-      }],
-      summary: "A clear start that needs evidence.",
-      strengths: ["Focused claim"], improvements: ["Add a concrete example"],
-      annotations: [{
-        itemId: "essay-1", originalText: "strengthen local communities",
-        suggestion: "strengthen communities by expanding access",
-        explanation: "This makes the mechanism specific.",
-      }],
-    });
-    expect(() => validateAssessmentEvaluation(submission, evaluation)).not.toThrow();
-    expect(() => validateAssessmentEvaluation(submission, {
-      ...evaluation,
-      criteria: [{ ...evaluation.criteria[0]!, evidence: [] }],
-    })).toThrow(/must include evidence/);
-    expect(() => validateAssessmentEvaluation(submission, {
-      ...evaluation,
-      rubricId: "missing-rubric",
-    })).toThrow(/must use rubric argument/);
-    expect(() => validateAssessmentEvaluation(submission, {
-      ...evaluation,
-      overallScore: 5,
-    })).toThrow(/outside the rubric scale or step/);
-    expect(() => validateAssessmentEvaluation(submission, {
-      ...evaluation,
-      criteria: [{ ...evaluation.criteria[0]!, criterionId: "missing-criterion" }],
-    })).toThrow(/match the rubric exactly/);
-    expect(() => validateAssessmentEvaluation(submission, {
-      ...evaluation,
-      criteria: [{ ...evaluation.criteria[0]!, evidence: ["not in the response"] }],
-    })).toThrow(/was not found in the submitted responses/);
-    expect(() => validateAssessmentEvaluation(submission, {
-      ...evaluation,
-      annotations: [{
-        ...evaluation.annotations[0]!,
-        itemId: "missing-item",
-      }],
-    })).toThrow(/is not an answered agent-evaluated response/);
-    expect(() => validateAssessmentEvaluation(submission, {
-      ...evaluation,
-      annotations: [{
-        ...evaluation.annotations[0]!,
-        originalText: "text that was never submitted",
-      }],
-    })).toThrow(/was not found in response essay-1/);
+  it("rejects old package versions and requires one package rubric for agent scoring", () => {
+    const assessment = { ...getAssessmentAuthoringKit("writing-with-rubric").examplePackage, source: "agent" };
+    expect(() => parseAssessmentPackage({ ...assessment, schemaVersion: 3 })).toThrow();
+    expect(() => parseAssessmentPackage({ ...assessment, rubric: undefined })).toThrow(/require a package rubric/);
+    expect(() => parseAssessmentPackage({ ...assessment, rubrics: [assessment.rubric] })).toThrow(/Unrecognized key/);
+  });
+
+  it("requires a reachable text answer within the character limit", () => {
+    const assessment = scoringContract();
+    const text = assessment.parts[0]!.items[2]!;
+    text.interaction = { type: "text_entry", maximumCharacters: 3 };
+    text.scoring = { type: "exact", answer: "twelve" };
+    expect(() => parseAssessmentPackage(assessment)).toThrow(/allow at least one accepted answer/);
+    text.scoring = { type: "aliases", answers: ["twelve", "12"] };
+    expect(() => parseAssessmentPackage(assessment)).not.toThrow();
+    text.scoring = { type: "aliases", answers: ["twelve", "twelves"] };
+    expect(() => parseAssessmentPackage(assessment)).toThrow(/allow at least one accepted answer/);
+    text.scoring = { type: "exact", answer: "A   B" };
+    expect(() => parseAssessmentPackage(assessment)).not.toThrow();
+    expect(gradeAssessment(assessment, { text: "a b" }).itemResults.find(item => item.itemId === "text")?.correct).toBe(true);
+    text.scoring = { type: "aliases", answers: ["Yes!"], ignorePunctuation: true };
+    expect(() => parseAssessmentPackage(assessment)).not.toThrow();
+    expect(gradeAssessment(assessment, { text: "yes" }).itemResults.find(item => item.itemId === "text")?.correct).toBe(true);
   });
 });

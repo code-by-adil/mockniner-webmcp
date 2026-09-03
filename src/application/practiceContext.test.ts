@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { initialSession, type IeltsSession } from '@/domain/session'
 import { initialAssessmentSession } from '@/domain/assessmentSession'
 import { getPracticeContext } from './practiceContext'
-import { getNativeToolSurfaces } from '@/webmcp/toolSurfaces'
 import { writingDocument } from '@/content/writing'
 import { readingDocument } from '@/content/objective'
 import type { SpeakingSubmission, WritingSubmission, WritingEvaluation, ObjectiveSubmission } from '@/domain/types'
@@ -25,12 +24,10 @@ describe('visible practice identity', () => {
     expect(getPracticeContext(state, initialAssessmentSession)).toEqual({ practice: 'ielts', view: 'review', activeAttempt: null,
       reviewLocation: { kind: 'writing', attemptId: 'older-writing', part: 1, taskNumber: 1, correctionId: undefined },
       submissions: [{ kind: 'writing', attemptId: 'older-writing', contentKey: 'writing', evaluationStatus: 'evaluated' }] })
-    expect(getNativeToolSurfaces(state, initialAssessmentSession)).toEqual({ authoringEnabled: false, writing: 'results', speaking: 'none' })
   })
   it('exposes only the objective review, not hidden Writing or Speaking submissions', () => {
     const state: IeltsSession = { ...session, view: 'review', review: { kind: 'objective', section: 'reading', submission: reading, document: readingDocument, part: 1, returnTo: 'home' } }
     expect(getPracticeContext(state, initialAssessmentSession).submissions).toHaveLength(1)
-    expect(getNativeToolSurfaces(state, initialAssessmentSession)).toEqual({ authoringEnabled: false, writing: 'none', speaking: 'none' })
   })
   it('reports all submitted sections on the combined results screen', () => {
     const context = getPracticeContext({ ...session, view: 'result' }, initialAssessmentSession)

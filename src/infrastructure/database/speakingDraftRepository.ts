@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { SQLocal } from 'sqlocal';
 import type { SpeakingRecordingInput } from '@/application/attemptWriter';
 import { defaultSpeakingPlan, speakingPlanSchema, speakingQuestionText } from '@/domain/speakingPlan';
-import { attemptSnapshotSchema } from '../ieltsSessionStorage';
+import { attemptSnapshotSchema } from '../ieltsDraftCodec';
 
 const responseSchema = z.object({
   status: z.enum(['answered', 'skipped']), promptId: z.number().int().positive(),

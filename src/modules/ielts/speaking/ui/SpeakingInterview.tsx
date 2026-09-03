@@ -11,7 +11,7 @@ export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPl
   onComplete: (input: CompleteSpeakingAttemptInput) => Promise<unknown>
   initialPlan?: SpeakingPlan
   onConfigurePlan: (plan: SpeakingPlan) => void | Promise<void>
-  attemptId?: string
+  attemptId: string
   attemptStartedAt?: string
 }) {
   const interview = useSpeakingInterview({ bindSpeakingInterview, onComplete, initialPlan, onConfigurePlan, attemptId, attemptStartedAt })

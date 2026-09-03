@@ -6,9 +6,9 @@ import type {
   WritingTask2,
 } from "@/domain/writingContent";
 import { ExamUiBoundary } from "@/app/layouts/ExamUiBoundary";
-import { useTimedSubmission } from "@/modules/exam-engine/useTimedSubmission";
-import { Header } from "@/modules/exam-engine/ui/Header";
-import { WritingExamFooter } from "@/modules/exam-engine/ui/WritingExamFooter";
+import { useTimedSubmission } from "@/modules/ielts/exam/useTimedSubmission";
+import { IeltsExamHeader } from "@/modules/ielts/exam/ui/IeltsExamHeader";
+import { WritingExamFooter } from "@/modules/ielts/exam/ui/WritingExamFooter";
 import { WritingBarChart } from "@/modules/ielts/writing/ui/WritingBarChart";
 import { QuestionGroupHeader } from "@/shared/ui/exam/QuestionGroupHeader";
 import { ResizableSplitPane } from "@/shared/ui/exam/ResizableSplitPane";
@@ -140,7 +140,7 @@ export function WritingExamRunner({
   return (
     <ExamUiBoundary>
       <div className="flex h-screen flex-col overflow-hidden bg-white font-sans text-gray-900">
-        <Header
+        <IeltsExamHeader
           testType="writing"
           onExit={onExit}
           writingTaskNumber={currentPart}

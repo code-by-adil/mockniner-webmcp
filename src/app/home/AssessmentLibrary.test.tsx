@@ -4,7 +4,7 @@ import { greStyleAssessment } from "@/content/gre";
 import { satPracticeAssessment } from "@/content/sat";
 import { initialAssessmentSession } from "@/domain/assessmentSession";
 import { AssessmentLifecycleDialog } from "./AssessmentLifecycleDialog";
-import { AssessmentHistory, AssessmentLibrary } from "./AssessmentLibrary";
+import { AssessmentLibrary } from "./AssessmentLibrary";
 
 const noOp = () => undefined;
 const noOpAsync = async () => undefined;
@@ -65,37 +65,5 @@ describe("assessment lifecycle confirmation", () => {
     expect(html).toContain("Delete assessment?");
     expect(html).toContain("Any unfinished attempt for it will be discarded");
     expect(html).toContain("submitted attempts and results remain in history");
-  });
-});
-
-describe("assessment history", () => {
-  it("distinguishes pending and completed evaluations", () => {
-    const base = {
-      packageId: greStyleAssessment.packageId,
-      title: greStyleAssessment.title,
-      rawScore: 7,
-      maximumScore: 7,
-      submittedAt: "2026-09-02T10:40:00.000Z",
-    };
-    const html = renderToStaticMarkup(
-      <AssessmentHistory
-        history={[
-          {
-            ...base,
-            attemptId: "88888888-8888-4888-8888-888888888888",
-            evaluationStatus: "awaiting_evaluation",
-          },
-          {
-            ...base,
-            attemptId: "99999999-9999-4999-8999-999999999999",
-            evaluationStatus: "evaluated",
-          },
-        ]}
-        onReview={async () => undefined}
-      />,
-    );
-
-    expect(html).toContain("Feedback pending");
-    expect(html).toContain("Feedback ready");
   });
 });

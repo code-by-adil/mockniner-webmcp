@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ExamUiBoundary } from '@/app/layouts/ExamUiBoundary'
-import { Header } from '@/modules/exam-engine/ui/Header'
+import { IeltsExamHeader } from '@/modules/ielts/exam/ui/IeltsExamHeader'
 import type { CompleteSpeakingAttemptInput } from '@/application/attemptWriter'
 import type { BindSpeakingInterview } from '@/application/speakingInterviewController'
 import { SpeakingInterview } from './SpeakingInterview'
@@ -13,7 +13,7 @@ export function SpeakingExamRunner({ onExit, onSubmit, bindSpeakingInterview, in
   bindSpeakingInterview: BindSpeakingInterview
   initialPlan?: SpeakingPlan
   onConfigurePlan: (plan: SpeakingPlan) => void | Promise<void>
-  attemptId?: string
+  attemptId: string
   attemptStartedAt?: string
   canLeave: () => boolean
 }) {
@@ -21,7 +21,7 @@ export function SpeakingExamRunner({ onExit, onSubmit, bindSpeakingInterview, in
   const exitDialog = useExamNativeDialog({ open: confirmExit, onOpenChange: setConfirmExit, closedBy: 'closerequest' })
   return <ExamUiBoundary>
     <div className="exam-live-speaking-shell flex h-screen flex-col overflow-hidden font-sans">
-      <Header testType="speaking" position="contained" onExit={() => canLeave() ? onExit() : setConfirmExit(true)} />
+      <IeltsExamHeader testType="speaking" position="contained" onExit={() => canLeave() ? onExit() : setConfirmExit(true)} />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         <SpeakingInterview bindSpeakingInterview={bindSpeakingInterview} onComplete={onSubmit} initialPlan={initialPlan} onConfigurePlan={onConfigurePlan} attemptId={attemptId} attemptStartedAt={attemptStartedAt} />
       </div>

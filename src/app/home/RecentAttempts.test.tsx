@@ -1,83 +1,70 @@
 // @vitest-environment happy-dom
-import { act } from "react";
-import { createRoot } from "react-dom/client";
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
-import type { LearningSummary } from "@/domain/learningSummary";
-import { RecentAttempts } from "./RecentAttempts";
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it, vi } from 'vitest';
+import type { PracticeHistory } from '@/application/usePracticeHistory';
+import type { HistoryEntry } from '@/infrastructure/database/historyRepository';
+import { RecentAttempts } from './RecentAttempts';
 
-const summary: LearningSummary = {
-  totalAttempts: 1,
-  sections: {
-    listening: { attemptCount: 0, recentAverageBand: null, recent: [] },
-    reading: {
-      attemptCount: 1,
-      recentAverageBand: 7,
-      recent: [{
-        attemptId: "reading-attempt",
-        contentKey: "reading-v1",
-        band: 7,
-        raw: 30,
-        total: 40,
-        answered: 40,
-        submittedAt: "2026-09-02T11:00:00.000Z",
-      }],
-    },
-    writing: {
-      attemptCount: 0,
-      evaluatedCount: 0,
-      recentAverageOverallBand: null,
-      recentAverageCriteria: null,
-      recent: [],
-    },
-    speaking: { attemptCount: 0 },
-  },
-};
+const noOp = () => {};
+function history(items: HistoryEntry[], nextOffset: number | null = null): PracticeHistory {
+  return { status: 'ready', page: { items, nextOffset, unavailable: [] },
+    pageNumber: 1, hasPrevious: false, previous: noOp, next: noOp, retry: noOp };
+}
+const reading: HistoryEntry = { attemptId: 'reading-attempt', kind: 'reading', title: 'Reading Practice', contentKey: 'reading-v1',
+  submittedAt: '2026-09-03T11:00:00.000Z', evaluationStatus: 'not_required', rawScore: 30, maximumScore: 40, band: 7 };
+const assessment: HistoryEntry = { attemptId: 'assessment-attempt', kind: 'assessment', title: 'Diagnostic', packageId: 'diagnostic',
+  submittedAt: '2026-09-02T11:00:00.000Z', evaluationStatus: 'not_required', rawScore: 2, maximumScore: 3 };
 
-describe("recent attempts presentation", () => {
-  it("omits the section when both histories are empty", () => {
-    expect(renderToStaticMarkup(
-      <RecentAttempts
-        assessmentHistory={[]}
-        learningSummary={null}
-        onReviewAssessment={async () => undefined}
-        onReviewAttempt={async () => undefined}
-      />,
-    )).toBe("");
+describe('recent attempts', () => {
+  it('omits an empty first page without claiming a truncated saved count', () => {
+    expect(renderToStaticMarkup(<RecentAttempts history={history([])} onReview={async () => {}} />)).toBe('');
+    const html = renderToStaticMarkup(<RecentAttempts history={history([reading], 6)} onReview={async () => {}} />);
+    expect(html).toContain('Saved in this browser');
+    expect(html).not.toContain('1 attempt saved');
   });
 
-  it("combines the count while forwarding each review to its application callback", async () => {
-    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-    const container = document.createElement("div");
+  it('preserves chronological reader order and routes every row with its kind', async () => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    const container = document.createElement('div');
     const root = createRoot(container);
-    const onReviewAssessment = vi.fn(async () => undefined);
-    const onReviewAttempt = vi.fn(async () => undefined);
+    const onReview = vi.fn(async () => {});
+    const next = vi.fn();
     try {
-      await act(async () => root.render(
-        <RecentAttempts
-          assessmentHistory={[{
-            attemptId: "assessment-attempt",
-            packageId: "diagnostic",
-            title: "Diagnostic",
-            rawScore: 2,
-            maximumScore: 3,
-            evaluationStatus: "not_required",
-            submittedAt: "2026-09-02T12:00:00.000Z",
-          }]}
-          learningSummary={summary}
-          onReviewAssessment={onReviewAssessment}
-          onReviewAttempt={onReviewAttempt}
-        />,
-      ));
-      expect(container.textContent).toContain("2 attempts saved in this browser");
-      const buttons = container.querySelectorAll("button");
-      expect(buttons).toHaveLength(2);
-      await act(async () => { for (const button of buttons) button.click(); });
-      expect(onReviewAssessment).toHaveBeenCalledExactlyOnceWith("assessment-attempt");
-      expect(onReviewAttempt).toHaveBeenCalledExactlyOnceWith("reading-attempt", "reading");
+      await act(async () => root.render(<RecentAttempts history={{ ...history([reading, assessment], 6), next }} onReview={onReview} />));
+      expect([...container.querySelectorAll('[data-attempt-id]')].map(row => row.getAttribute('data-attempt-id')))
+        .toEqual(['reading-attempt', 'assessment-attempt']);
+      const reviewButtons = container.querySelectorAll<HTMLButtonElement>('button[aria-label^="Review"]');
+      await act(async () => { for (const button of reviewButtons) button.click(); });
+      expect(onReview.mock.calls).toEqual([['reading-attempt', 'reading'], ['assessment-attempt', 'assessment']]);
+      const older = [...container.querySelectorAll('button')].find(button => button.textContent === 'Older attempts')!;
+      await act(async () => older.click());
+      expect(next).toHaveBeenCalledOnce();
     } finally {
       await act(async () => root.unmount());
       vi.unstubAllGlobals();
     }
+  });
+
+  it('shows rubric scores and pending feedback without a meaningless 0/0 score', () => {
+    const html = renderToStaticMarkup(<RecentAttempts history={history([
+      { ...assessment, attemptId: 'pending', rawScore: 0, maximumScore: 0, evaluationStatus: 'awaiting_evaluation' },
+      { ...assessment, attemptId: 'evaluated', rawScore: 0, maximumScore: 0, evaluationStatus: 'evaluated', evaluationScore: 4, evaluationMaximumScore: 6 },
+      { ...reading, attemptId: 'speaking', kind: 'speaking', rawScore: undefined, maximumScore: undefined, band: undefined, evaluationStatus: 'insufficient_evidence' },
+    ])} onReview={async () => {}} />);
+    expect(html).toContain('Feedback pending');
+    expect(html).toContain('Feedback score 4/6');
+    expect(html).toContain('Feedback ready · Unscored');
+    expect(html).not.toContain('0/0');
+  });
+
+  it('keeps navigation available across a page of unreadable rows', () => {
+    const html = renderToStaticMarkup(<RecentAttempts history={{ ...history([], 12), pageNumber: 2, hasPrevious: true,
+      status: 'ready', page: { items: [], nextOffset: 12, unavailable: [{ attemptId: 'broken', kind: 'assessment', message: 'Invalid stored record.' }] } }} onReview={async () => {}} />);
+    expect(html).toContain('1 saved attempt could not be opened');
+    expect(html).toContain('Newer attempts');
+    expect(html).toContain('Older attempts');
+    expect(html).toContain('Page 2');
   });
 });

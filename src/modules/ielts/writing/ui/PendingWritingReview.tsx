@@ -1,42 +1,25 @@
-import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Check, Copy } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { PracticeHeader } from '@/app/layouts/PracticeHeader'
+import { CopyButton } from '@/shared/ui/CopyButton'
 import type { WritingSubmission } from '@/domain/types'
 import { WritingTaskDisclosure } from './WritingTaskDisclosure'
 
 const evaluationRequest = 'Grade my IELTS Writing and add feedback to the submission open on this page.'
 
 function EvaluationRequest() {
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
-
-  async function copyRequest() {
-    setCopyStatus('copying')
-    try {
-      await navigator.clipboard.writeText(evaluationRequest)
-      setCopyStatus('copied')
-    } catch {
-      setCopyStatus('failed')
-    }
-  }
-
   return (
     <section aria-label="Writing feedback" className="rounded-lg border border-neutral-200 bg-white p-5 sm:p-6">
       <h2 className="font-semibold text-neutral-950">Ready for feedback</h2>
       <p className="mt-2 text-sm leading-6 text-neutral-600">Your writing is saved. Copy this request to your agent and keep this page open to receive feedback.</p>
       <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <blockquote className="select-text text-sm leading-6 text-neutral-900">{evaluationRequest}</blockquote>
-        <button
-          type="button"
-          disabled={copyStatus === 'copying'}
-          onClick={() => void copyRequest()}
+        <CopyButton
+          text={evaluationRequest}
+          label="Copy request"
           className="inline-flex shrink-0 items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--exam-accent-hover)] disabled:opacity-60"
-        >
-          {copyStatus === 'copied' ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
-          {copyStatus === 'copied' ? 'Copied' : copyStatus === 'copying' ? 'Copying...' : 'Copy request'}
-        </button>
+        />
       </div>
-      <p role="status" className="sr-only">{copyStatus === 'copied' ? 'Request copied to clipboard.' : ''}</p>
-      {copyStatus === 'failed' ? <p role="alert" className="mt-3 text-sm text-red-700">Could not copy. Select and copy the request above, or try again.</p> : null}
     </section>
   )
 }

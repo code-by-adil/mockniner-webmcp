@@ -60,13 +60,13 @@ export function collectCalls(results, caseName, runIndex) {
     .filter((response) => response && typeof response.functionName === "string");
 }
 
-export function collectTrajectoryText(results, caseName, runIndex) {
+export function readFinalResponseText(results, caseName, runIndex) {
   const entry = results.find(
     (candidate) => candidate.test?.name === caseName && (candidate.runIndex ?? 1) === runIndex,
   );
-  if (!entry?.trajectory) return "";
-  return entry.trajectory
-    .flatMap((step) => [step.text, step.reasoningText])
-    .filter((value) => typeof value === "string")
-    .join("\n");
+  const finalStep = entry?.trajectory?.at(-1);
+  // A step that calls tools is not a completed response to the learner.
+  if (finalStep?.toolCalls?.length) return "";
+  if (typeof finalStep?.text === "string") return finalStep.text;
+  return typeof entry?.response?.text === "string" ? entry.response.text : "";
 }

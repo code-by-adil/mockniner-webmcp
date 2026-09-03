@@ -29,15 +29,12 @@ type WritingToolDependencies = {
   getCurrentWritingAttemptId: () => string | undefined;
 };
 
-export type WritingToolSurface = "results" | "evaluation" | "none";
-
 export function createWritingToolDefinitions(
   {
     readWritingAttempt,
     attachWritingEvaluation,
     getCurrentWritingAttemptId,
   }: WritingToolDependencies,
-  surface: WritingToolSurface = "evaluation",
 ): WebMCP.ModelContextTool[] {
   const submissionTool: WebMCP.ModelContextTool = {
     name: "get_ielts_writing_submission",
@@ -120,6 +117,5 @@ export function createWritingToolDefinitions(
       }
     },
   };
-  if (surface === "results" || surface === "evaluation") return [submissionTool, evaluationTool];
-  return [];
+  return [submissionTool, evaluationTool];
 }

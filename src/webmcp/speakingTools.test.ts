@@ -6,7 +6,6 @@ import {
   createSpeakingInterviewToolDefinition,
   createSpeakingToolDefinitions,
 } from "./speakingTools";
-import type { SpeakingToolSurface } from "./speakingTools";
 
 const attemptId = "33333333-3333-4333-8333-333333333333";
 const submission: SpeakingSubmission = {
@@ -46,7 +45,6 @@ function toolOptions() {
 function createTools(
   evaluation: SpeakingEvaluation | null = null,
   attachSpeakingEvaluation = vi.fn(),
-  surface: SpeakingToolSurface = "evaluation",
 ) {
   return createSpeakingToolDefinitions(
     {
@@ -54,7 +52,6 @@ function createTools(
       attachSpeakingEvaluation,
       getCurrentSpeakingAttemptId: () => attemptId,
     },
-    surface,
   );
 }
 
@@ -70,7 +67,7 @@ describe("Speaking WebMCP tools", () => {
     const reader = createTools(evaluation).find(t => t.name === 'get_ielts_speaking_submission')!
     expect(await reader.execute({}, toolOptions())).toMatchObject({ ok: true, data: { evaluationStatus: 'insufficient_evidence', canAttachEvaluation: false, evaluation } })
   })
-  it("registers only the tools relevant to the visible Speaking surface", () => {
+  it("defines the fixed Speaking review tool group", () => {
     const dependencies = {
       readSpeakingAttempt: vi.fn(),
       attachSpeakingEvaluation: vi.fn(),
@@ -79,13 +76,9 @@ describe("Speaking WebMCP tools", () => {
     expect(
       createSpeakingInterviewToolDefinition(vi.fn()).name,
     ).toBe("set_ielts_speaking_interview");
-    expect(createSpeakingToolDefinitions(dependencies, "results").map((tool) => tool.name)).toEqual(
-      ["get_ielts_speaking_submission"],
-    );
     expect(
-      createSpeakingToolDefinitions(dependencies, "evaluation").map((tool) => tool.name),
+      createSpeakingToolDefinitions(dependencies).map((tool) => tool.name),
     ).toEqual(["get_ielts_speaking_submission", "attach_ielts_speaking_evaluation"]);
-    expect(createSpeakingToolDefinitions(dependencies, "none")).toEqual([]);
   });
 
   it("installs all questions at once without starting the microphone", async () => {
@@ -105,7 +98,7 @@ describe("Speaking WebMCP tools", () => {
     const tool = createTools().find((item) => item.name === "get_ielts_speaking_submission")!;
     const result = (await tool.execute({}, toolOptions())) as {
       ok: true;
-      data: { submission: SpeakingSubmission; scoringScope: { excluded: string[] } };
+      data: { submission: SpeakingSubmission; scoringScope: { excluded: string[] }; evaluationGuidance: string[] };
     };
 
     expect(result.data.submission.responses[0]?.transcript).toContain("coastal city");
@@ -113,6 +106,12 @@ describe("Speaking WebMCP tools", () => {
       "pronunciation: audio is not exposed to the agent",
     );
     expect(result.data.submission.responses[0]).not.toHaveProperty("audio");
+    expect(result.data.evaluationGuidance.join(' ')).toContain('Read the complete transcript');
+    expect(result.data.evaluationGuidance.join(' ')).toContain('Text does not establish pronunciation or spoken delivery');
+    expect(result.data.evaluationGuidance.join(' ')).toContain('blank or skipped answers as missing evidence');
+    expect(result.data.evaluationGuidance.join(' ')).toContain('likely transcription errors');
+    expect(result.data.evaluationGuidance.join(' ')).toContain('status insufficient_evidence');
+    expect(result.data.evaluationGuidance.join(' ')).toContain("this submission's attemptId");
   });
 
   it("attaches a valid transcript evaluation without accepting pronunciation scoring", async () => {

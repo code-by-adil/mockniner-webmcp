@@ -10,7 +10,6 @@ export type AnnotationIssue = {
   annotation: WritingAnnotation;
   start: number | null;
 };
-export const EMPTY_WRITING_ANNOTATIONS: WritingAnnotation[] = [];
 
 export function getWritingIssueTitle(annotation: WritingAnnotation): string {
   return (

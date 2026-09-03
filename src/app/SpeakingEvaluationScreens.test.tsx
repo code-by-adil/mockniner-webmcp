@@ -12,17 +12,18 @@ const pending: IeltsSession = { ...initialSession, view: 'result', currentSectio
 const noop = () => undefined
 
 describe('Speaking evaluation prompts on submission and results', () => {
-  it('offers the copyable, attempt-specific prompt immediately after submission', () => {
+  it('offers a request for the visible attempt immediately after submission', () => {
     const html = renderToStaticMarkup(<Complete section="speaking" mode="section" speakingAttemptId={submission.attemptId} onContinue={noop} onHome={noop} />)
-    expect(html).toContain('Copy evaluation prompt')
-    expect(html).toContain(submission.attemptId)
+    expect(html).toContain('Copy evaluation request')
+    expect(html).not.toContain(submission.attemptId)
+    expect(html).toContain('attempt open on this page')
     expect(html).toContain('View results')
   })
   it('keeps the prompt available after View results while evaluation is pending', () => {
     const html = renderToStaticMarkup(<Results session={pending} onHome={noop} onReview={noop} />)
     expect(html).toContain('Feedback pending')
-    expect(html).toContain('Copy evaluation prompt')
-    expect(html).toContain(submission.attemptId)
+    expect(html).toContain('Copy evaluation request')
+    expect(html).not.toContain(submission.attemptId)
     expect(html).not.toContain('Review answers')
   })
   it('does not ask the learner to re-evaluate an already evaluated attempt', () => {
@@ -30,7 +31,7 @@ describe('Speaking evaluation prompts on submission and results', () => {
       attemptId: submission.attemptId, overallBand: 6, fluencyCoherence: 6, lexicalResource: 6, grammaticalRangeAccuracy: 6,
       summary: 'Test', strengths: ['Test'], improvements: ['Test'], evaluatedAt: '2026-09-03T10:11:00.000Z',
     } }} onHome={noop} onReview={noop} />)
-    expect(html).not.toContain('Copy evaluation prompt')
+    expect(html).not.toContain('Copy evaluation request')
     expect(html).toContain('Review answers')
   })
 })
