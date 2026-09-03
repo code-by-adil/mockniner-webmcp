@@ -18,8 +18,8 @@ export function WritingBarChart({ chart }: Props) {
         {chart.years.join(" and ")}
       </h4>
 
-      <div className="relative mb-24 ml-8 mr-auto h-[220px] max-w-[500px] border-b border-l border-black sm:ml-12 sm:h-[320px]">
-        <div className="absolute -left-8 top-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap text-center text-[10px] font-bold sm:-left-12 sm:text-xs">
+      <div className="relative mb-24 ml-10 mr-auto h-[220px] max-w-[500px] border-b border-l border-black sm:ml-12 sm:h-[320px]">
+        <div className="absolute -left-7 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap text-center text-[10px] font-bold sm:-left-9 sm:text-xs">
           {chart.unit}
         </div>
 
@@ -30,7 +30,7 @@ export function WritingBarChart({ chart }: Props) {
               className="absolute left-0 flex w-full items-center"
               style={{ bottom: `${(value / axisMaximum) * 100}%` }}
             >
-              <span className="absolute right-full mr-1 translate-y-1/2 text-[10px] font-medium sm:mr-2 sm:text-xs">
+              <span className="absolute right-full mr-1 translate-y-1/2 whitespace-nowrap text-[10px] font-medium sm:mr-2 sm:text-xs">
                 {value}
               </span>
               <div className="absolute -left-1.5 w-1.5 border-t border-black" />
@@ -66,7 +66,7 @@ export function WritingBarChart({ chart }: Props) {
         </div>
       </div>
 
-      <div className="ml-8 mr-auto max-w-[500px] text-center sm:ml-12">
+      <div className="ml-10 mr-auto max-w-[500px] text-center sm:ml-12">
         <div className="mb-6 text-xs font-bold">Category</div>
         <div className="flex justify-center gap-8">
           {chart.years.map((year, index) => (

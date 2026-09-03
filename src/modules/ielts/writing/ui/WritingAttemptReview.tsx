@@ -11,6 +11,7 @@ type Props = {
   currentPart: 1 | 2
   onPartChange: (part: 1 | 2) => void
   onExit: () => void
+  backLabel?: string
 }
 
 export function WritingAttemptReview({
@@ -19,6 +20,7 @@ export function WritingAttemptReview({
   currentPart,
   onPartChange,
   onExit,
+  backLabel,
 }: Props) {
   const submittedTask = submission.tasks[currentPart - 1]
   const taskEvaluation = currentPart === 1 ? evaluation.task1 : evaluation.task2
@@ -26,12 +28,13 @@ export function WritingAttemptReview({
   return (
     <ExamUiBoundary>
       <WritingReviewView
-        essay={submittedTask.response}
+        submittedTask={submittedTask}
         scoreData={taskEvaluation}
         evaluationSummary={evaluation.summary}
         overallBand={evaluation.overallBand}
         evaluatedAt={evaluation.evaluatedAt}
         onClose={onExit}
+        backLabel={backLabel}
         taskOptions={[
           { id: 1, label: 'Task 1' },
           { id: 2, label: 'Task 2' },

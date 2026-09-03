@@ -419,7 +419,7 @@ export function createIeltsCommands({
         return;
       }
       if (section === "writing") {
-        if (!state.writingSubmission || !state.writingEvaluation) return;
+        if (!state.writingSubmission) return;
         await openStoredAttempt(
           state.writingSubmission.attemptId,
           section,

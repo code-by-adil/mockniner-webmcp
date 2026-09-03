@@ -45,6 +45,47 @@ afterEach(async () => {
 })
 
 describe('database-backed native history review', () => {
+  it('opens pending Writing from results and history, then attaches feedback to that exact saved submission', async () => {
+    const repository = createIeltsRepository(database)
+    let state: IeltsSession = initialSession
+    const commands = createIeltsCommands({
+      getState: () => state, dispatch: action => { state = sessionReducer(state, action) },
+      getContent: () => ({ listening: listeningDocument, reading: readingDocument, writing: writingDocument }),
+      setContent: vi.fn(), getContentStore: async () => createContentStore(database), getRepository: async () => repository,
+    })
+    await commands.start('section', 'writing')
+    commands.setWritingDraft(1, 'Saved report.\n\nSecond paragraph.')
+    commands.setWritingDraft(2, 'Saved essay.')
+    const submission = await commands.submitWriting()
+    commands.continueExam()
+    await commands.openReview('writing')
+    expect(state.review).toMatchObject({ kind: 'writing', evaluation: null, returnTo: 'result', submission })
+    expect(() => commands.setWritingDraft(1, 'Must not change submitted work.')).toThrow('writing is not the active exam section')
+    expect((await repository.readWritingAttempt(submission.attemptId))?.submission).toEqual(submission)
+    commands.closeReview()
+    expect(state.view).toBe('result')
+    await commands.goHome()
+    await commands.start('section', 'writing')
+    commands.setWritingDraft(1, 'Unrelated new draft.')
+    await commands.goHome()
+    await commands.openAttempt(submission.attemptId, 'writing')
+    expect(state.review).toMatchObject({ evaluation: null, returnTo: 'home', submission })
+
+    const definitions = createWritingToolDefinitions({
+      readWritingAttempt: repository.readWritingAttempt,
+      attachWritingEvaluation: commands.attachWritingEvaluation,
+      getCurrentWritingAttemptId: () => getPracticeContext(state, initialAssessmentSession).submissions.find(item => item.kind === 'writing')?.attemptId,
+    })
+    const options = { signal: new AbortController().signal }
+    await expect(definitions[0]!.execute({}, options)).resolves.toMatchObject({ ok: true, data: { submission, canAttachEvaluation: true } })
+    const task = { band: 5, taskAchievement: 5, coherenceCohesion: 5, lexicalResource: 5, grammaticalRange: 5, feedback: 'Test feedback.', annotations: [] }
+    await expect(definitions[1]!.execute({ attemptId: submission.attemptId, overallBand: 5, summary: 'Saved test evaluation.', task1: task, task2: task }, options)).resolves.toMatchObject({ ok: true, sideEffect: { visibleView: 'writing_review' } })
+    expect(state.review).toMatchObject({ submission, evaluation: { summary: 'Saved test evaluation.' }, returnTo: 'home' })
+    expect(state.writingDrafts[1]).toBe('Unrelated new draft.')
+    commands.closeReview()
+    await commands.openAttempt(submission.attemptId, 'writing')
+    expect(state.review).toMatchObject({ submission, evaluation: { summary: 'Saved test evaluation.' } })
+  })
   it('reopens a persisted Speaking interview from home without replacing an unrelated draft', async () => {
     const repository = createIeltsRepository(database)
     const submission = await repository.saveSpeakingAttempt({

@@ -12,9 +12,12 @@ import { ExamUiBoundary } from "@/app/layouts/ExamUiBoundary";
 import { Home } from "@/app/home/Home";
 import { ListeningExamRunner } from "@/modules/ielts/listening/ui/ListeningExamRunner";
 import { ReadingExamRunner } from "@/modules/ielts/reading/ui/ReadingExamRunner";
+import { ReadingAttemptReview } from "@/modules/ielts/reading/ui/ReadingAttemptReview";
 import { WritingExamRunner } from "@/modules/ielts/writing/ui/WritingExamRunner";
 import { WritingAttemptReview } from "@/modules/ielts/writing/ui/WritingAttemptReview";
 import { PendingAttemptReview } from '@/app/PendingAttemptReview';
+import { PendingWritingReview } from '@/modules/ielts/writing/ui/PendingWritingReview';
+import { PracticeHeader } from '@/app/layouts/PracticeHeader';
 import { ObjectiveResults } from '@/app/ObjectiveResults';
 import type { ObjectiveContentDocument } from '@/domain/objectiveContent';
 import { getListeningAudioStatus } from '@/application/listeningAudioStatus';
@@ -32,7 +35,6 @@ import { useWebMcpTools } from "@/webmcp/useWebMcpTools";
 import { useAssessmentApplication } from "@/application/useAssessmentApplication";
 import { AssessmentRunner } from "@/modules/assessment-engine/ui/AssessmentRunner";
 import { AssessmentResults } from "@/modules/assessment-engine/ui/AssessmentResults";
-import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
 import { getAssessmentToolSurface, getNativeToolSurfaces } from "@/webmcp/toolSurfaces";
 import { getPracticeContext } from '@/application/practiceContext';
 
@@ -45,27 +47,6 @@ const SECTION_ICONS = {
   writing: FileText,
   speaking: Mic,
 } as const;
-
-function AppHeader() {
-  return (
-    <header className="w-full border-b border-neutral-200/80 bg-white sticky top-0 z-30">
-      <div className="max-w-[1400px] mx-auto flex h-[60px] items-center justify-between px-4 sm:px-8">
-        <div className="flex items-center gap-2 sm:gap-6 min-w-0">
-          <AssessmentLabBrand />
-          <div className="hidden sm:flex flex-col text-xs border-l pl-6 h-8 justify-center min-w-0">
-            <span className="font-bold text-neutral-900 leading-tight">
-              Practice
-            </span>
-            <span className="text-neutral-500 text-[11px] truncate leading-tight">
-              IELTS and custom assessments
-            </span>
-          </div>
-        </div>
-        <StorageButton />
-      </div>
-    </header>
-  );
-}
 
 export function Complete({
   section,
@@ -83,7 +64,7 @@ export function Complete({
   const isFinal = mode === "section" || section === "speaking";
   return (
     <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
-      <AppHeader />
+      <PracticeHeader />
       <main className="mx-auto flex max-w-3xl flex-col items-center px-6 py-24 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--exam-success-bg)] text-[var(--exam-success-fg)]">
           <Check size={28} />
@@ -150,9 +131,18 @@ export function Results({
     const submission = session.objectiveSubmissions[completedObjective];
     if (submission) return <ObjectiveResults submission={submission} document={objectiveContent?.[completedObjective]} onHome={onHome} onReview={() => onReview(completedObjective)} />;
   }
+  if (
+    session.mode === 'section' &&
+    session.completedSections.length === 1 &&
+    session.completedSections[0] === 'writing' &&
+    session.writingSubmission &&
+    !session.writingEvaluation
+  ) {
+    return <PendingWritingReview submission={session.writingSubmission} onExit={onHome} />;
+  }
   return (
     <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
-      <AppHeader />
+      <PracticeHeader />
       <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
         <div className="mb-9">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--exam-success-border)] bg-[var(--exam-success-bg)] px-3 py-1 text-xs font-semibold text-[var(--exam-success-fg)]">
@@ -175,7 +165,7 @@ export function Results({
             const canReview =
               section === "listening" ||
               section === "reading" ||
-              (section === "writing" && Boolean(session.writingEvaluation)) ||
+              (section === "writing" && Boolean(session.writingSubmission)) ||
               (section === "speaking" && Boolean(session.speakingEvaluation));
             return (
               <article
@@ -199,7 +189,9 @@ export function Results({
                                 ? 'Insufficient evidence · Feedback ready · No band assigned'
                                 : `Estimated overall band ${session.speakingEvaluation.overallBand} · Evaluation ready`
                               : `${session.speakingSubmission.responses.filter(r => r.status === 'answered').length} answers recorded · ${session.speakingSubmission.responses.filter(r => r.status === 'skipped').length} skipped · Awaiting evaluation`
-                            : "Submission ready for evaluation"}
+                            : section === 'writing' && session.writingSubmission
+                              ? `Task 1: ${session.writingSubmission.tasks[0].wordCount} words · Task 2: ${session.writingSubmission.tasks[1].wordCount} words · Awaiting evaluation`
+                              : "Submission ready for evaluation"}
                     </p>
                     {canReview ? (
                       <button
@@ -208,7 +200,7 @@ export function Results({
                         className="mt-4 inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-3.5 py-2 text-xs font-bold text-[var(--exam-accent)] transition-colors hover:bg-[var(--exam-control-hover-bg)]"
                       >
                         <ClipboardCheck size={15} />
-                        Review answers
+                        {section === 'writing' && !session.writingEvaluation ? 'View submission' : 'Review answers'}
                       </button>
                     ) : null}
                   </div>
@@ -358,7 +350,9 @@ function PracticeApp() {
   }
 
   if (state.view === "result") {
-    return <Results session={state} objectiveContent={content} onHome={uiCommands.goHome} onReview={commands.openReview} />;
+    return <Results session={state} objectiveContent={content} onHome={uiCommands.goHome} onReview={(section) => {
+      void commands.openReview(section).catch(draftSaves.reportFailure);
+    }} />;
   }
 
   if (section === "listening" || section === "reading") {
@@ -368,6 +362,17 @@ function PracticeApp() {
     const isReviewMode = state.view === "review";
     if (isReviewMode && !review) {
       throw new Error(`${section} review snapshot is unavailable.`);
+    }
+    if (review && isReviewMode && section === 'reading') {
+      return <ExamUiBoundary><ReadingAttemptReview
+        key={review.submission.attemptId}
+        document={review.document}
+        submission={review.submission}
+        currentPart={review.part}
+        onPartChange={(part) => commands.setPart('reading', part)}
+        onExit={commands.closeReview}
+        backLabel={review.returnTo === 'home' ? 'Back to practice' : 'Back to results'}
+      /></ExamUiBoundary>;
     }
     const document = review?.document ?? content[section];
     const submission = review?.submission;
@@ -407,6 +412,7 @@ function PracticeApp() {
       if (!state.review.evaluation) return <PendingAttemptReview review={state.review} onExit={commands.closeReview} />;
       return (
         <WritingAttemptReview
+          backLabel={state.review.returnTo === 'home' ? 'Back to practice' : 'Back to results'}
           submission={state.review.submission}
           evaluation={state.review.evaluation}
           currentPart={state.review.part === 2 ? 2 : 1}

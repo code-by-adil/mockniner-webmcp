@@ -80,9 +80,33 @@ describe('Writing review surface', () => {
     expect(markup).toContain('1 correction')
     expect(markup).toContain('This version states the categories more precisely')
     expect(markup).toContain('The response is focused and logically organised.')
-    expect(markup).toContain('Back to Results')
-    expect(markup).toContain('aria-label="Open agent evaluation and examiner feedback"')
+    expect(markup).toContain('Back to results')
+    expect(markup).toContain('aria-label="Open agent feedback"')
+    expect(markup).toContain('Agent feedback')
+    expect(markup).not.toMatch(/examiner feedback/i)
+    expect(markup).toContain(submission.tasks[1].task.prompt)
+    expect(markup).toContain('View task')
+    expect(markup).not.toContain('Task 1 chart')
     expect(markup).toContain('aria-label="Back to results"')
     expect(markup).not.toContain('<textarea')
+  })
+  it('includes the original Task 1 prompt and chart from the saved submission', () => {
+    const saved = structuredClone(submission)
+    saved.tasks[0].task.title = 'Original saved task'
+    saved.tasks[0].task.prompt = 'Summarise this saved chart, not a replacement task.'
+    const markup = renderToStaticMarkup(<WritingAttemptReview submission={saved} evaluation={evaluation} currentPart={1} onPartChange={() => undefined} onExit={() => undefined} />)
+    expect(markup).toContain('View task and chart')
+    expect(markup).toContain('Original saved task')
+    expect(markup).toContain(saved.tasks[0].task.prompt)
+    expect(markup).toContain('aria-label="Task 1 chart"')
+    if (saved.tasks[0].task.type === 'academic_task_1_bar_chart') {
+      expect(markup).toContain(saved.tasks[0].task.chart.title)
+    }
+    expect(markup).toContain(saved.tasks[0].response)
+  })
+  it('keeps the history return label after evaluation', () => {
+    const markup = renderToStaticMarkup(<WritingAttemptReview submission={submission} evaluation={evaluation} currentPart={1} onPartChange={() => undefined} onExit={() => undefined} backLabel="Back to practice" />)
+    expect(markup).toContain('aria-label="Back to practice"')
+    expect(markup).not.toContain('Back to results')
   })
 })

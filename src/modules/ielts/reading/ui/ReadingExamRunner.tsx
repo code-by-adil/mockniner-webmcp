@@ -8,12 +8,11 @@ import { useTimedSubmission } from "@/modules/exam-engine/useTimedSubmission";
 import { ResizableSplitPaneMobileHeaderProvider } from "@/shared/ui/exam/ResizableSplitPane";
 import { ObjectivePartView } from "@/modules/ielts/objective/ui/ObjectivePartView";
 
-type ReadingExamRunnerProps = ObjectivePracticeRunnerProps;
+type ReadingExamRunnerProps = Omit<ObjectivePracticeRunnerProps, 'isReviewMode'>;
 
 export function ReadingExamRunner({
   document,
   onBack,
-  isReviewMode: providedReviewMode = false,
   answers,
   currentPart,
   secondsRemaining,
@@ -26,14 +25,12 @@ export function ReadingExamRunner({
     () => buildObjectiveFooterParts(document),
     [document],
   );
-  const isReviewMode = providedReviewMode;
   const {
     isSubmitting,
     submissionError,
     submit: handleSubmit,
   } = useTimedSubmission({
     secondsRemaining,
-    disabled: isReviewMode,
     onTick,
     onSubmit,
     fallbackError: "Unable to submit this Reading test.",
@@ -59,12 +56,6 @@ export function ReadingExamRunner({
           {submissionError}
         </div>
       ) : null}
-      {isReviewMode ? (
-        <div className="mt-3 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">
-          This reading test has already been submitted. You can review answers
-          only.
-        </div>
-      ) : null}
     </div>
   );
 
@@ -73,7 +64,6 @@ export function ReadingExamRunner({
       <Header
         testType="reading"
         onExit={onBack}
-        isReviewMode={isReviewMode}
         timeLeft={formatTime(secondsRemaining)}
         isTimerWarning={secondsRemaining <= 300}
       />
@@ -89,12 +79,6 @@ export function ReadingExamRunner({
                 {submissionError}
               </div>
             ) : null}
-            {isReviewMode ? (
-              <div className="mt-3 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">
-                This reading test has already been submitted. You can review
-                answers only.
-              </div>
-            ) : null}
           </div>
         </div>
 
@@ -107,7 +91,7 @@ export function ReadingExamRunner({
                 section={document.section}
                 answers={answers}
                 onAnswerChange={onAnswerChange}
-                isReviewMode={isReviewMode}
+                isReviewMode={false}
               />
             </ResizableSplitPaneMobileHeaderProvider>
           ) : (
@@ -121,7 +105,7 @@ export function ReadingExamRunner({
         answers={answers}
         parts={footerParts}
         onPartChange={onPartChange}
-        onSubmit={isReviewMode ? undefined : () => void handleSubmit()}
+        onSubmit={() => void handleSubmit()}
         isSubmitting={isSubmitting}
       />
     </div>

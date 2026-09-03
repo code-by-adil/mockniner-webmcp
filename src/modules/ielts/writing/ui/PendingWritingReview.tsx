@@ -1,0 +1,83 @@
+import { useState } from 'react'
+import { ArrowLeft, Check, Copy } from 'lucide-react'
+import { PracticeHeader } from '@/app/layouts/PracticeHeader'
+import type { WritingSubmission } from '@/domain/types'
+import { WritingTaskDisclosure } from './WritingTaskDisclosure'
+
+const evaluationRequest = 'Grade my IELTS Writing and add feedback to the submission open on this page.'
+
+function EvaluationRequest() {
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
+
+  async function copyRequest() {
+    setCopyStatus('copying')
+    try {
+      await navigator.clipboard.writeText(evaluationRequest)
+      setCopyStatus('copied')
+    } catch {
+      setCopyStatus('failed')
+    }
+  }
+
+  return (
+    <section aria-label="Writing evaluation" className="rounded-lg border border-neutral-200 bg-white p-5 sm:p-6">
+      <h2 className="font-semibold text-neutral-950">Awaiting evaluation</h2>
+      <p className="mt-2 text-sm leading-6 text-neutral-600">Your responses are saved. Send this request to your agent and keep this submission open. Its feedback will appear here.</p>
+      <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <blockquote className="select-text text-sm leading-6 text-neutral-900">{evaluationRequest}</blockquote>
+        <button
+          type="button"
+          disabled={copyStatus === 'copying'}
+          onClick={() => void copyRequest()}
+          className="inline-flex shrink-0 items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--exam-accent-hover)] disabled:opacity-60"
+        >
+          {copyStatus === 'copied' ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+          {copyStatus === 'copied' ? 'Copied' : copyStatus === 'copying' ? 'Copying...' : 'Copy request'}
+        </button>
+      </div>
+      <p role="status" className="sr-only">{copyStatus === 'copied' ? 'Request copied to clipboard.' : ''}</p>
+      {copyStatus === 'failed' ? <p role="alert" className="mt-3 text-sm text-red-700">Could not copy. Select and copy the request above, or try again.</p> : null}
+    </section>
+  )
+}
+
+export function PendingWritingReview({ submission, onExit, backLabel = 'Back to practice' }: {
+  submission: WritingSubmission
+  onExit: () => void
+  backLabel?: string
+}) {
+  return (
+    <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
+      <PracticeHeader />
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
+        <button type="button" onClick={onExit} className="mb-6 inline-flex items-center gap-2 rounded py-2 text-sm font-semibold text-neutral-700 hover:text-neutral-950">
+          <ArrowLeft size={16} aria-hidden="true" /> {backLabel}
+        </button>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Writing submission</h1>
+          <p className="mt-2 text-sm leading-6 text-neutral-600">
+            Submitted <time dateTime={submission.submittedAt}>{new Date(submission.submittedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time>. Your responses are read-only.
+          </p>
+        </div>
+        <EvaluationRequest key={submission.attemptId} />
+        <div className="mt-6 space-y-6">
+          {submission.tasks.map(({ task, response, wordCount }) => (
+            <section key={`${submission.attemptId}-${task.id}`} aria-labelledby={`submitted-writing-task-${task.id}`} className="min-w-0 rounded-lg border border-neutral-200 bg-white">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 px-5 py-4 sm:px-6">
+                <h2 id={`submitted-writing-task-${task.id}`} className="text-lg font-semibold">Task {task.id}</h2>
+                <p className="text-sm text-neutral-600">{wordCount} {wordCount === 1 ? 'word' : 'words'} <span className="text-neutral-500">/ {task.minimumWords} word minimum</span></p>
+              </div>
+              <WritingTaskDisclosure task={task} />
+              <div className="px-5 py-5 sm:px-6 sm:py-6">
+                <h3 className="mb-3 text-sm font-semibold text-neutral-700">Your response</h3>
+                {response.trim()
+                  ? <div className="select-text whitespace-pre-wrap font-serif text-base leading-8 text-neutral-900 [overflow-wrap:anywhere] sm:text-lg">{response}</div>
+                  : <p className="text-sm text-neutral-500">No response submitted.</p>}
+              </div>
+            </section>
+          ))}
+        </div>
+      </main>
+    </div>
+  )
+}

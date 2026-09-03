@@ -3,6 +3,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type {
   WritingAnnotation,
   WritingTaskEvaluation,
+  WritingSubmittedTask,
 } from "@/domain/types";
 import { ResizableSplitPane } from "@/shared/ui/exam/ResizableSplitPane";
 import { AssessmentLabBrand } from "@/shared/ui/global/AssessmentLabBrand";
@@ -10,16 +11,12 @@ import {
   ArrowDown,
   ChevronDown,
   ChevronUp,
-  LogOut,
+  ArrowLeft,
   MessageSquareText,
-  X,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/useExamLayout";
-import {
-  handleExamDialogBackdropClick,
-  useExamNativeDialog,
-} from "@/shared/ui/exam/useExamNativeDialog";
-import { supportsNativeDialog } from "@/shared/ui/exam/cssAnchorPositioning";
+import { WritingTaskDisclosure } from './WritingTaskDisclosure';
+import { WritingFeedbackDrawer } from './WritingFeedbackDrawer';
 import {
   EMPTY_WRITING_ANNOTATIONS,
   getWritingIssueTitle,
@@ -28,12 +25,13 @@ import {
 } from "./writingReviewAnnotations";
 
 interface Props {
-  essay: string;
+  submittedTask: WritingSubmittedTask;
   scoreData: WritingTaskEvaluation;
   evaluationSummary?: string;
   overallBand?: number;
   evaluatedAt?: string;
   onClose: () => void;
+  backLabel?: string;
   taskOptions?: Array<{
     id: 1 | 2;
     label: string;
@@ -77,24 +75,20 @@ function getTypeClasses(type: WritingAnnotation["type"]) {
 }
 
 export const WritingReviewView: React.FC<Props> = ({
-  essay,
+  submittedTask,
   scoreData,
   evaluationSummary,
   overallBand,
   evaluatedAt,
   onClose,
+  backLabel = 'Back to results',
   taskOptions,
   activeTaskId,
   onTaskChange,
 }) => {
+  const { response: essay, task, wordCount } = submittedTask;
   const isMobile = useIsMobile();
   const [isDrawerOpen, setIsDrawerOpen] = useState(Boolean(evaluationSummary));
-  const useNativeDrawer = supportsNativeDialog();
-  const showDrawer = useNativeDrawer || isDrawerOpen;
-  const correctionsDialogRef = useExamNativeDialog({
-    open: isDrawerOpen && useNativeDrawer,
-    onOpenChange: setIsDrawerOpen,
-  });
   const [activeAnnotationIndex, setActiveAnnotationIndex] = useState<number | null>(null);
   const [hoveredAnnotationIndex, setHoveredAnnotationIndex] = useState<number | null>(null);
   const annotationRefs = useRef<Record<number, HTMLButtonElement | null>>({});
@@ -245,6 +239,7 @@ export const WritingReviewView: React.FC<Props> = ({
                     key={task.id}
                     type="button"
                     onClick={() => onTaskChange?.(task.id)}
+                    aria-pressed={isActive}
                     className={[
                       "flex-1 py-1.5 sm:py-2.5 text-xs sm:text-sm rounded-lg transition-all duration-200 select-none relative",
                       "active:scale-[0.98] active:duration-100",
@@ -262,10 +257,10 @@ export const WritingReviewView: React.FC<Props> = ({
               })}
             </div>
             <div className="flex items-center justify-between py-2.5">
-              <span className="text-[12px] font-medium text-gray-400">
-                {annotations.length} {annotations.length === 1 ? "issue" : "issues"} found
+              <span className="text-[12px] font-medium text-gray-600">
+                {wordCount} words · {annotations.length} {annotations.length === 1 ? "issue" : "issues"} found
               </span>
-              <span className="hidden text-[12px] text-gray-400 sm:block">
+              <span className="hidden text-[12px] text-gray-600 sm:block">
                 Click underlined text to view suggestions
               </span>
             </div>
@@ -281,8 +276,9 @@ export const WritingReviewView: React.FC<Props> = ({
           </div>
         )}
       </div>
-      <div className={`px-5 py-6 sm:px-10 sm:py-10 pb-28 ${!isMobile ? "overflow-y-auto flex-1" : ""}`}>
-        {annotatedElements}
+      <div className={`min-w-0 ${!isMobile ? "overflow-y-auto flex-1" : ""}`}>
+        <WritingTaskDisclosure key={task.id} task={task} />
+        <div className="px-5 py-6 sm:px-10 sm:py-8 pb-28 [overflow-wrap:anywhere]">{annotatedElements}</div>
       </div>
     </div>
   );
@@ -346,7 +342,7 @@ export const WritingReviewView: React.FC<Props> = ({
           {issues.length === 0 ? (
             <div className="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center">
               <p className="text-sm text-gray-500">
-                No line-level corrections were generated for this response. Read the examiner feedback for overall guidance.
+                No line-level corrections were generated for this response. Read the agent feedback for overall guidance.
               </p>
             </div>
           ) : (
@@ -455,7 +451,7 @@ export const WritingReviewView: React.FC<Props> = ({
             >
               <div className="mb-2 flex items-center gap-2">
                 <MessageSquareText size={14} className="text-gray-400" />
-                <span className="text-xs font-semibold text-gray-500">Examiner Feedback</span>
+                <span className="text-xs font-semibold text-gray-600">Agent feedback</span>
               </div>
               <p className="text-[13px] leading-[1.75] text-gray-700">
                 {scoreData.feedback}
@@ -476,11 +472,11 @@ export const WritingReviewView: React.FC<Props> = ({
           <div className="hidden h-5 w-px bg-gray-200 sm:block" />
           <h1 className="hidden truncate text-sm font-semibold text-gray-700 sm:block">Writing Review</h1>
         </div>
-        <div className="flex items-center gap-2 mr-6 sm:mr-12">
+        <div className="flex shrink-0 items-center gap-2">
           {scoreData.feedback && (
             <button
               type="button"
-              aria-label="Open agent evaluation and examiner feedback"
+              aria-label="Open agent feedback"
               onClick={() => {
                 if (isMobile) setIsDrawerOpen(true);
                 setTimeout(() => {
@@ -490,17 +486,17 @@ export const WritingReviewView: React.FC<Props> = ({
               className="flex items-center gap-1 sm:gap-2 text-xs font-bold text-gray-500 hover:text-gray-900 px-2 sm:px-3 py-1 sm:py-1.5 rounded transition-colors border border-gray-200 hover:border-gray-400"
             >
               <MessageSquareText size={14} />
-              <span className="hidden sm:inline">Examiner Feedback</span>
+              <span className="hidden sm:inline">Agent feedback</span>
             </button>
           )}
           <button
             type="button"
-            aria-label="Back to results"
+            aria-label={backLabel}
             onClick={onClose}
             className="flex items-center gap-1 sm:gap-2 text-xs font-bold text-gray-500 hover:text-[#D40000] px-2 sm:px-3 py-1 sm:py-1.5 rounded transition-colors border border-gray-200 hover:border-[#D40000]"
           >
-            <LogOut size={14} />
-            <span className="hidden sm:inline">Back to Results</span>
+            <ArrowLeft size={14} aria-hidden="true" />
+            <span className="hidden sm:inline">{backLabel}</span>
           </button>
         </div>
       </div>
@@ -511,88 +507,9 @@ export const WritingReviewView: React.FC<Props> = ({
             <div className="h-full w-full bg-white relative overflow-y-auto">
               {leftContent}
             </div>
-            {showDrawer ? (
-              useNativeDrawer ? (
-                <dialog
-                  ref={correctionsDialogRef}
-                  className="exam-writing-corrections-dialog exam-native-dialog exam-answer-picker-dialog--sheet flex h-[85vh] w-full flex-col overflow-hidden rounded-t-[10px] border border-gray-200 bg-gray-50 p-0 shadow-2xl"
-                  aria-labelledby="writing-review-corrections-title"
-                  aria-describedby="writing-review-corrections-description"
-                  onClick={handleExamDialogBackdropClick}
-                >
-                  <div className="flex h-12 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4">
-                    <div>
-                      <h2
-                        id="writing-review-corrections-title"
-                        className="text-sm font-bold text-gray-900"
-                      >
-                        Writing Review Corrections
-                      </h2>
-                      <p
-                        id="writing-review-corrections-description"
-                        className="text-xs font-medium text-gray-500"
-                      >
-                        Detailed corrections and examiner feedback.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Close writing review corrections"
-                      onClick={() => setIsDrawerOpen(false)}
-                      className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
-                    >
-                      <X size={18} aria-hidden="true" />
-                    </button>
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-y-auto">
-                    {rightContent}
-                  </div>
-                </dialog>
-              ) : (
-                <div
-                  className="fixed inset-0 z-[70] flex items-end bg-black/35 px-3 pb-3"
-                  role="presentation"
-                  onClick={() => setIsDrawerOpen(false)}
-                >
-                  <section
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="writing-review-corrections-title"
-                    aria-describedby="writing-review-corrections-description"
-                    className="flex h-[85vh] w-full flex-col overflow-hidden rounded-t-[10px] border border-gray-200 bg-gray-50 shadow-2xl"
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <div className="flex h-12 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4">
-                      <div>
-                        <h2
-                          id="writing-review-corrections-title"
-                          className="text-sm font-bold text-gray-900"
-                        >
-                          Writing Review Corrections
-                        </h2>
-                        <p
-                          id="writing-review-corrections-description"
-                          className="text-xs font-medium text-gray-500"
-                        >
-                          Detailed corrections and examiner feedback.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Close writing review corrections"
-                        onClick={() => setIsDrawerOpen(false)}
-                        className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
-                      >
-                        <X size={18} aria-hidden="true" />
-                      </button>
-                    </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto">
-                      {rightContent}
-                    </div>
-                  </section>
-                </div>
-              )
-            ) : null}
+            <WritingFeedbackDrawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+              {rightContent}
+            </WritingFeedbackDrawer>
           </>
         ) : (
           <ResizableSplitPane
