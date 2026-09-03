@@ -109,7 +109,7 @@ export function Home({
             </div>
           </div>
 
-          <StorageButton />
+          <StorageButton canImport />
         </div>
       </header>
 

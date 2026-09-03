@@ -219,6 +219,9 @@ const migrations = [
   },
 ] as const
 
+export const DATABASE_VERSION = migrations.at(-1)!.version
+export const DATABASE_MIGRATION_VERSIONS = migrations.map(migration => migration.version)
+
 export async function migrateDatabase(database: SQLocal): Promise<void> {
   await database.transaction(async (transaction) => {
     await transaction.sql(`CREATE TABLE IF NOT EXISTS app_schema_migrations (
