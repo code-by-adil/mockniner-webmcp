@@ -5,7 +5,7 @@ import { writingDocument } from '@/content/writing'
 import { satPracticeAssessment } from '@/content/sat'
 import { initialSession, sessionReducer } from '@/domain/session'
 import { initialAssessmentSession, assessmentSessionReducer } from '@/domain/assessmentSession'
-import { gradeAssessment } from '@/domain/assessment'
+import { gradeAssessment, parseAssessmentAuthoringPackage } from '@/domain/assessment'
 import { createIeltsRepository } from '@/infrastructure/database/ieltsRepository'
 import { createAssessmentRepository } from '@/infrastructure/database/assessmentRepository'
 import { createContentStore } from '@/infrastructure/database/contentRepository'
@@ -21,6 +21,8 @@ import { gradeObjectiveDocument } from '@/domain/objectiveScoring'
 import { createObjectiveReviewTool } from '@/webmcp/objectiveReviewTool'
 import { createObjectiveExplanationTool } from '@/webmcp/objectiveExplanationTool'
 import { restoreBackup } from '@/infrastructure/database/backupRepository'
+import { createAssessmentContentTool } from '@/webmcp/assessmentContentTool'
+import { createAssessmentToolDefinitions } from '@/webmcp/assessmentTools'
 
 let database: SQLocal
 const dates = { startedAt: '2026-09-01T10:00:00.000Z', submittedAt: '2026-09-01T10:15:00.000Z' }
@@ -52,6 +54,47 @@ function setup() {
 }
 
 describe('semantic practice navigation and discovery', () => {
+  it('retrieves installed authoring content after reload and revises one question without changing history or other content', async () => {
+    const h = setup()
+    const { source: _source, ...original } = structuredClone(satPracticeAssessment)
+    const packageId = 'round-trip-revision'
+    await h.assessment.installAssessment({ ...original, packageId })
+    const snapshot = h.workspace.assessments.find(assessment => assessment.packageId === packageId)!
+    const attemptId = crypto.randomUUID()
+    await h.assessmentRepository.saveAttempt({ ...dates, attemptId, packageId, package: snapshot, responses: {}, result: gradeAssessment(snapshot, {}) })
+    h.workspace.assessments = await h.assessmentRepository.loadPackages()
+    h.native.start('section', 'writing'); h.native.setWritingDraft(1, 'Keep this unfinished report.'); await h.native.goHome()
+    const read = createAssessmentContentTool(() => h.workspace)
+    const options = { signal: new AbortController().signal }
+    const output = await read.execute({ packageId }, options) as { data: { package: unknown } }
+    const replacement = parseAssessmentAuthoringPackage(output.data.package)
+    expect(replacement).toEqual({ ...original, packageId })
+    const lastPart = replacement.parts.at(-1)!
+    lastPart.items.at(-1)!.prompt = [{ type: 'text', text: 'Revised final question with the same response contract.' }]
+    replacement.revision += 1
+    const install = createAssessmentToolDefinitions({ installAssessment: h.assessment.installAssessment, readAssessmentAttempt: h.assessmentRepository.readAttempt,
+      attachEvaluation: h.assessment.attachEvaluation, getCurrentAttemptId: () => undefined }).find(tool => tool.name === 'install_assessment')!
+    await expect(install.execute(replacement, options)).resolves.toMatchObject({ ok: true })
+    h.workspace.assessments = await h.assessmentRepository.loadPackages()
+    const changed = h.workspace.assessments.find(assessment => assessment.packageId === packageId)!
+    expect(changed).toEqual({ ...replacement, source: 'agent' })
+    expect(changed.parts.slice(0, -1)).toEqual(snapshot.parts.slice(0, -1))
+    expect(changed.parts.at(-1)!.items.slice(0, -1)).toEqual(snapshot.parts.at(-1)!.items.slice(0, -1))
+    expect((await h.assessmentRepository.readAttempt(attemptId))?.submission.package).toEqual(snapshot)
+    expect(h.workspace.native.writingDrafts[1]).toBe('Keep this unfinished report.')
+    await expect(read.execute({ packageId, revision: 1 }, options)).resolves.toMatchObject({ ok: false, error: { code: 'ASSESSMENT_REVISION_CHANGED' } })
+    await expect(install.execute({ ...replacement, title: 'Conflicting stale revision' }, options)).resolves.toMatchObject({ ok: false, error: { code: 'ASSESSMENT_INSTALL_CONFLICT' } })
+    await expect(read.execute({ packageId, itemId: lastPart.items.at(-1)!.id, revision: 2 }, options)).resolves.toMatchObject({ data: { scope: { completePackage: false }, package: { parts: [{ items: [lastPart.items.at(-1)] }] } } })
+    const fragment = await read.execute({ packageId, itemId: lastPart.items.at(-1)!.id }, options) as { data: { package: Record<string, unknown> } }
+    await expect(install.execute(fragment.data.package, options)).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_ASSESSMENT' } })
+    expect(h.workspace.assessments.find(assessment => assessment.packageId === packageId)).toEqual(changed)
+    h.assessment.start(packageId); h.assessment.goHome()
+    await expect(read.execute({ packageId }, options)).resolves.toMatchObject({ ok: false, error: { code: 'ACTIVE_ATTEMPT' } })
+    const summary = await read.execute({ packageId, view: 'summary' }, options)
+    expect(summary).toMatchObject({ ok: true })
+    expect(JSON.stringify(summary)).not.toContain('"scoring"')
+    expect(JSON.stringify(summary)).not.toContain('Revised final question')
+  })
   it.each(['reading', 'listening'] as const)('focuses a saved %s question and persists revisable explanations without changing answers or drafts', async section => {
     const h = setup()
     const document = h.workspace.content[section]

@@ -175,6 +175,24 @@ describe("universal assessment WebMCP tools", () => {
     expect(JSON.stringify(result)).toContain('"scoring"');
   });
 
+  it('validates focused read inputs and preserves visible-attempt selection checks', async () => {
+    let visibleId = attemptId;
+    const read = vi.fn(async () => ({ submission, evaluation: null }));
+    const tool = createAssessmentToolDefinitions({ installAssessment: vi.fn(), readAssessmentAttempt: read, attachEvaluation: vi.fn(),
+      getCurrentAttemptId: () => visibleId }, 'results')[0];
+    for (const input of [{ view: 'invalid' }, { itemId: '' }, { attemptId, latest: true }, { part: 1 }]) {
+      await expect(tool.execute(input, options())).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
+    }
+    expect(read).not.toHaveBeenCalled();
+    await expect(tool.execute({ itemId: 'rw-1' }, options())).resolves.toMatchObject({ ok: true, data: {
+      scope: { itemId: 'rw-1', partial: true }, submission: { responses: { 'rw-1': 'b' } },
+    } });
+    await expect(tool.execute({ itemId: 'missing' }, options())).resolves.toMatchObject({ ok: false, error: { code: 'ASSESSMENT_SCOPE_NOT_FOUND' } });
+    read.mockImplementation(async () => { visibleId = crypto.randomUUID(); return { submission, evaluation: null }; });
+    await expect(tool.execute({ view: 'summary' }, options())).resolves.toMatchObject({ ok: false, error: { code: 'VISIBLE_ATTEMPT_CHANGED' } });
+    await expect(tool.execute({ attemptId, itemId: 'rw-1' }, options())).resolves.toMatchObject({ ok: true, data: { selection: { mode: 'id', isVisible: false } } });
+  });
+
   it("registers only tools relevant to the visible assessment surface", () => {
     const dependencies = {
       installAssessment: vi.fn(),

@@ -269,6 +269,21 @@ correctness; `responses` returns responses without either; `none` hides objectiv
 item details and responses. Aggregate scores remain available. Agent-scored items,
 their submitted responses, and rubrics remain readable under every policy so
 evaluation still works. No active draft responses or keys are returned.
+The reader accepts `view: "summary"` for a compact outline with permitted part
+and item IDs. Full reads can be limited by `partId` or `itemId`; matching
+responses, per-item results, references, rubrics and annotations follow the
+same selection. A partial read keeps aggregate scores explicitly scoped to the
+whole assessment and omits global evaluation prose and criterion feedback.
+Unfiltered full reads retain the complete existing response contract.
+
+`get_assessment_content` reads the current installed package for authoring,
+separately from immutable submissions. It supports the same summary and content
+filters, with an optional `revision` check. Full authoring reads require the
+library and reject the package used by an unfinished or paused attempt. A full,
+unfiltered `data.package` can be edited and sent to `install_assessment` with an
+incremented revision. Built-ins must be copied to a fresh package ID. Partial
+reads are labeled and cannot serve as complete replacement payloads.
+
 If evaluation is needed, call the registered `attach_assessment_evaluation`.
 That tool checks the rubric, scale, criteria,
 evidence, annotations, item IDs, and quoted response text before it saves the

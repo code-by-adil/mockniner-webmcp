@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { assessmentSubmissionForAgent } from '@/domain/assessmentReview';
+import { assessmentReadFields, readAssessmentSubmission } from '@/domain/assessmentRead';
 import { readSelectedSubmission, submissionSelectionSchema } from './submissionSelection';
 import type { AssessmentApplicationCommands } from "@/application/assessmentCommands";
 import { getAssessmentAuthoringKit } from "@/content/assessmentExamples";
@@ -37,6 +37,11 @@ const getAuthoringKitInputSchema = {
   required: ["template"],
   additionalProperties: false,
 } as const;
+
+const readSubmissionInputSchema = z.strictObject({
+  attemptId: z.uuid().optional(), latest: z.literal(true).optional(), ...assessmentReadFields,
+}).refine(input => !(input.attemptId && input.latest), { message: 'Use attemptId or latest, not both.' });
+const readSubmissionJsonSchema = z.toJSONSchema(readSubmissionInputSchema, { target: 'draft-07', io: 'input' });
 
 export type AssessmentToolSurface = "authoring" | "results" | "evaluation" | "none";
 
@@ -138,13 +143,19 @@ export function createAssessmentToolDefinitions({
     name: "get_assessment_submission",
     title: "Read assessment submission",
     description:
-      "Read a submitted assessment. Review policy: answers includes keys and correctness; responses omits both; none hides objective item details. Rubric-scored responses remain available for evaluation. No parameters means the visible submission; use latest: true or attemptId for history. Never reads drafts or navigates.",
-    inputSchema: submissionSelectionSchema,
+      "Read a submitted assessment: omit IDs for visible, or use attemptId/latest:true. view summary lists permitted part/item IDs and totals without responses. full (default) accepts partId/itemId to return only matching content, responses and annotations; aggregate scores remain assessment-wide. Unfiltered full includes complete evaluation. Review policy applies: responses hides keys/correctness; none allows only rubric items. Never reads drafts or navigates.",
+    inputSchema: { ...readSubmissionJsonSchema, properties: {
+      ...readSubmissionJsonSchema.properties,
+      ...submissionSelectionSchema.properties,
+    } },
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     execute: async (input, options) => {
       const signal = getToolExecutionSignal(options);
       throwIfCancelled(signal);
-      const selected = await readSelectedSubmission(input, readAssessmentAttempt, getCurrentAttemptId, signal);
+      const parsed = readSubmissionInputSchema.safeParse(input);
+      if (!parsed.success) return toolFailure('INVALID_INPUT', 'Choose the visible submission, attemptId or latest:true, with optional view, partId and itemId.', true, zodIssues(parsed.error));
+      const { view, partId, itemId, ...selectionInput } = parsed.data;
+      const selected = await readSelectedSubmission(selectionInput, readAssessmentAttempt, getCurrentAttemptId, signal);
       if (!selected.ok) return selected;
       const { stored, requestedId, selection } = selected;
       if (!stored) {
@@ -156,24 +167,22 @@ export function createAssessmentToolDefinitions({
           true,
         );
       }
-      return {
-        ok: true,
-        data: {
-          selection,
-          evaluation: stored.evaluation,
-          submission: assessmentSubmissionForAgent(stored.submission),
-          evaluationStatus: getAssessmentEvaluationStatus(
-            stored.submission.result,
-            stored.evaluation,
-          ),
-          evaluationRevision: stored.evaluation ? stored.evaluation.revision ?? 1 : 0,
-          canReviseEvaluation: Boolean(stored.evaluation) && stored.submission.attemptId === getCurrentAttemptId(),
-          canAttachEvaluation:
-            !stored.evaluation &&
-            stored.submission.result.awaitingEvaluationCount > 0 &&
-            stored.submission.attemptId === getCurrentAttemptId(),
-        },
-      };
+      try {
+        return {
+          ok: true,
+          data: {
+            selection,
+            ...readAssessmentSubmission(stored, { view, partId, itemId }),
+            evaluationStatus: getAssessmentEvaluationStatus(stored.submission.result, stored.evaluation),
+            evaluationRevision: stored.evaluation ? stored.evaluation.revision ?? 1 : 0,
+            canReviseEvaluation: Boolean(stored.evaluation) && stored.submission.attemptId === getCurrentAttemptId(),
+            canAttachEvaluation:
+              !stored.evaluation &&
+              stored.submission.result.awaitingEvaluationCount > 0 &&
+              stored.submission.attemptId === getCurrentAttemptId(),
+          },
+        };
+      } catch (error) { return applicationFailure(error); }
     },
   };
   const evaluationTool: WebMCP.ModelContextTool = {
