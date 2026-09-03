@@ -1,7 +1,13 @@
 import { ApplicationError } from '@/domain/errors'
 import { speakingPlanSchema, type SpeakingPlan } from '@/domain/speakingPlan'
 
-export type SpeakingProgress = {
+export type SpeakingDiagnostics = {
+  preparationStage: 'saving_plan' | 'microphone_access' | 'voice_and_recognition' | null
+  error: string | null
+  recoveryAction: string | null
+}
+
+export type SpeakingProgress = Partial<SpeakingDiagnostics> & {
   contentKey?: string
   title?: string
   phase: string

@@ -42,4 +42,10 @@ describe('safe live progress', () => {
     expect(getPracticeProgress(w, { phase: 'recording', currentQuestion: 4, totalQuestions: 10, recordedAnswers: 2, skippedAnswers: 1, secondsRemaining: 22 }))
       .toMatchObject({ kind: 'speaking', phase: 'recording', currentQuestion: 4, secondsRemaining: 22 })
   })
+  it('includes Speaking diagnostics in shared practice context', () => {
+    const w = workspace(); Object.assign(w.native, { view: 'exam', currentSection: 'speaking' })
+    const diagnostics = { preparationStage: null, error: 'Permission dismissed', recoveryAction: 'Check microphone access and retry.' }
+    expect(getPracticeProgress(w, { ...diagnostics, phase: 'setup', currentQuestion: 1, totalQuestions: 10, recordedAnswers: 0, skippedAnswers: 0 }))
+      .toMatchObject({ kind: 'speaking', ...diagnostics })
+  })
 })

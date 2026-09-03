@@ -48,6 +48,29 @@ function setup() {
 }
 
 describe('semantic practice navigation and discovery', () => {
+  it('discovers the saved standalone Speaking plan while open, parked and restored', async () => {
+    const h = setup()
+    const navigate = createPracticeNavigation({ ...h.deps, canLeaveSpeaking: () => true })
+    const readSpeaking = async () => (await readPracticeLibrary(database, h.workspace, { ...page, kind: 'speaking' })).items[0]
+    expect(await readSpeaking()).toMatchObject({ title: defaultSpeakingPlan.title, contentKey: defaultSpeakingPlan.contentKey, itemCount: 12 })
+    await navigate({ action: 'start', kind: 'speaking' })
+    const speakingId = h.workspace.native.attemptId!
+    const customPlan = { ...defaultSpeakingPlan, contentKey: 'saved-community-interview', title: 'Saved community interview', questions: defaultSpeakingPlan.questions.filter(question => ![2, 3].includes(question.id)) }
+    await h.native.configureSpeakingPlan(customPlan)
+    const expected = { title: customPlan.title, contentKey: customPlan.contentKey, itemCount: 10 }
+    expect(await readSpeaking()).toMatchObject(expected)
+    await navigate({ action: 'library' })
+    expect(await readSpeaking()).toMatchObject(expected)
+    await navigate({ action: 'start', kind: 'full_ielts' })
+    expect(await readSpeaking()).toMatchObject(expected)
+    // A restored session must use its parked plan, not the visible Full IELTS plan.
+    h.workspace.native = sessionReducer(initialSession, { type: 'RESTORE', session: structuredClone(h.workspace.native) })
+    expect(await readSpeaking()).toMatchObject(expected)
+    await navigate({ action: 'resume', kind: 'ielts', attemptId: speakingId })
+    expect(await readSpeaking()).toMatchObject(expected)
+    h.workspace.native = initialSession
+    expect(await readSpeaking()).toMatchObject({ title: defaultSpeakingPlan.title, itemCount: 12 })
+  })
   it('reports content activation locks from a Full IELTS draft without blocking reuse of the active set', async () => {
     const h = setup()
     const otherReading = { ...readingDocument, contentKey: 'other-reading' }

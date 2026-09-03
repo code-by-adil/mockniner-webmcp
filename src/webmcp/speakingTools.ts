@@ -45,7 +45,7 @@ export function createSpeakingProgressToolDefinition(readProgress: () => unknown
   return {
     name: 'get_ielts_speaking_progress',
     title: 'Read Speaking interview progress',
-    description: 'Read the configured title, content key, phase, question position and answered/skipped counts without transcripts. Empty setup can be paused through open_practice. Running interviews stay local and never wait for polling or another agent question. After submission use get_ielts_speaking_submission.',
+    description: 'Read the configured title, content key, phase, question position and answered/skipped counts without transcripts. Includes preparationStage (saving_plan, microphone_access, voice_and_recognition, or null), error and recoveryAction. Preparation may need a browser permission response or a model download. Empty setup can be paused through open_practice. After submission use get_ielts_speaking_submission.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     execute: async (input, options) => {

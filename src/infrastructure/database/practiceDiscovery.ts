@@ -3,6 +3,7 @@ import { parsePracticeContentDocument } from '@/domain/contentDocument'
 import { listeningDocument, readingDocument } from '@/content/objective'
 import { writingDocument } from '@/content/writing'
 import { defaultSpeakingPlan } from '@/domain/speakingPlan'
+import { findIeltsDraft } from '@/domain/session'
 import { getResumablePractices, getPracticeStartability, type PracticeWorkspace } from '@/application/practiceNavigation'
 import { getObjectiveBlockQuestionIds } from '@/domain/objectiveContent'
 import { getAssessmentItemCount, getAssessmentDurationSeconds } from '@/domain/assessmentScoring'
@@ -12,6 +13,7 @@ export type DiscoveryPage = { kind?: 'listening' | 'reading' | 'writing' | 'spea
 const page = <T>(items: T[], input: DiscoveryPage) => ({ items: items.slice(input.offset, input.offset + input.limit), nextOffset: items.length > input.offset + input.limit ? input.offset + input.limit : null })
 
 export async function readPracticeLibrary(database: Pick<SQLocal, 'sql'>, workspace: PracticeWorkspace, input: DiscoveryPage) {
+  const speakingPlan = findIeltsDraft(workspace.native, 'section', 'speaking')?.speakingPlan ?? defaultSpeakingPlan
   const rows = await database.sql<{ documentJson: string; contentKey: string; section: string }>`SELECT document_json AS documentJson, content_key AS contentKey, section FROM content_documents ORDER BY installed_at DESC, content_key`
   const unavailableContentKeys: string[] = []
   const saved = rows.flatMap(row => {
@@ -31,8 +33,8 @@ export async function readPracticeLibrary(database: Pick<SQLocal, 'sql'>, worksp
       subject: 'English', difficulty: null,
       startability: getPracticeStartability(workspace, document.section, document.contentKey),
       active: workspace.content[document.section].contentKey === document.contentKey })),
-    { kind: 'speaking', title: defaultSpeakingPlan.title, active: true, durationSeconds: SECTION_META.speaking.durationSeconds,
-      durationKind: 'estimate', itemCount: defaultSpeakingPlan.questions.length, partCount: 3, subject: 'English', difficulty: null,
+    { kind: 'speaking', contentKey: speakingPlan.contentKey, title: speakingPlan.title, active: true, durationSeconds: SECTION_META.speaking.durationSeconds,
+      durationKind: 'estimate', itemCount: speakingPlan.questions.length, partCount: 3, subject: 'English', difficulty: null,
       startability: getPracticeStartability(workspace, 'speaking') },
     ...workspace.assessments.map(assessment => ({ kind: 'assessment', packageId: assessment.packageId, revision: assessment.revision,
       title: assessment.title, source: assessment.source, itemCount: getAssessmentItemCount(assessment), partCount: assessment.parts.length,

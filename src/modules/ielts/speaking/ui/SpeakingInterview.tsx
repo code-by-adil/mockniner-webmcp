@@ -15,7 +15,12 @@ export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPl
   attemptStartedAt?: string
 }) {
   const interview = useSpeakingInterview({ bindSpeakingInterview, onComplete, initialPlan, onConfigurePlan, attemptId, attemptStartedAt })
-  const { phase, plan, index, secondsLeft, error, completeAnswer, startRecording, canvasRef } = interview
+  const { phase, plan, index, secondsLeft, error, preparationStage, recoveryAction, completeAnswer, startRecording, canvasRef } = interview
+  const preparationMessage = preparationStage === 'microphone_access'
+    ? 'Waiting for microphone access. Check the browser permission request.'
+    : preparationStage === 'voice_and_recognition'
+      ? 'Preparing the voice and speech recognition. First-time model downloads may take longer.'
+      : 'Saving your interview plan…'
   const [notes, setNotes] = useState('')
   const question = plan.questions[index]!
   const busy = ['preparing', 'buffering', 'starting', 'stopping', 'saving'].includes(phase)
@@ -41,12 +46,12 @@ export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPl
       <li>Your recordings and speech recognition stay on this device. Your agent receives the transcript only after you finish.</li>
       <li>Each completed answer is saved before the next question. You can leave and resume later; an unfinished recording is not saved.</li>
     </ul>
-    {error ? <p role="alert" className="mt-5 rounded-lg bg-red-50 p-4 text-sm text-red-800">{error}</p> : null}
+    {error ? <div role="alert" className="mt-5 rounded-lg bg-red-50 p-4 text-sm text-red-800"><p>{error}</p>{recoveryAction ? <p className="mt-2">{recoveryAction}</p> : null}</div> : null}
     <button type="button" disabled={phase === 'preparing'} onClick={() => void interview.start()} className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[var(--exam-accent)] px-6 py-3 font-semibold text-white disabled:opacity-60">
       {phase === 'preparing' ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
       {phase === 'preparing' ? 'Preparing your interview…' : interview.recorded ? 'Resume interview' : 'Start interview'}
     </button>
-    <p role="status" className="mt-3 text-center text-xs leading-5 text-[var(--exam-text-muted)]">{phase === 'preparing' ? 'Preparing the microphone, voice and speech recognition. The first visit may take longer.' : interview.recorded ? `${interview.recorded} of ${plan.questions.length} answers saved on this device.` : 'Have a custom topic? Your agent can install the complete question set here before you start.'}</p>
+    <p role="status" className="mt-3 text-center text-xs leading-5 text-[var(--exam-text-muted)]">{phase === 'preparing' ? preparationMessage : interview.recorded ? `${interview.recorded} of ${plan.questions.length} answers saved on this device.` : 'Have a custom topic? Your agent can install the complete question set here before you start.'}</p>
   </main>
 
   const status = phase === 'speaking' ? 'Listen to the question' : phase === 'thinking' ? 'Preparation time' : phase === 'ready' ? 'Ready to record' : phase === 'starting' ? 'Starting microphone…' : phase === 'recording' ? 'Recording your answer' : phase === 'buffering' ? 'Preparing question audio…' : phase === 'stopping' ? 'Saving your answer…' : phase === 'saving' ? 'Preparing your interview transcript…' : 'Please try again'

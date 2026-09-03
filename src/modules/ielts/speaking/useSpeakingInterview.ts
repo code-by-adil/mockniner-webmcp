@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CompleteSpeakingAttemptInput, SpeakingRecordingInput } from '@/application/attemptWriter'
-import type { BindSpeakingInterview } from '@/application/speakingInterviewController'
+import type { BindSpeakingInterview, SpeakingDiagnostics } from '@/application/speakingInterviewController'
 import { ApplicationError } from '@/domain/errors'
 import { defaultSpeakingPlan, speakingQuestionText, type SpeakingPlan } from '@/domain/speakingPlan'
 import { KokoroSpeakingPlayer } from '@/infrastructure/media/kokoroSpeakingPlayer'
@@ -23,7 +23,8 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
   const [phase, setPhaseState] = useState<SpeakingPhase>(attemptId ? 'loading' : 'setup')
   const [index, setIndex] = useState(0)
   const [secondsLeft, setSecondsLeft] = useState(0)
-  const [error, setError] = useState<string | null>(null)
+  const [diagnostics, setDiagnosticsState] = useState<SpeakingDiagnostics>({ preparationStage: null, error: null, recoveryAction: null })
+  const diagnosticsRef = useRef(diagnostics)
   const [recorded, setRecorded] = useState(0)
   const phaseRef = useRef(phase)
   const planRef = useRef(plan)
@@ -40,6 +41,14 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
   const recorder = useSpeakingRecorder()
   const latest = useRef(recorder)
   useLayoutEffect(() => { latest.current = recorder }, [recorder])
+
+  const updateDiagnostics = useCallback((patch: Partial<SpeakingDiagnostics>) => {
+    diagnosticsRef.current = { ...diagnosticsRef.current, ...patch }
+    if (mounted.current) setDiagnosticsState(diagnosticsRef.current)
+  }, [])
+  const setError = useCallback((error: string | null, recoveryAction: string | null = null) => {
+    updateDiagnostics({ preparationStage: null, error, recoveryAction })
+  }, [updateDiagnostics])
 
   const setPhase = useCallback((next: SpeakingPhase) => {
     phaseRef.current = next
@@ -61,9 +70,9 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       setIndex(nextIndex)
       setRecorded(saved.length)
       setPhase('setup')
-    }).catch(reason => { if (!cancelled) { setError(String(reason)); setPhase('load-error') } })
+    }).catch(reason => { if (!cancelled) { setError(String(reason), 'Export your local data before attempting recovery of the saved interview.'); setPhase('load-error') } })
     return () => { cancelled = true }
-  }, [attemptId, setPhase])
+  }, [attemptId, setPhase, setError])
   const timedPhase = useCallback((next: SpeakingPhase, seconds: number) => {
     deadline.current = performance.now() + seconds * 1000
     setSecondsLeft(seconds)
@@ -86,14 +95,16 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       if (phaseRef.current !== 'setup' || responses.current.length) throw new ApplicationError('SPEAKING_ALREADY_STARTED', 'The question set is locked. Finish or exit this interview before installing another.', true)
       // Save first: failed persistence must not update the UI or report success.
       const saved = onConfigurePlan(next)
-      const apply = () => { planRef.current = next; setPlan(next) }
+      const apply = () => { planRef.current = next; setPlan(next); setError(null) }
       if (saved) {
+        updateDiagnostics({ preparationStage: 'saving_plan', error: null, recoveryAction: null })
         setPhase('preparing')
-        return saved.then(apply).finally(() => setPhase('setup'))
+        return saved.then(apply).finally(() => { updateDiagnostics({ preparationStage: null }); setPhase('setup') })
       }
       apply()
     },
     read: () => ({
+      ...diagnosticsRef.current,
       contentKey: planRef.current.contentKey, title: planRef.current.title,
       phase: phaseRef.current, currentQuestion: indexRef.current + 1,
       part: planRef.current.questions[indexRef.current]?.part,
@@ -104,7 +115,7 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       skippedAnswers: responses.current.filter(r => r.status === 'skipped').length,
       answersSaved: Boolean(attemptId) && !pendingResponse.current,
     }),
-  }), [bindSpeakingInterview, onConfigurePlan, attemptId, setPhase])
+  }), [bindSpeakingInterview, onConfigurePlan, attemptId, setPhase, setError, updateDiagnostics])
 
   useEffect(() => {
     if (attemptId ? !['recording', 'starting', 'stopping', 'answer-save-error'].includes(phase) : phase === 'setup') return
@@ -115,6 +126,7 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
 
   const startRecording = useCallback(async () => {
     if (!['thinking', 'ready'].includes(phaseRef.current)) return
+    setError(null)
     setPhase('starting')
     try {
       await latest.current.start()
@@ -122,10 +134,10 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       timedPhase('recording', planRef.current.questions[indexRef.current]!.responseSeconds)
     } catch (reason) {
       if (!mounted.current) return
-      setError(reason instanceof Error ? reason.message : 'Could not start the microphone. Retry this answer.')
+      setError(reason instanceof Error ? reason.message : 'Could not start the microphone. Retry this answer.', 'Check microphone access, then select Retry this question and Record answer.')
       setPhase('error')
     }
-  }, [setPhase, timedPhase])
+  }, [setPhase, timedPhase, setError])
 
   const playQuestion = useCallback(async (nextIndex: number) => {
     operation.current?.abort()
@@ -146,10 +158,10 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       else setPhase('ready')
     } catch (reason) {
       if (!mounted.current || controller.signal.aborted) return
-      setError(reason instanceof Error ? reason.message : 'Could not play this question. Retry audio.')
+      setError(reason instanceof Error ? reason.message : 'Could not play this question. Retry audio.', 'Select Retry this question to prepare and play its audio again.')
       setPhase('error')
     }
-  }, [setPhase, timedPhase])
+  }, [setPhase, timedPhase, setError])
 
   const finishInterview = useCallback(async () => {
     if (saving.current) return
@@ -172,14 +184,15 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       })
     } catch (reason) {
       if (!mounted.current) return
-      setError(reason instanceof Error ? reason.message : 'Could not save the interview. Your recordings are still in this tab.')
+      setError(reason instanceof Error ? reason.message : 'Could not save the interview. Your recordings are still in this tab.', 'Select Retry processing interview. Your saved answers will be reused.')
       setPhase('save-error')
     } finally { saving.current = false }
-  }, [onComplete, setPhase, persistResponse])
+  }, [onComplete, setPhase, persistResponse, setError])
 
   const completeAnswer = useCallback(async (skip = false) => {
     if (stopping.current || !(skip ? ['recording', 'thinking', 'ready', 'error'] : ['recording', 'answer-save-error']).includes(phaseRef.current)) return
     stopping.current = true
+    setError(null)
     operation.current?.abort()
     setPhase('stopping')
     performance.mark('speaking:answer-finished')
@@ -203,10 +216,10 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       else await playQuestion(indexRef.current + 1)
     } catch (reason) {
       if (!mounted.current) return
-      setError(reason instanceof Error ? reason.message : 'Could not save this answer. Record it again.')
+      setError(reason instanceof Error ? reason.message : 'Could not save this answer. Record it again.', pendingResponse.current ? 'Select Retry saving this answer. The recording is retained for retry.' : 'Select Retry this question, then record your answer again.')
       setPhase(pendingResponse.current ? 'answer-save-error' : 'error')
     } finally { stopping.current = false }
-  }, [finishInterview, playQuestion, setPhase, persistResponse])
+  }, [finishInterview, playQuestion, setPhase, persistResponse, setError])
 
   const finishAnswerRef = useRef(completeAnswer)
   useLayoutEffect(() => { finishAnswerRef.current = completeAnswer }, [completeAnswer])
@@ -228,15 +241,19 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
     if (phaseRef.current !== 'setup') return
     setPhase('preparing')
     setError(null)
+    updateDiagnostics({ preparationStage: 'saving_plan' })
     startedAt.current ||= new Date().toISOString()
     performance.mark('speaking:setup-started')
     try {
       await onConfigurePlan(planRef.current)
+      if (!mounted.current) return
       if (responses.current.length === planRef.current.questions.length) { await finishInterview(); return }
       // Request permission on the Start gesture. Do not record the examiner.
+      updateDiagnostics({ preparationStage: 'microphone_access', recoveryAction: 'Check the browser microphone permission request to continue.' })
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       stream.getTracks().forEach(track => track.stop())
       if (!mounted.current) return
+      updateDiagnostics({ preparationStage: 'voice_and_recognition', recoveryAction: null })
       const texts = planRef.current.questions.map(speakingQuestionText)
       player.current!.preload(texts)
       // Prepare recognition and the first question concurrently. Remaining
@@ -245,13 +262,19 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
       if (mounted.current) { performance.mark('speaking:setup-finished'); await playQuestion(responses.current.length) }
     } catch (reason) {
       if (!mounted.current) return
-      setError(reason instanceof Error ? reason.message : 'Could not prepare the interview.')
+      const stage = diagnosticsRef.current.preparationStage
+      const recovery = stage === 'microphone_access'
+        ? 'Check microphone access in browser and device settings, then select Start interview or Resume interview.'
+        : stage === 'voice_and_recognition'
+          ? 'Check your connection for the first-time speech model download, then select Start interview or Resume interview.'
+          : 'Retry Start interview or Resume interview. If saving still fails, export your local data before recovery.'
+      setError(reason instanceof Error ? reason.message : 'Could not prepare the interview.', recovery)
       setPhase('setup')
     }
-  }, [playQuestion, setPhase, onConfigurePlan, finishInterview])
+  }, [playQuestion, setPhase, onConfigurePlan, finishInterview, setError, updateDiagnostics])
 
   return {
-    plan, phase, index, secondsLeft, error, recorded, start, completeAnswer,
+    plan, phase, index, secondsLeft, ...diagnostics, recorded, start, completeAnswer,
     retryQuestion: () => playQuestion(indexRef.current), startRecording, finishInterview,
     canvasRef: recorder.canvasRef, transcriptionStatus: recorder.transcriptionStatus,
   }

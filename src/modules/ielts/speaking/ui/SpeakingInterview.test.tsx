@@ -6,6 +6,7 @@ import type { SpeakingInterviewBinding } from '@/application/speakingInterviewCo
 import { createSpeakingInterviewController } from '@/application/speakingInterviewController'
 import { defaultSpeakingPlan, speakingQuestionText } from '@/domain/speakingPlan'
 import { SpeakingInterview } from './SpeakingInterview'
+import { createSpeakingProgressToolDefinition } from '@/webmcp/speakingTools'
 
 const mocks = vi.hoisted(() => ({ start: vi.fn(), stop: vi.fn(), discard: vi.fn(), prepare: vi.fn(), transcribe: vi.fn(), speak: vi.fn(), preload: vi.fn(), prepareAudio: vi.fn(), dispose: vi.fn() }))
 const drafts = vi.hoisted(() => ({ load: vi.fn(), save: vi.fn() }))
@@ -126,14 +127,53 @@ describe('one local Speaking experience', () => {
     await act(async () => resolveStop({ audio: new Blob(['answer']), durationMs: 3000, transcript: '' }))
     expect(bridge.read()).toMatchObject({ currentQuestion: 2, recordedAnswers: 1 })
   })
-  it('keeps setup retryable if microphone permission fails', async () => {
-    vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValueOnce(new Error('Microphone permission denied'))
+  it('reports preparation stages through WebMCP while each dependency is pending', async () => {
+    let saved!: () => void, permitted!: (stream: MediaStream) => void, prepared!: () => void
+    persistPlan.mockImplementationOnce(() => new Promise<void>(resolve => { saved = resolve }))
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockImplementationOnce(() => new Promise<MediaStream>(resolve => { permitted = resolve }))
+    mocks.prepare.mockImplementationOnce(() => new Promise<void>(resolve => { prepared = resolve }))
+    const tool = createSpeakingProgressToolDefinition(bridge.read)
+    const read = () => tool.execute({}, { signal: new AbortController().signal })
     await click('Start interview')
-    expect(bridge.read()).toMatchObject({ phase: 'setup' })
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain('permission denied')
+    expect(await read()).toMatchObject({ ok: true, data: { phase: 'preparing', preparationStage: 'saving_plan', error: null, recoveryAction: null } })
+    expect(host.textContent).toContain('Saving your interview plan')
+    expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled()
+    await act(async () => saved())
+    expect(await read()).toMatchObject({ data: { preparationStage: 'microphone_access', error: null, recoveryAction: expect.stringContaining('permission request') } })
+    expect(host.textContent).toContain('Waiting for microphone access')
+    expect(mocks.prepare).not.toHaveBeenCalled()
+    await act(async () => permitted({ getTracks: () => [{ stop: trackStop }] } as unknown as MediaStream))
+    expect(await read()).toMatchObject({ data: { preparationStage: 'voice_and_recognition', recoveryAction: null } })
+    expect(host.textContent).toContain('First-time model downloads')
+    expect(trackStop).toHaveBeenCalledOnce()
+    await act(async () => prepared())
+    expect(await read()).toMatchObject({ data: { phase: 'ready', preparationStage: null, error: null, recoveryAction: null } })
+  })
+  it('keeps permission failures visible to WebMCP and clears them on successful retry', async () => {
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValueOnce(new DOMException('Permission dismissed', 'NotAllowedError'))
+    await click('Start interview')
+    const tool = createSpeakingProgressToolDefinition(bridge.read)
+    expect(await tool.execute({}, { signal: new AbortController().signal })).toMatchObject({ ok: true, data: {
+      phase: 'setup', preparationStage: null, error: 'Permission dismissed', recoveryAction: expect.stringContaining('browser and device settings'),
+    } })
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('Permission dismissed')
     expect(mocks.speak).not.toHaveBeenCalled()
     await click('Start interview')
-    expect(bridge.read()).toMatchObject({ phase: 'ready' })
+    expect(bridge.read()).toMatchObject({ phase: 'ready', preparationStage: null, error: null, recoveryAction: null })
+  })
+  it.each(['prepare', 'prepareAudio'] as const)('identifies %s failure as speech preparation and permits retry', async dependency => {
+    mocks[dependency].mockRejectedValueOnce(new Error('Model download failed'))
+    await click('Start interview')
+    expect(bridge.read()).toMatchObject({ phase: 'setup', preparationStage: null, error: 'Model download failed', recoveryAction: expect.stringContaining('speech model download') })
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('Model download failed')
+    await click('Start interview')
+    expect(bridge.read()).toMatchObject({ phase: 'ready', error: null, recoveryAction: null })
+  })
+  it('reports a plan-save failure without requesting microphone permission', async () => {
+    persistPlan.mockRejectedValueOnce(new Error('Storage quota exceeded'))
+    await click('Start interview')
+    expect(bridge.read()).toMatchObject({ phase: 'setup', error: 'Storage quota exceeded', recoveryAction: expect.stringContaining('saving still fails') })
+    expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled()
   })
   it('has one start action, prepares ahead and never needs agent turns', async () => {
     expect(host.textContent).not.toContain('Agent interview')
@@ -184,11 +224,11 @@ describe('one local Speaking experience', () => {
     await click('Start interview'); await click('Record answer')
     mocks.stop.mockRejectedValueOnce(new Error('Microphone captured silence.'))
     await click('Submit answer')
-    expect(bridge.read()).toMatchObject({ phase: 'error', currentQuestion: 1, recordedAnswers: 0 })
+    expect(bridge.read()).toMatchObject({ phase: 'error', currentQuestion: 1, recordedAnswers: 0, error: 'Microphone captured silence.', recoveryAction: expect.stringContaining('Retry this question') })
     expect(host.querySelector('[role="alert"]')?.textContent).toContain('silence')
     await click('Retry this question'); await click('Record answer')
     await click('Submit answer')
-    expect(bridge.read()).toMatchObject({ currentQuestion: 2, recordedAnswers: 1 })
+    expect(bridge.read()).toMatchObject({ currentQuestion: 2, recordedAnswers: 1, error: null, recoveryAction: null })
   })
   it('does not start recording before examiner playback ends', async () => {
     let finishPlayback!: () => void
