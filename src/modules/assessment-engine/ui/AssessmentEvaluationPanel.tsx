@@ -20,6 +20,7 @@ export function AssessmentEvaluationPanel({
     <section className="mt-8 border-t border-neutral-200 pt-6">
       <div className="flex items-center gap-2">
         <h2 className="text-lg font-semibold">Agent evaluation</h2>
+        <span className="text-xs text-neutral-500">Revision {evaluation.revision ?? 1}</span>
       </div>
       <p className="mt-3 text-sm leading-6 text-neutral-700">{evaluation.summary}</p>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">

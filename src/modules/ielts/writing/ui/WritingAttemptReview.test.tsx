@@ -71,6 +71,7 @@ describe('Writing review surface', () => {
     expect(markup).toContain('>Lab</span>')
     expect(markup).toContain('Agent evaluation')
     expect(markup).toContain('Both tasks address the prompt clearly.')
+    expect(markup).toContain('Revision 1')
     expect(markup).toContain('Task response')
     expect(markup).toContain('Grammatical range &amp; accuracy')
     expect(markup).toContain('Task 1')
@@ -94,7 +95,9 @@ describe('Writing review surface', () => {
     const saved = structuredClone(submission)
     saved.tasks[0].task.title = 'Original saved task'
     saved.tasks[0].task.prompt = 'Summarise this saved chart, not a replacement task.'
-    const markup = renderToStaticMarkup(<WritingAttemptReview submission={saved} evaluation={evaluation} currentPart={1} onPartChange={() => undefined} onExit={() => undefined} />)
+    const markup = renderToStaticMarkup(<WritingAttemptReview submission={saved} evaluation={{ ...evaluation, revision: 2, summary: 'Revised feedback.' }} currentPart={1} onPartChange={() => undefined} onExit={() => undefined} />)
+    expect(markup).toContain('Revision 2')
+    expect(markup).toContain('Revised feedback.')
     expect(markup).toContain('View task and chart')
     expect(markup).toContain('Original saved task')
     expect(markup).toContain(saved.tasks[0].task.prompt)

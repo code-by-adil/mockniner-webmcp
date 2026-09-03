@@ -6,6 +6,7 @@ import type {
   ObjectiveSubmission,
   SpeakingSubmission,
   WritingSubmission,
+  WritingEvaluation,
 } from '@/domain/types'
 import { createIeltsCommands } from './ieltsCommands'
 import type { AttemptWriter } from './attemptWriter'
@@ -27,7 +28,7 @@ function createHarness({
     reading: readingDocument,
     writing: writingDocument,
   }
-  const persistEvaluation = vi.fn(async () => undefined)
+  const persistEvaluation = vi.fn(async (evaluation: WritingEvaluation) => ({ ...evaluation, revision: 1 }))
   const persistSpeakingEvaluation = vi.fn(async () => undefined)
   const saveAndActivate = vi.fn(async () => undefined)
   const loadByKey = vi.fn(async (contentKey: string) =>
@@ -443,7 +444,8 @@ describe('exam application commands', () => {
       task2: task,
     })
 
-    expect(harness.persistEvaluation).toHaveBeenCalledWith(evaluation)
+    const { revision: _revision, ...savedFeedback } = evaluation
+    expect(harness.persistEvaluation).toHaveBeenCalledWith(savedFeedback, undefined)
     expect(harness.getState().writingEvaluation).toEqual(evaluation)
     expect(harness.getState().view).toBe('review')
   })

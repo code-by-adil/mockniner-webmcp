@@ -33,6 +33,7 @@ export function WritingAttemptReview({
         evaluationSummary={evaluation.summary}
         overallBand={evaluation.overallBand}
         evaluatedAt={evaluation.evaluatedAt}
+        evaluationRevision={evaluation.revision ?? 1}
         onClose={onExit}
         backLabel={backLabel}
         taskOptions={[

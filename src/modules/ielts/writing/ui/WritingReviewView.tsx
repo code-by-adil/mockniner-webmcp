@@ -30,6 +30,7 @@ interface Props {
   evaluationSummary?: string;
   overallBand?: number;
   evaluatedAt?: string;
+  evaluationRevision?: number;
   onClose: () => void;
   backLabel?: string;
   taskOptions?: Array<{
@@ -80,6 +81,7 @@ export const WritingReviewView: React.FC<Props> = ({
   evaluationSummary,
   overallBand,
   evaluatedAt,
+  evaluationRevision,
   onClose,
   backLabel = 'Back to results',
   taskOptions,
@@ -334,7 +336,7 @@ export const WritingReviewView: React.FC<Props> = ({
               </dl>
               {evaluatedAt ? (
                 <p className="mt-3 text-[10px] text-emerald-800/60">
-                  Saved locally {new Date(evaluatedAt).toLocaleString()}
+                  {evaluationRevision ? `Revision ${evaluationRevision} · ` : ''}Saved locally {new Date(evaluatedAt).toLocaleString()}
                 </p>
               ) : null}
             </section>

@@ -46,7 +46,7 @@ describe("Writing WebMCP tools", () => {
       getCurrentWritingAttemptId: () => undefined,
     };
     expect(createWritingToolDefinitions(dependencies, "results").map((tool) => tool.name)).toEqual([
-      "get_ielts_writing_submission",
+      "get_ielts_writing_submission", "attach_ielts_writing_evaluation",
     ]);
     expect(
       createWritingToolDefinitions(dependencies, "evaluation").map((tool) => tool.name),
@@ -97,7 +97,7 @@ describe("Writing WebMCP tools", () => {
     expect(attachWritingEvaluation).toHaveBeenCalledWith(evaluationInput);
     expect(result).toMatchObject({
       ok: true,
-      data: { status: "attached", attemptId },
+      data: { status: "saved", attemptId },
       sideEffect: { visibleView: "writing_review" },
     });
   });

@@ -8,6 +8,7 @@ import {
   ASSESSMENT_AUTHORING_TEMPLATE_IDS,
   getAssessmentEvaluationStatus,
   getAssessmentItemCount,
+  getAssessmentAuthoringGuide,
   type AssessmentEvaluation,
   type AssessmentSubmission,
 } from "@/domain/assessment";
@@ -51,13 +52,14 @@ type AssessmentToolDependencies = {
 
 export function createAssessmentAuthoringToolDefinitions({
   installAssessment,
-}: Pick<AssessmentToolDependencies, "installAssessment">): WebMCP.ModelContextTool[] {
+  includeAuthoringExamples = () => true,
+}: Pick<AssessmentToolDependencies, "installAssessment"> & { includeAuthoringExamples?: () => boolean }): WebMCP.ModelContextTool[] {
   return [
     {
       name: "get_assessment_authoring_kit",
       title: "Get universal assessment authoring kit",
       description:
-        "Return universal engine capabilities, coverage limits, authoring rules, and one complete example package. Available only when no unfinished practice exists, including paused drafts, because examples contain answer keys. Use the closest template for GRE-style, SAT-style, school, professional, or custom practice.",
+        "Return universal engine capabilities, limits, rules and package schema. Includes one complete example package only when no unfinished practice exists; otherwise returns guidance without examples to protect answer keys. Choose the closest template for the requested practice.",
       inputSchema: getAuthoringKitInputSchema,
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async (input, options) => {
@@ -72,7 +74,15 @@ export function createAssessmentAuthoringToolDefinitions({
             zodIssues(parsed.error),
           );
         }
-        return { ok: true, data: getAssessmentAuthoringKit(parsed.data.template) };
+        const examplesIncluded = includeAuthoringExamples();
+        return { ok: true, data: {
+          ...(examplesIncluded ? getAssessmentAuthoringKit(parsed.data.template) : {
+            ...getAssessmentAuthoringGuide(parsed.data.template),
+            nextAction: "Examples are omitted while unfinished practice exists to protect answer keys. Build original content using the rules and packageSchema. Open the library before calling install_assessment.",
+          }),
+          examplesIncluded,
+          packageSchema: getAssessmentPackageJsonSchema(),
+        } };
       },
     },
     {
@@ -156,6 +166,8 @@ export function createAssessmentToolDefinitions({
             stored.submission.result,
             stored.evaluation,
           ),
+          evaluationRevision: stored.evaluation ? stored.evaluation.revision ?? 1 : 0,
+          canReviseEvaluation: Boolean(stored.evaluation) && stored.submission.attemptId === getCurrentAttemptId(),
           canAttachEvaluation:
             !stored.evaluation &&
             stored.submission.result.awaitingEvaluationCount > 0 &&
@@ -168,7 +180,7 @@ export function createAssessmentToolDefinitions({
     name: "attach_assessment_evaluation",
     title: "Attach assessment evaluation",
     description:
-      "Validate and attach a structured rubric evaluation to the current immutable universal assessment submission. Read the submission first and use exactly its rubric ID, criteria, scale, and response text. On success the visible result updates immediately.",
+      "Save rubric feedback on the visible immutable universal assessment submission. Read its rubric ID, criteria, scale and response text first. Identical retries return the saved evaluation without a new revision. For corrections, supply the reader's evaluationRevision as expectedRevision. Stale revisions are rejected. The visible result updates immediately.",
     inputSchema: getAssessmentEvaluationJsonSchema(),
     annotations: { readOnlyHint: false, untrustedContentHint: false },
     execute: async (input, options) => {
@@ -184,7 +196,8 @@ export function createAssessmentToolDefinitions({
         return {
           ok: true,
           data: {
-            status: "attached",
+            status: "saved",
+            revision: evaluation.revision ?? 1,
             attemptId: evaluation.attemptId,
             rubricId: evaluation.rubricId,
             overallScore: evaluation.overallScore,
@@ -197,7 +210,6 @@ export function createAssessmentToolDefinitions({
       }
     },
   };
-  if (surface === "results") return [submissionTool];
-  if (surface === "evaluation") return [submissionTool, evaluationTool];
+  if (surface === "results" || surface === "evaluation") return [submissionTool, evaluationTool];
   return [];
 }

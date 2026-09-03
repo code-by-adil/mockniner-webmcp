@@ -33,8 +33,8 @@ export function createIeltsRepository(
     saveObjectiveAttempt: (input) => saveObjectiveAttempt(database, input),
     saveWritingAttempt: (input) => saveWritingAttempt(database, input),
     saveSpeakingAttempt: (input) => saveSpeakingAttempt(database, input),
-    saveWritingEvaluation: (evaluation) =>
-      saveWritingEvaluation(database, evaluation),
+    saveWritingEvaluation: (evaluation, expectedRevision) =>
+      saveWritingEvaluation(database, evaluation, expectedRevision),
     saveSpeakingEvaluation: (evaluation) =>
       saveSpeakingEvaluation(database, evaluation),
   };

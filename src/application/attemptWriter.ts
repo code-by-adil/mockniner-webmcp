@@ -59,7 +59,7 @@ export type AttemptWriter = {
   saveWritingAttempt: (
     input: SaveWritingAttemptInput,
   ) => Promise<WritingSubmission>;
-  saveWritingEvaluation: (evaluation: WritingEvaluation) => Promise<void>;
+  saveWritingEvaluation: (evaluation: WritingEvaluation, expectedRevision?: number) => Promise<WritingEvaluation>;
   saveSpeakingAttempt: (
     input: SaveSpeakingAttemptInput,
   ) => Promise<SpeakingSubmission>;

@@ -78,6 +78,7 @@ export type WritingTaskEvaluation = {
 }
 
 export type WritingEvaluation = {
+  revision?: number
   attemptId: string
   overallBand: number
   summary: string

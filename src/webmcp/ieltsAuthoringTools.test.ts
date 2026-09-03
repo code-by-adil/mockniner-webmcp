@@ -14,18 +14,18 @@ function toolOptions() {
 describe('practice-set WebMCP tool', () => {
   it.each(['listening', 'reading', 'writing'] as const)('provides a complete, installable %s example without sharing mutable source content', async section => {
     const kit = getIeltsAuthoringKit(section)
-    const example = parsePracticeContentDocument(kit.exampleDocument)
+    const example = parsePracticeContentDocument(kit.exampleDocument!)
     expect(example.section).toBe(section)
     const status: ListeningAudioStatus = { contentKey: example.contentKey, source: 'kokoro', phase: 'loading', readyToPlay: false, completedChunks: 0, totalChunks: null, error: null, canRetry: false }
     const tools = createIeltsAuthoringToolDefinitions({ readListeningAudio: () => status, installContent: async input => parsePracticeContentDocument(input) })
-    await expect(tools[1]!.execute(kit.exampleDocument, toolOptions())).resolves.toMatchObject({ ok: true, data: { section, active: true, name: example.name } })
+    await expect(tools[1]!.execute(kit.exampleDocument!, toolOptions())).resolves.toMatchObject({ ok: true, data: { section, active: true, name: example.name } })
     if (example.section === 'listening') expect(example.audio).toMatchObject({ type: 'kokoro', parts: expect.any(Array) })
-    kit.exampleDocument.name = 'Changed copy'
-    expect(getIeltsAuthoringKit(section).exampleDocument.name).toBe(example.name)
+    kit.exampleDocument!.name = 'Changed copy'
+    expect(getIeltsAuthoringKit(section).exampleDocument!.name).toBe(example.name)
   })
 
   it.each(['loading', 'generating', 'ready', 'error'] as const)('returns the actual %s audio status after Listening installation', async phase => {
-    const example = getIeltsAuthoringKit('listening').exampleDocument
+    const example = getIeltsAuthoringKit('listening').exampleDocument!
     const status: ListeningAudioStatus = { contentKey: example.contentKey, source: 'kokoro', phase, readyToPlay: phase === 'ready',
       completedChunks: phase === 'loading' ? 0 : 2, totalChunks: phase === 'loading' ? null : 10, error: phase === 'error' ? 'Synthetic failure.' : null, canRetry: phase === 'error' }
     const tool = createIeltsAuthoringToolDefinitions({ installContent: async input => parsePracticeContentDocument(input), readListeningAudio: () => status })[1]!

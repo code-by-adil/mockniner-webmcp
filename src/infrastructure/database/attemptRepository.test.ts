@@ -104,7 +104,7 @@ describe('local attempt repository', () => {
       saveWritingEvaluation(database, { ...evaluation, summary: 'A competing evaluation.' }),
     ])
     expect(outcomes.map((outcome) => outcome.status)).toEqual(['fulfilled', 'rejected'])
-    expect(outcomes[1]).toMatchObject({ reason: { code: 'EVALUATION_EXISTS' } })
+    expect(outcomes[1]).toMatchObject({ reason: { code: 'EVALUATION_REVISION_REQUIRED' } })
     const stored = await readWritingAttempt(database, submission.attemptId)
 
     expect(stored?.submission).toEqual(submission)
@@ -114,7 +114,7 @@ describe('local attempt repository', () => {
       throw new Error('Expected the stored first Writing task to be Task 1.')
     }
     expect(storedTask1.chart.rows).toHaveLength(7)
-    expect(stored?.evaluation).toEqual(evaluation)
+    expect(stored?.evaluation).toEqual({ ...evaluation, revision: 1 })
     const [attempt] = await database.sql<{ status: string }>`
       SELECT status FROM attempts WHERE id = ${submission.attemptId}
     `

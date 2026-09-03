@@ -28,5 +28,5 @@ export type AssessmentRepository = {
     submission: AssessmentSubmission;
     evaluation: AssessmentEvaluation | null;
   } | null>;
-  saveEvaluation: (evaluation: AssessmentEvaluation) => Promise<void>;
+  saveEvaluation: (evaluation: AssessmentEvaluation, expectedRevision?: number) => Promise<AssessmentEvaluation>;
 };

@@ -290,11 +290,6 @@ export function createAssessmentCommands({
           "ASSESSMENT_SUBMISSION_NOT_FOUND",
           `Assessment attempt ${parsed.attemptId} was not found.`,
         );
-      if (stored.evaluation)
-        throw new ApplicationError(
-          "EVALUATION_EXISTS",
-          `Assessment attempt ${parsed.attemptId} already has an evaluation.`,
-        );
       const state = getState();
       if (
         state.view !== "result" ||
@@ -315,8 +310,8 @@ export function createAssessmentCommands({
           );
         throw error;
       }
-      const evaluation = { ...parsed, evaluatedAt: new Date().toISOString() };
-      await repository.saveEvaluation(evaluation);
+      const { expectedRevision, ...feedback } = parsed;
+      const evaluation = await repository.saveEvaluation({ ...feedback, evaluatedAt: new Date().toISOString() }, expectedRevision);
       setHistory((current) =>
         current.map((attempt) =>
           attempt.attemptId === evaluation.attemptId

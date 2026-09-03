@@ -152,7 +152,7 @@ export function getAssessmentAuthoringGuide(templateId: AssessmentAuthoringTempl
       maximumResources: 20,
     },
     instructions: [
-      "Copy the example package, then replace its ID, title, content, options, answers, and rubric details.",
+      "Create original content using the package schema. When an example package is included, replace its ID, title, content, options, answers, and rubric details.",
       "Keep schemaVersion 3. Omit source because the application records agent authorship itself.",
       "Use stable lowercase IDs made from letters, numbers, periods, underscores, or hyphens. Item IDs must be unique across the package.",
       "Declare only the tools the learner needs. An empty tools array is valid.",

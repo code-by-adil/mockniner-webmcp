@@ -3,7 +3,7 @@ import { completeDraft } from './draftRepository';
 import { readRecentHistory, type HistoryEntry } from './historyRepository';
 import { recordNativeAttemptActivity } from './practiceActivity';
 import { resolveWritingEvaluation } from "@/domain/writingAnnotations";
-import { ApplicationError } from "@/domain/errors";
+import { prepareEvaluationWrite } from '@/domain/evaluationRevision';
 import type {
   ObjectiveSubmission,
   WritingEvaluation,
@@ -284,36 +284,44 @@ export async function readWritingAttempt(
 
 export async function saveWritingEvaluation(
   database: SQLocal,
-  evaluation: WritingEvaluation,
-): Promise<void> {
-  await database.transaction(async (transaction) => {
+  candidate: WritingEvaluation,
+  expectedRevision?: number,
+): Promise<WritingEvaluation> {
+  return database.transaction(async (transaction) => {
     const [attempt] = await transaction.sql<{ id: string }>`
       SELECT id FROM attempts
-      WHERE id = ${evaluation.attemptId} AND section = 'writing'
+      WHERE id = ${candidate.attemptId} AND section = 'writing'
     `;
     if (!attempt) {
-      throw new Error(`Writing attempt ${evaluation.attemptId} was not found.`);
+      throw new Error(`Writing attempt ${candidate.attemptId} was not found.`);
     }
 
-    const inserted = await transaction.sql<{ attemptId: string }>`
+    const [row] = await transaction.sql<{ evaluationJson: string; submissionJson: string }>`
+      SELECT writing_evaluations.evaluation_json AS evaluationJson,
+        writing_submissions.submission_json AS submissionJson
+      FROM writing_evaluations JOIN writing_submissions USING (attempt_id)
+      WHERE attempt_id = ${candidate.attemptId}
+    `;
+    const current = row ? resolveWritingEvaluation(
+      parseStoredWritingSubmission(row.submissionJson), parseStoredWritingEvaluation(row.evaluationJson),
+    ) : null;
+    const evaluation = prepareEvaluationWrite(candidate, current, expectedRevision);
+    if (evaluation === current) return evaluation;
+    await transaction.sql`
       INSERT INTO writing_evaluations (attempt_id, evaluation_json, evaluated_at)
       VALUES (
         ${evaluation.attemptId},
         ${JSON.stringify(evaluation)},
         ${evaluation.evaluatedAt}
       )
-      ON CONFLICT(attempt_id) DO NOTHING
-      RETURNING attempt_id AS attemptId
+      ON CONFLICT(attempt_id) DO UPDATE SET
+        evaluation_json = excluded.evaluation_json, evaluated_at = excluded.evaluated_at
     `;
-    if (!inserted.length)
-      throw new ApplicationError(
-        "EVALUATION_EXISTS",
-        `Writing attempt ${evaluation.attemptId} already has an evaluation.`,
-      );
     await transaction.sql`
       UPDATE attempts SET status = 'evaluated'
       WHERE id = ${evaluation.attemptId}
     `;
     await recordNativeAttemptActivity(transaction, evaluation.attemptId, 'feedback_attached', 'evaluated');
+    return evaluation;
   });
 }

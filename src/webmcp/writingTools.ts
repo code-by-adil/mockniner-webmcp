@@ -70,6 +70,8 @@ export function createWritingToolDefinitions(
           evaluationStatus: stored.evaluation
             ? "evaluated"
             : "awaiting_evaluation",
+          evaluationRevision: stored.evaluation ? stored.evaluation.revision ?? 1 : 0,
+          canReviseEvaluation: Boolean(stored.evaluation) && stored.submission.attemptId === getCurrentWritingAttemptId(),
           canAttachEvaluation:
             !stored.evaluation &&
             stored.submission.attemptId === getCurrentWritingAttemptId(),
@@ -81,7 +83,7 @@ export function createWritingToolDefinitions(
     name: "attach_ielts_writing_evaluation",
     title: "Attach IELTS Writing evaluation",
     description:
-      "Validate and attach a structured IELTS Writing evaluation to the current immutable submission. Supply whole or half-band scores from 0 to 9 for both tasks and all four criteria. On success the application opens the read-only Writing review.",
+      "Save structured feedback on the visible immutable IELTS Writing submission. Use whole or half-band scores from 0 to 9. Identical retries return the saved evaluation without a new revision. For corrections, read get_ielts_writing_submission and supply its evaluationRevision as expectedRevision. Stale revisions are rejected. The review updates immediately.",
     inputSchema: attachWritingEvaluationInputSchema,
     annotations: { readOnlyHint: false, untrustedContentHint: false },
     execute: async (input, options) => {
@@ -102,7 +104,8 @@ export function createWritingToolDefinitions(
         return {
           ok: true,
           data: {
-            status: "attached",
+            status: "saved",
+            revision: evaluation.revision ?? 1,
             attemptId: evaluation.attemptId,
             overallBand: evaluation.overallBand,
             evaluatedAt: evaluation.evaluatedAt,
@@ -117,7 +120,6 @@ export function createWritingToolDefinitions(
       }
     },
   };
-  if (surface === "results") return [submissionTool];
-  if (surface === "evaluation") return [submissionTool, evaluationTool];
+  if (surface === "results" || surface === "evaluation") return [submissionTool, evaluationTool];
   return [];
 }

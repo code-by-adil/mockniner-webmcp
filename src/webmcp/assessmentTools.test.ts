@@ -186,7 +186,7 @@ describe("universal assessment WebMCP tools", () => {
       "get_assessment_authoring_kit", "install_assessment",
     ]);
     expect(createAssessmentToolDefinitions(dependencies, "results").map((tool) => tool.name)).toEqual([
-      "get_assessment_submission",
+      "get_assessment_submission", "attach_assessment_evaluation",
     ]);
     expect(createAssessmentToolDefinitions(dependencies, "evaluation").map((tool) => tool.name)).toEqual([
       "get_assessment_submission", "attach_assessment_evaluation",

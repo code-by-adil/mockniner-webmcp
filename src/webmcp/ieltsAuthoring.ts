@@ -36,13 +36,15 @@ const rules: Record<IeltsAuthoringSection, string[]> = {
   ],
 };
 
-export function getIeltsAuthoringKit(section: IeltsAuthoringSection) {
+export function getIeltsAuthoringKit(section: IeltsAuthoringSection, includeExamples = true) {
   return {
     section,
     rules: rules[section],
     documentSchema: z.toJSONSchema(schemas[section], { target: "draft-07" }),
-    exampleDocument: getIeltsExample(section),
-    nextAction:
-      "Use exampleDocument as a compact, complete structural example, not a full-length calibrated exam. It is separate from built-in practice. Choose a fresh contentKey and descriptive name, replace its content for new practice, and validate against documentSchema before calling install_ielts_practice_set. Listening returns preparation status; follow get_practice_context.listeningAudio until readyToPlay.",
+    examplesIncluded: includeExamples,
+    ...(includeExamples ? { exampleDocument: getIeltsExample(section) } : {}),
+    nextAction: includeExamples ?
+      "Use exampleDocument as a compact, complete structural example, not a full-length calibrated exam. It is separate from built-in practice. Choose a fresh contentKey and descriptive name, replace its content for new practice, and validate against documentSchema before calling install_ielts_practice_set. Listening returns preparation status; follow get_practice_context.listeningAudio until readyToPlay."
+      : "Examples are omitted while unfinished practice exists to protect answer keys. Create original content using the rules and documentSchema, with a fresh contentKey. Open the library before installing; content used by an unfinished attempt cannot be replaced.",
   };
 }

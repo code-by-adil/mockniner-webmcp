@@ -120,7 +120,7 @@ describe('saved practice activity', () => {
     await saveWritingAttempt(database, newer)
     await saveWritingAttempt(database, older)
     await saveWritingEvaluation(database, writingFeedback(older.attemptId))
-    await expect(saveWritingEvaluation(database, writingFeedback(older.attemptId))).rejects.toThrow('already has an evaluation')
+    await expect(saveWritingEvaluation(database, writingFeedback(older.attemptId))).resolves.toMatchObject({ revision: 1 })
     const { items } = await readPracticeActivity(database, page)
     expect(items).toHaveLength(4)
     expect(items[0]).toMatchObject({ type: 'feedback_attached', attemptId: older.attemptId, outcome: 'evaluated', title: writingDocument.name })
@@ -145,7 +145,7 @@ describe('saved practice activity', () => {
     await Promise.all([saveAssessmentAttempt(database, input), saveAssessmentAttempt(database, input)])
     await saveAssessmentPackage(database, { ...satPracticeAssessment, revision: 2, title: 'Different revision' })
     await saveAssessmentEvaluation(database, assessmentFeedback(input.attemptId))
-    await expect(saveAssessmentEvaluation(database, assessmentFeedback(input.attemptId))).rejects.toThrow('already has an evaluation')
+    await expect(saveAssessmentEvaluation(database, assessmentFeedback(input.attemptId))).resolves.toMatchObject({ revision: 1 })
     const { items } = await readPracticeActivity(database, page)
     expect(items).toHaveLength(3)
     expect(items[0]).toMatchObject({ type: 'feedback_attached', kind: 'assessment', revision: 1,

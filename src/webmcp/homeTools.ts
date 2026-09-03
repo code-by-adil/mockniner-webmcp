@@ -11,6 +11,7 @@ type HomeAuthoringToolDependencies = {
   installAssessment: AssessmentApplicationCommands["installAssessment"];
   readLearningSummary: (recentLimit: number) => Promise<LearningSummary>;
   readListeningAudio: () => ListeningAudioStatus;
+  includeAuthoringExamples?: () => boolean;
 };
 
 export function createHomeToolDefinitions({
@@ -18,10 +19,11 @@ export function createHomeToolDefinitions({
   installAssessment,
   readLearningSummary,
   readListeningAudio,
+  includeAuthoringExamples,
 }: HomeAuthoringToolDependencies): WebMCP.ModelContextTool[] {
   return [
-    ...createIeltsAuthoringToolDefinitions({ installContent, readListeningAudio }),
+    ...createIeltsAuthoringToolDefinitions({ installContent, readListeningAudio, includeAuthoringExamples }),
     ...createLearningToolDefinitions({ readLearningSummary }),
-    ...createAssessmentAuthoringToolDefinitions({ installAssessment }),
+    ...createAssessmentAuthoringToolDefinitions({ installAssessment, includeAuthoringExamples }),
   ];
 }

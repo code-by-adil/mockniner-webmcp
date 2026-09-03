@@ -129,9 +129,10 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     const homeAvailable = () => latest.current.nativeAuthoringEnabled && latest.current.assessmentToolSurface === 'authoring';
     // Kits include answer-bearing examples that agents can install verbatim.
     // Paused drafts and drafts hidden behind history need the same protection.
-    const authoringKitAvailable = () => getResumablePractices(latest.current.workspace).length === 0;
+    const includeAuthoringExamples = () => getResumablePractices(latest.current.workspace).length === 0;
       tools.push(
         ...createHomeToolDefinitions({
+          includeAuthoringExamples,
           installContent: (input) =>
             latest.current.commands.installContent(input),
           readListeningAudio,
@@ -139,9 +140,7 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
             latest.current.assessmentCommands.installAssessment(input),
           readLearningSummary: async (limit) =>
             (await getIeltsRepository()).readLearningSummary(limit),
-        }).map((tool) => tool.name === 'get_ielts_authoring_kit' || tool.name === 'get_assessment_authoring_kit'
-          ? guard(tool, authoringKitAvailable, 'Authoring examples contain answer keys and are unavailable while any unfinished practice exists, including paused drafts. Finish the practice, or let the learner discard it in the interface, before requesting an authoring kit. Library, history and submission readers remain available.')
-          : tool.annotations?.readOnlyHint ? tool : guard(tool, homeAvailable, 'Use open_practice with action library before installing practice.')),
+        }).map((tool) => tool.annotations?.readOnlyHint ? tool : guard(tool, homeAvailable, 'Use open_practice with action library before installing practice.')),
       );
     tools.push(
       ...createWritingToolDefinitions(
@@ -155,9 +154,9 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
         },
         'evaluation',
       ).map((tool) => guard(tool, () => tool.name.startsWith('attach_')
-        ? latest.current.writingToolSurface === 'evaluation'
+        ? latest.current.writingToolSurface !== 'none'
         : true,
-      'Open a submitted IELTS Writing attempt. Evaluation attachment requires the visible attempt to be awaiting evaluation.')),
+      'Open a submitted IELTS Writing attempt before attaching or revising its evaluation.')),
     );
     tools.push(
       ...createSpeakingToolDefinitions(
@@ -189,9 +188,9 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
           },
           'evaluation',
         ).map((tool) => guard(tool, () => tool.name.startsWith('attach_')
-          ? latest.current.assessmentToolSurface === 'evaluation'
+          ? ['evaluation', 'results'].includes(latest.current.assessmentToolSurface)
           : true,
-        'Open a submitted universal assessment. Evaluation attachment requires the visible attempt to be awaiting evaluation.')),
+        'Open a submitted universal assessment before attaching or revising its evaluation.')),
       );
     tools.push(createSpeakingInterviewToolDefinition(interview.configure), createSpeakingProgressToolDefinition(interview.read));
     void Promise.all(

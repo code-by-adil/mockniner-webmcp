@@ -76,7 +76,8 @@ export const writingSubmissionSchema: z.ZodType<WritingSubmission> = z.strictObj
 });
 
 export const writingEvaluationSchema: z.ZodType<WritingEvaluation> =
-  writingEvaluationInputSchema.extend({
+  writingEvaluationInputSchema.omit({ expectedRevision: true }).extend({
+    revision: z.number().int().positive().default(1),
     evaluatedAt: timestampSchema,
   });
 

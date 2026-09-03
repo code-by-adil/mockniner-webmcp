@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { expectedEvaluationRevisionSchema } from './evaluationRevision';
 import type {
   AssessmentEvaluationStatus,
   AssessmentSubmission,
@@ -19,6 +20,7 @@ const evaluationScoreSchema = z.strictObject({
 
 export const assessmentEvaluationInputSchema = z.strictObject({
   attemptId: z.uuid(),
+  expectedRevision: expectedEvaluationRevisionSchema,
   rubricId: identifierSchema,
   overallScore: z.number().finite(),
   criteria: z.array(evaluationScoreSchema).min(1).max(20),
@@ -30,7 +32,8 @@ export const assessmentEvaluationInputSchema = z.strictObject({
     suggestion: bodyTextSchema, explanation: bodyTextSchema,
   })).max(100).default([]),
 });
-export const assessmentEvaluationSchema = assessmentEvaluationInputSchema.extend({
+export const assessmentEvaluationSchema = assessmentEvaluationInputSchema.omit({ expectedRevision: true }).extend({
+  revision: z.number().int().positive().optional(),
   evaluatedAt: z.iso.datetime({ offset: true }),
 });
 export type AssessmentEvaluationInput = z.infer<typeof assessmentEvaluationInputSchema>;

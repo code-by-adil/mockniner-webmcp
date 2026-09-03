@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { expectedEvaluationRevisionSchema } from './evaluationRevision'
 
 const bandScoreSchema = z
   .number()
@@ -44,6 +45,7 @@ const writingTaskEvaluationSchema = z
 export const writingEvaluationInputSchema = z
   .object({
     attemptId: z.uuid(),
+    expectedRevision: expectedEvaluationRevisionSchema,
     overallBand: bandScoreSchema,
     summary: z.string().trim().min(1).max(4_000),
     task1: writingTaskEvaluationSchema,

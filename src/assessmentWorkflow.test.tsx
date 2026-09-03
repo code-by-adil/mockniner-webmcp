@@ -178,15 +178,12 @@ describe("mixed universal assessment workflow", () => {
     const attached = await evaluationTool.execute(evaluationInput, toolOptions());
     expect(attached).toMatchObject({
       ok: true,
-      data: { status: "attached", attemptId, rubricId: "analytical-writing", overallScore: 4 },
+      data: { status: "saved", attemptId, rubricId: "analytical-writing", overallScore: 4 },
       sideEffect: { visibleView: "assessment_results" },
     });
 
     const duplicate = await evaluationTool.execute(evaluationInput, toolOptions());
-    expect(duplicate).toMatchObject({
-      ok: false,
-      error: { code: "EVALUATION_EXISTS", retryable: false },
-    });
+    expect(duplicate).toEqual(attached);
 
     const restored = await readAssessmentAttempt(database, attemptId);
     expect(restored?.submission.responses["analytical-writing-issue"]).toBe(essay);

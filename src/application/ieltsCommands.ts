@@ -341,11 +341,6 @@ export function createIeltsCommands({
           "WRITING_SUBMISSION_NOT_FOUND",
           `Writing attempt ${parsed.attemptId} was not found.`,
         );
-      if (stored.evaluation)
-        throw new ApplicationError(
-          "EVALUATION_EXISTS",
-          `Writing attempt ${parsed.attemptId} already has an evaluation.`,
-        );
       if (
         !(state.view === 'review' && state.review?.kind === 'writing' && state.review.submission.attemptId === parsed.attemptId) &&
         !(state.writingSubmission?.attemptId === parsed.attemptId && ["transition", "result"].includes(state.view))
@@ -355,12 +350,13 @@ export function createIeltsCommands({
           `Writing attempt ${parsed.attemptId} is not the current submitted attempt.`,
         );
       }
-      const evaluation = resolveWritingEvaluation(
+      const { expectedRevision, ...feedback } = parsed;
+      const candidate = resolveWritingEvaluation(
         stored.submission,
-        { ...parsed, evaluatedAt: now().toISOString() },
+        { ...feedback, evaluatedAt: now().toISOString() },
         true,
       );
-      await repository.saveWritingEvaluation(evaluation);
+      const evaluation = await repository.saveWritingEvaluation(candidate, expectedRevision);
       dispatch({ type: "ATTACH_WRITING_EVALUATION", evaluation });
       return evaluation;
     },

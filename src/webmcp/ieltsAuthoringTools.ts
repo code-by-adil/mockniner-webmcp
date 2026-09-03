@@ -16,6 +16,7 @@ import {
 type IeltsAuthoringToolDependencies = {
   installContent: IeltsCommands['installContent']
   readListeningAudio: () => ListeningAudioStatus
+  includeAuthoringExamples?: () => boolean
 }
 
 const ieltsAuthoringKitInputSchema = {
@@ -71,13 +72,14 @@ function markAsAgentCreated(input: unknown): unknown {
 export function createIeltsAuthoringToolDefinitions({
   installContent,
   readListeningAudio,
+  includeAuthoringExamples = () => true,
 }: IeltsAuthoringToolDependencies): WebMCP.ModelContextTool[] {
   return [
     {
       name: 'get_ielts_authoring_kit',
       title: 'Get native IELTS authoring kit',
       description:
-        'Return rules, a separate complete exampleDocument and JSON Schema for native IELTS Listening, Reading, or Writing. Available only when no unfinished practice exists, including paused drafts, because examples contain answer keys. Choose a fresh contentKey and replace example content before installation.',
+        'Return rules and JSON Schema for native IELTS Listening, Reading, or Writing. Includes a separate complete exampleDocument only when no unfinished practice exists; otherwise returns guidance without examples to protect answer keys. Choose a fresh contentKey for new practice.',
       inputSchema: ieltsAuthoringKitInputSchema,
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async (input, options) => {
@@ -94,7 +96,7 @@ export function createIeltsAuthoringToolDefinitions({
             zodIssues(parsed.error),
           )
         }
-        return { ok: true, data: getIeltsAuthoringKit(parsed.data.section) }
+        return { ok: true, data: getIeltsAuthoringKit(parsed.data.section, includeAuthoringExamples()) }
       },
     },
     {

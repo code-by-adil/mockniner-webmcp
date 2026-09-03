@@ -1,9 +1,10 @@
 import type { SQLocal } from "sqlocal";
+import { ApplicationError } from '@/domain/errors';
+import { prepareEvaluationWrite } from '@/domain/evaluationRevision';
 import { completeDraft } from './draftRepository';
 import { readRecentHistory } from './historyRepository';
 import { recordPracticeActivity } from './practiceActivity';
 import type { AssessmentRepository } from "@/application/assessmentRepository";
-import { ApplicationError } from "@/domain/errors";
 import { getLocalDatabase } from "./client";
 import {
   assessmentEvaluationSchema,
@@ -37,8 +38,8 @@ export function createAssessmentRepository(
         assessment: submission.package,
       }),
     readAttempt: (id) => readAssessmentAttempt(database, id),
-    saveEvaluation: (evaluation) =>
-      saveAssessmentEvaluation(database, evaluation),
+    saveEvaluation: (evaluation, expectedRevision) =>
+      saveAssessmentEvaluation(database, evaluation, expectedRevision),
   };
 }
 type PackageRow = {
@@ -298,37 +299,41 @@ export async function readAssessmentAttempt(
 
 export async function saveAssessmentEvaluation(
   database: SQLocal,
-  evaluation: AssessmentEvaluation,
-): Promise<void> {
-  await database.transaction(async (transaction) => {
+  candidate: AssessmentEvaluation,
+  expectedRevision?: number,
+): Promise<AssessmentEvaluation> {
+  return database.transaction(async (transaction) => {
     const [attempt] = await transaction.sql<{ packageId: string; revision: number; title: string }>`
       SELECT package_id AS packageId,
         json_extract(package_snapshot_json, '$.revision') AS revision,
         json_extract(package_snapshot_json, '$.title') AS title
-      FROM assessment_attempts WHERE id = ${evaluation.attemptId}
+      FROM assessment_attempts WHERE id = ${candidate.attemptId}
     `;
     if (!attempt) {
       throw new Error(
-        `Assessment attempt ${evaluation.attemptId} was not found.`,
+        `Assessment attempt ${candidate.attemptId} was not found.`,
       );
     }
-    const inserted = await transaction.sql<{ attemptId: string }>`
+    const [row] = await transaction.sql<{ evaluationJson: string }>`
+      SELECT evaluation_json AS evaluationJson FROM assessment_evaluations
+      WHERE attempt_id = ${candidate.attemptId}
+    `;
+    const current = row ? assessmentEvaluationSchema.parse(JSON.parse(row.evaluationJson)) : null;
+    const evaluation = prepareEvaluationWrite(candidate, current, expectedRevision);
+    if (evaluation === current) return evaluation;
+    await transaction.sql`
       INSERT INTO assessment_evaluations (attempt_id, evaluation_json, evaluated_at)
       VALUES (
         ${evaluation.attemptId}, ${JSON.stringify(evaluation)}, ${evaluation.evaluatedAt}
       )
-      ON CONFLICT(attempt_id) DO NOTHING
-      RETURNING attempt_id AS attemptId
+      ON CONFLICT(attempt_id) DO UPDATE SET
+        evaluation_json = excluded.evaluation_json, evaluated_at = excluded.evaluated_at
     `;
-    if (!inserted.length)
-      throw new ApplicationError(
-        "EVALUATION_EXISTS",
-        `Assessment attempt ${evaluation.attemptId} already has an evaluation.`,
-      );
     await recordPracticeActivity(transaction, {
       ...attempt, type: 'feedback_attached', kind: 'assessment',
       attemptId: evaluation.attemptId, outcome: 'evaluated',
     });
+    return evaluation;
   });
 }
 

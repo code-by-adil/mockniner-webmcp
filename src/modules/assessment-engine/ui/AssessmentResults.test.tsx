@@ -100,12 +100,13 @@ describe("universal assessment result review policy", () => {
     const evaluation: AssessmentEvaluation = {
       attemptId: submission.attemptId, rubricId: rubric.id, overallScore: 3,
       criteria: rubric.criteria.map(criterion => ({ criterionId: criterion.id, score: 3, feedback: 'Develop this argument.', evidence: ['A saved essay response.'] })),
-      summary: 'Evaluation complete.', strengths: ['Clear position.'], improvements: ['Add examples.'], annotations: [], evaluatedAt: '2026-09-03T10:06:00.000Z',
+      summary: 'Evaluation complete.', revision: 2, strengths: ['Clear position.'], improvements: ['Add examples.'], annotations: [], evaluatedAt: '2026-09-03T10:06:00.000Z',
     };
     const html = renderToStaticMarkup(<AssessmentResults submission={submission} evaluation={evaluation} onHome={() => undefined} />);
     expect(html).toContain('50% correct');
     expect(html).toContain('Evaluation score');
     expect(html).toContain('Evaluation complete.');
+    expect(html).toContain('Revision 2');
     expect(html).not.toContain('Get feedback on your responses');
   });
 

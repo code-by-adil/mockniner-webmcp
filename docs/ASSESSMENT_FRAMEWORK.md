@@ -272,8 +272,12 @@ evaluation still works. No active draft responses or keys are returned.
 If evaluation is needed, call the registered `attach_assessment_evaluation`.
 That tool checks the rubric, scale, criteria,
 evidence, annotations, item IDs, and quoted response text before it saves the
-evaluation. An attempt accepts one evaluation. A second attachment is rejected
-instead of silently replacing the saved feedback.
+evaluation. Identical retries return the saved evaluation without changing its
+timestamp or revision. To revise feedback, read `evaluationRevision` from the
+submission tool and supply it as `expectedRevision` with the full replacement.
+The transaction rejects stale revisions, increments successful revisions, and
+updates the visible result without changing the submitted responses or scores
+from local objective grading. Older saved feedback is treated as revision 1.
 
 Submission history records one explicit evaluation state:
 
