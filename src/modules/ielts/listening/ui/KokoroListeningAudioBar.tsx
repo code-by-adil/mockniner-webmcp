@@ -380,8 +380,8 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
       {isLoading && !sourceError ? (
         <span className="exam-subtle-text text-[10px] font-bold">
           {audioSession.phase === "loading"
-            ? "Loading Kokoro…"
-            : "Preparing the next audio chunk…"}
+            ? "Preparing the listening voice…"
+            : "Preparing the next audio segment…"}
         </span>
       ) : null}
       {sourceError ? (
@@ -416,7 +416,7 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
           onPause={() => setIsPlaying(false)}
           onTimeUpdate={handleTimeUpdate}
           onEnded={advance}
-          onError={() => setAudioError("A generated audio chunk could not be played.")}
+          onError={() => setAudioError("This audio segment could not be played.")}
         />
       ) : null}
       {showActions ? (

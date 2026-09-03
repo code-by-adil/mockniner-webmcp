@@ -288,7 +288,7 @@ export const WritingReviewView: React.FC<Props> = ({
                 {wordCount} words · {annotations.length} {annotations.length === 1 ? "issue" : "issues"} found
               </span>
               <span className="hidden text-[12px] text-gray-600 sm:block">
-                Click underlined text to view suggestions
+                Select underlined text to view suggestions
               </span>
             </div>
           </div>
@@ -298,7 +298,7 @@ export const WritingReviewView: React.FC<Props> = ({
               {annotations.length} {annotations.length === 1 ? "issue" : "issues"} found
             </span>
             <span className="hidden text-[13px] text-gray-400 sm:block">
-              Click underlined text to view suggestions
+              Select underlined text to view suggestions
             </span>
           </div>
         )}
@@ -369,7 +369,7 @@ export const WritingReviewView: React.FC<Props> = ({
           {issues.length === 0 ? (
             <div className="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center">
               <p className="text-sm text-gray-500">
-                No line-level corrections were generated for this response. Read the agent feedback for overall guidance.
+                Read your agent's feedback for guidance on this response.
               </p>
             </div>
           ) : (
@@ -497,7 +497,7 @@ export const WritingReviewView: React.FC<Props> = ({
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           <AssessmentLabBrand />
           <div className="hidden h-5 w-px bg-gray-200 sm:block" />
-          <h1 className="hidden truncate text-sm font-semibold text-gray-700 sm:block">Writing Review</h1>
+          <h1 className="hidden truncate text-sm font-semibold text-gray-700 sm:block">Writing review</h1>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {scoreData.feedback && (

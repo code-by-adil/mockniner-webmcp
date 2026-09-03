@@ -8,8 +8,7 @@ The application has two complementary test layers:
   tools available on the library screen and complete an authoring request from
   natural language.
 
-The model suite is development-only. It does not add an AI service, model key,
-or model SDK to the application bundle.
+The model suite runs as development tooling, separately from the application.
 
 ## What is evaluated
 
@@ -28,20 +27,19 @@ requests and one focused recovery case:
 The fixture generator calls the same production home-tool composer as the
 runtime. That composer supplies the native IELTS authoring kit and installation,
 the compact IELTS learning summary, the universal authoring kit, and universal
-installation. The evaluation layer does not keep its own tool catalog.
-Submission, evaluation, and Speaking-interview schemas are registered only on
-their relevant result or interview surfaces, so unrelated large schemas do not
-consume authoring context.
+installation. The evaluation layer does not keep its own tool catalog. Static
+fixtures cover this authoring subset. Live browser runs discover the full
+registered catalog. Each tool checks the current practice state before allowing
+an action.
 
-The first four requests must call the smallest relevant universal authoring
-kit and then `install_assessment`. IELTS Reading must call
-`get_ielts_authoring_kit` for Reading and then `install_ielts_practice_set`.
-Passage-text selection must stop after reading the GRE-style kit and explain
-the unsupported capability; calling either installation tool fails the case.
+The first four requests must call the smallest relevant universal authoring kit
+and then `install_assessment`. IELTS Reading must call `get_ielts_authoring_kit`
+for Reading and then `install_ielts_practice_set`. Passage-text selection must
+stop after reading the GRE-style kit and explain the unsupported capability;
+calling either installation tool fails the case.
 
-The report gate does more than compare function names. It passes every
-generated package back through the application's current parser and checks the
-request-specific contract:
+The report validator checks tool selection and parses each generated package
+against the application schema. It also checks the request-specific contract:
 
 - exact verbal item and three-blank Text Completion counts;
 - passage and data-table presence;
@@ -96,9 +94,8 @@ generates the fixture, then calls the upstream `smoke` command directly. The
 upstream runner resolves matcher constraints to concrete arguments, opens a
 fresh page per case, and calls every tool registered on the library screen. It
 checks real discovery, callback execution, local persistence, and structured
-failure handling without a model or API key. Keep this separate from the model
-evaluations. It proves that the browser can call the tools, not that a model
-will choose them correctly.
+failure handling without a model or API key. Use the model evaluations to check
+natural-language tool selection.
 
 ## Static model evaluation
 
@@ -144,7 +141,7 @@ commands. The upstream runner opens a fresh page for each case, while successful
 installation persists for the life of that temporary browser profile. Use one
 run for ordinary development.
 
-## Release bar
+## Release criteria
 
 With the development server running, execute:
 
@@ -158,9 +155,9 @@ applies the application-specific semantic validator to the JSON report.
 
 Release mode defaults to five runs per case. It retains one extra behavior the
 upstream runner does not provide: the wrapper launches a separate temporary
-browser process for every run and aggregates the reports. An installation in
-one run therefore cannot cause a package-revision conflict in another. The
-release gate requires:
+browser process for every run and aggregates the reports. An installation in one
+run therefore cannot cause a package-revision conflict in another. The release
+gate requires:
 
 - at least 90% of all case runs to pass;
 - at least 80% for every individual case;
@@ -170,14 +167,15 @@ release gate requires:
   semantic package gate.
 
 Pass `--runs` explicitly to change only the sample count. The thresholds stay
-fixed. A report is evidence for the tested model and version, not a permanent
-claim that every model will behave identically.
+fixed. Reports identify the tested model and version. Repeat evaluations when
+either changes.
 
-## Tooling boundary
+## Evaluation tooling
 
-The suite pins `webmcp-evals` to `0.0.4` because it is experimental. It is an
-Apache-2.0 development dependency maintained in the
-[GoogleChromeLabs WebMCP tools repository](https://github.com/GoogleChromeLabs/webmcp-tools/tree/main/webmcp-evals).
+The suite pins `webmcp-evals` to `0.0.4` for reproducible runs. It is an
+Apache-2.0 development dependency maintained in the [GoogleChromeLabs WebMCP
+tools
+repository](https://github.com/GoogleChromeLabs/webmcp-tools/tree/main/webmcp-evals).
 Before upgrading, rerun the deterministic tests and inspect changes to its
 tool-schema mapping, browser launch flags, trajectory matching, and report
 format.

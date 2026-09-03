@@ -59,10 +59,10 @@ export function AssessmentLibrary({
       <div className="flex items-end justify-between border-b border-neutral-200/80 pb-2.5">
         <div>
           <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-            Universal Assessments
+            Custom assessments
           </h2>
           <p className="mt-1 text-xs text-neutral-400">
-            Practice sets created by your agent
+            Ready-made practice and tests created by your agent
           </p>
         </div>
         <span className="hidden text-xs text-neutral-400 sm:block">
@@ -92,7 +92,7 @@ export function AssessmentLibrary({
                     </span>
                     {assessment.source === "agent" ? (
                       <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                        Agent installed
+                        Agent-created
                       </span>
                     ) : null}
                   </div>
@@ -107,7 +107,7 @@ export function AssessmentLibrary({
                   <span>
                     {assessment.parts.length} {assessment.parts.length === 1 ? "part" : "parts"}
                   </span>
-                  <span>{itemCount} items</span>
+                  <span>{itemCount} {itemCount === 1 ? "question" : "questions"}</span>
                   <span>
                     {durationSeconds ? `${Math.round(durationSeconds / 60)} mins` : "Untimed"}
                   </span>
@@ -121,7 +121,7 @@ export function AssessmentLibrary({
                     : () => onStartAssessment(assessment.packageId)}
                   disabled={anotherAttemptIsActive}
                   title={anotherAttemptIsActive
-                    ? "Discard the unfinished attempt before starting another assessment."
+                    ? "Finish or discard your unfinished assessment before starting another."
                     : undefined}
                   className="flex w-full items-center justify-between rounded-md border border-neutral-200/60 bg-neutral-50 px-3.5 py-2 text-xs font-semibold text-neutral-800 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-neutral-50"
                 >
@@ -150,7 +150,7 @@ export function AssessmentLibrary({
                   </div>
                 ) : anotherAttemptIsActive ? (
                   <p className="mt-2.5 text-[11px] text-neutral-400">
-                    Discard the current attempt to start this assessment.
+                    Finish or discard your unfinished assessment to start this one.
                   </p>
                 ) : null}
                 {assessment.source === "agent" ? (
@@ -203,8 +203,8 @@ export function AssessmentHistory({
           <div className="flex items-center gap-2.5">
             <span className="font-bold text-neutral-900">
               {attempt.rawScore}/{attempt.maximumScore}
-              {attempt.evaluationStatus === "awaiting_evaluation" ? " · Evaluation pending" : ""}
-              {attempt.evaluationStatus === "evaluated" ? " · Evaluated" : ""}
+              {attempt.evaluationStatus === "awaiting_evaluation" ? " · Feedback pending" : ""}
+              {attempt.evaluationStatus === "evaluated" ? " · Feedback ready" : ""}
             </span>
             <button
               type="button"

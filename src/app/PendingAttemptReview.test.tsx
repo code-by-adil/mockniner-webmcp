@@ -13,7 +13,7 @@ describe('pending historical result', () => {
         { task: writingDocument.tasks[0], response: 'Private draft.', wordCount: 2 }, { task: writingDocument.tasks[1], response: '', wordCount: 0 },
       ] } }
     const html = renderToStaticMarkup(<PendingAttemptReview review={review} onExit={() => undefined} />)
-    expect(html).toContain('Awaiting evaluation')
+    expect(html).toContain(kind === 'writing' ? 'Ready for feedback' : 'Ask your agent to review your interview')
     expect(html).toContain('Back to practice')
     expect(html).not.toContain('Band ')
     if (kind === 'writing') {

@@ -17,7 +17,7 @@ export function AssessmentLabBrand(): ReactElement {
           Assessment <span className="text-[var(--exam-accent)]">Lab</span>
         </span>
         <span className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-neutral-500 sm:text-[9px]">
-          Agent-native practice
+          Practice with your agent
         </span>
       </div>
     </div>

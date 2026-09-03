@@ -26,7 +26,7 @@ function getModel(id: string) {
     revision: 'fd8ac034a560b217176fae5215ca3fe05c9140f3',
     progress_callback: (progress) => {
       if (progress.status === 'progress') {
-        port.postMessage({ id, type: 'progress', message: `Downloading speech recognition: ${Math.round(progress.progress)}% (${progress.file})` })
+        port.postMessage({ id, type: 'progress', message: `Downloading speech recognition, ${Math.round(progress.progress)}%` })
       }
     },
   }).catch((error: unknown) => { modelPromise = null; throw error })

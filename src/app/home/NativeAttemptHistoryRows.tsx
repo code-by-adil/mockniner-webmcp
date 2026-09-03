@@ -12,10 +12,10 @@ type NativeHistoryRow = {
 }
 
 const sectionPresentation = {
-  listening: { title: 'Listening Practice', icon: Headphones },
-  reading: { title: 'Reading Practice', icon: BookOpen },
-  writing: { title: 'Writing Practice', icon: FileText },
-  speaking: { title: 'Speaking Practice', icon: Mic },
+  listening: { title: 'Listening practice', icon: Headphones },
+  reading: { title: 'Reading practice', icon: BookOpen },
+  writing: { title: 'Writing practice', icon: FileText },
+  speaking: { title: 'Speaking practice', icon: Mic },
 } as const
 
 function getNativeHistoryRows(
@@ -39,15 +39,15 @@ function getNativeHistoryRows(
       section: 'writing' as const,
       submittedAt: attempt.submittedAt,
       result: attempt.overallBand === undefined
-        ? 'Awaiting Evaluation'
+        ? 'Feedback pending'
         : `Band ${attempt.overallBand}`,
     })),
     ...(summary.sections.speaking.recent ?? []).slice(0, 2).map((attempt) => ({
       attemptId: attempt.attemptId,
       section: 'speaking' as const,
       submittedAt: attempt.submittedAt,
-      result: attempt.evaluationStatus === 'insufficient_evidence' ? 'Insufficient evidence · Feedback ready'
-        : attempt.overallBand === undefined ? 'Awaiting Evaluation' : `Band ${attempt.overallBand}`,
+      result: attempt.evaluationStatus === 'insufficient_evidence' ? 'Feedback ready · Unscored'
+        : attempt.overallBand === undefined ? 'Feedback pending' : `Band ${attempt.overallBand}`,
     })),
   ].sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
 }

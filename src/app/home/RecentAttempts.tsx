@@ -14,17 +14,17 @@ export function RecentAttempts({
   learningSummary,
   onReviewAttempt,
 }: Props): ReactElement | null {
-  const hasAttempts = (learningSummary?.totalAttempts ?? 0) > 0 || assessmentHistory.length > 0;
-  if (!hasAttempts) return null;
+  const hasAttempts = (learningSummary?.totalAttempts ?? 0) > 0 || assessmentHistory.length > 0;  if (!hasAttempts) return null;
+  const attemptCount = (learningSummary?.totalAttempts ?? 0) + assessmentHistory.length;
 
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between border-b border-neutral-200/80 pb-2.5">
         <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-          Recent Attempts
+          Recent attempts
         </h2>
         <span className="text-xs text-neutral-400">
-          {(learningSummary?.totalAttempts ?? 0) + assessmentHistory.length} universal and IELTS attempts saved locally
+          {attemptCount} {attemptCount === 1 ? "attempt" : "attempts"} saved in this browser
         </span>
       </div>
 

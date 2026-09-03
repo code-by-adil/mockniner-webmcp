@@ -13,7 +13,7 @@ export function WritingFeedbackDrawer({ open, onOpenChange, children }: {
   const content = <>
     <div className="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2">
       <div>
-        <h2 id="writing-review-corrections-title" className="text-sm font-bold text-gray-900">Writing Review Corrections</h2>
+        <h2 id="writing-review-corrections-title" className="text-sm font-bold text-gray-900">Writing corrections</h2>
         <p id="writing-review-corrections-description" className="text-xs font-medium text-gray-600">Detailed corrections and agent feedback.</p>
       </div>
       <button type="button" aria-label="Close writing review corrections" onClick={() => onOpenChange(false)} className="shrink-0 rounded px-2 py-1 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30">

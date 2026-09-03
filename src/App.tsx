@@ -76,11 +76,11 @@ export function Complete({
           {SECTION_META[section].label} is complete
         </h1>
         <p className="mt-3 max-w-xl leading-7 text-[var(--exam-text-muted)]">
-          Your answers are locked and retained locally for this practice attempt.
+          Your answers are saved in this browser and ready to review.
         </p>
         {section === "writing" ? (
           <div className="mt-6 w-full max-w-xl rounded-lg border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-5 py-4 text-left shadow-sm">
-            <p className="text-sm font-bold text-[var(--exam-text)]">Ready for agent evaluation</p>
+            <p className="text-sm font-bold text-[var(--exam-text)]">Get feedback from your agent</p>
             <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">
               Ask your agent to grade this IELTS Writing submission.
               It can read your saved response and return feedback here.
@@ -150,8 +150,7 @@ export function Results({
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight">Practice results</h1>
           <p className="mt-2 text-[var(--exam-text-muted)]">
-            Objective answers are graded locally. Writing and Speaking remain available for agent
-            evaluation.
+            Review your scores and answers below. Ask your agent for feedback on Writing and Speaking.
           </p>
         </div>
         <div className="grid gap-5 md:grid-cols-2">
@@ -180,18 +179,18 @@ export function Results({
                     <h2 className="text-xl font-semibold">{meta.label}</h2>
                     <p className="mt-1 text-sm text-[var(--exam-text-muted)]">
                       {result
-                        ? `${result.raw} of 40 correct · Band ${result.band}`
+                        ? `${result.raw} of 40 correct · Estimated band ${result.band}`
                         : section === "writing" && session.writingEvaluation
-                          ? `Estimated overall band ${session.writingEvaluation.overallBand} · Evaluation ready`
+                          ? `Estimated overall band ${session.writingEvaluation.overallBand} · Feedback ready`
                           : section === "speaking" && session.speakingSubmission
                             ? session.speakingEvaluation
                               ? session.speakingEvaluation.status === 'insufficient_evidence'
-                                ? 'Insufficient evidence · Feedback ready · No band assigned'
-                                : `Estimated overall band ${session.speakingEvaluation.overallBand} · Evaluation ready`
-                              : `${session.speakingSubmission.responses.filter(r => r.status === 'answered').length} answers recorded · ${session.speakingSubmission.responses.filter(r => r.status === 'skipped').length} skipped · Awaiting evaluation`
+                                ? 'Feedback ready · Unscored'
+                                : `Estimated overall band ${session.speakingEvaluation.overallBand} · Feedback ready`
+                              : `${session.speakingSubmission.responses.filter(r => r.status === 'answered').length} answers recorded · ${session.speakingSubmission.responses.filter(r => r.status === 'skipped').length} skipped · Feedback pending`
                             : section === 'writing' && session.writingSubmission
-                              ? `Task 1: ${session.writingSubmission.tasks[0].wordCount} words · Task 2: ${session.writingSubmission.tasks[1].wordCount} words · Awaiting evaluation`
-                              : "Submission ready for evaluation"}
+                              ? `Task 1: ${session.writingSubmission.tasks[0].wordCount} words · Task 2: ${session.writingSubmission.tasks[1].wordCount} words · Feedback pending`
+                              : "Ready for feedback"}
                     </p>
                     {canReview ? (
                       <button

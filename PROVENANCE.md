@@ -1,40 +1,49 @@
-# Provenance
+# Attribution and content sources
 
-Assessment Lab is an independent application. It has no build-time or runtime
-dependency on the commercial MockNiner product used as a development reference.
+Assessment Lab is licensed under the [Apache License 2.0](./LICENSE).
+Third-party packages and models retain their respective licenses.
 
-The native IELTS exam shell, question renderers, review views, interaction
-helpers, and related models were adapted from that reference implementation.
-Assessment Lab owns its branding, application state, local persistence, WebMCP
-tools, universal assessment engine, and assessment content.
+## Application code
 
-The shared results layout adapts the reference's result shell, score hierarchy,
-part breakdown and separate answer-review flow. Assessment Lab's version uses
-exam-independent score labels and local submission data, with a focused question
-navigator and response renderers for universal assessments.
+The IELTS interface includes components adapted from earlier work by the same
+author. Assessment Lab's application state, storage, WebMCP integration, and
+custom assessment engine are developed in this repository. The project builds
+and runs independently.
 
-The built-in questions, museum map, favicon, Listening script, and generated
-Listening recording are original project assets. No commercial assets, private
-data, credentials, or application-owned cloud model services are included.
+## Practice content and assets
 
-The IELTS and SAT-style authoring examples are separate original project
-content, not copies of playable built-in questions or bundled audio scripts.
-They demonstrate valid package structure and are not full-length calibrated exams.
+The built-in questions, passages, museum map, favicon, Listening scripts, and
+Listening recording are original project assets. The authoring examples are
+separate original content that illustrate the supported assessment formats.
 
-SAT-Style Practice Test 1 contains 98 original questions using the published
-digital SAT module counts and timings. Its fictional scenarios, passages, data,
-and math problems were written for this project. It is fixed-form practice with
-raw-score review, not a calibrated or adaptive College Board test. Content notes
-and source links are in `src/content/satFullLength/README.md`.
+SAT-style practice test 1 contains 98 original questions with module counts and
+timings based on College Board's published test structure. Its passages,
+scenarios, data, and mathematics questions were created for Assessment Lab. See
+the [content notes](./src/content/satFullLength/README.md) for the format and
+sources.
 
-Speaking recognition uses the public OpenAI Whisper base.en model, converted
-to ONNX by the ONNX Community, through Transformers.js. It is downloaded from
+## Speech models
+
+Speaking transcription uses OpenAI's Whisper base.en model through
+Transformers.js and the ONNX Community conversion. The app downloads
 `onnx-community/whisper-base.en` at revision
-`fd8ac034a560b217176fae5215ca3fe05c9140f3`; weights are not committed here.
-The [upstream model card](https://huggingface.co/openai/whisper-base.en) lists
-Apache-2.0. Transformers.js is Apache-2.0. All transcription runs locally.
+`fd8ac034a560b217176fae5215ca3fe05c9140f3`. The [Whisper model
+card](https://huggingface.co/openai/whisper-base.en) lists Apache-2.0. The [ONNX
+conversion](https://huggingface.co/onnx-community/whisper-base.en) provides the
+browser-compatible weights.
 
-The unified Speaking runner follows the reference product's local question
-progression and recording controls. Its whole-interview WebMCP contract,
-ahead-of-time Kokoro audio queue, local transcription, and explicit skipped
-responses are owned by this repository; no commercial model API is used.
+Transformers.js is licensed under Apache-2.0. Its license is included with the
+installed package.
+
+Generated Listening and examiner audio use `kokoro-js` with
+[`onnx-community/Kokoro-82M-v1.0-ONNX`](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX).
+The model card lists Apache-2.0. Speech models are downloaded at runtime and are
+not included in this repository. Audio generation and transcription run in the
+browser.
+
+## Trademarks
+
+IELTS, SAT, and GRE are trademarks of their respective owners. Assessment Lab is
+an independent practice application and is not affiliated with or endorsed by
+IELTS, the British Council, IDP, Cambridge University Press & Assessment,
+College Board, or ETS.

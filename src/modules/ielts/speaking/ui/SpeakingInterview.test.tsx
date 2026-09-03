@@ -144,7 +144,7 @@ describe('one local Speaking experience', () => {
     expect(mocks.prepare).not.toHaveBeenCalled()
     await act(async () => permitted({ getTracks: () => [{ stop: trackStop }] } as unknown as MediaStream))
     expect(await read()).toMatchObject({ data: { preparationStage: 'voice_and_recognition', recoveryAction: null } })
-    expect(host.textContent).toContain('First-time model downloads')
+    expect(host.textContent).toContain('The first download')
     expect(trackStop).toHaveBeenCalledOnce()
     await act(async () => prepared())
     expect(await read()).toMatchObject({ data: { phase: 'ready', preparationStage: null, error: null, recoveryAction: null } })

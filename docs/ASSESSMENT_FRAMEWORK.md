@@ -1,8 +1,8 @@
 # Universal assessment engine
 
-## Product boundary
+## Overview
 
-Assessment Lab has two content lanes.
+Assessment Lab supports IELTS practice and custom assessments.
 
 - Native IELTS uses its own documents, scoring, and high-fidelity Listening,
   Reading, Writing, and Speaking interfaces.
@@ -13,9 +13,8 @@ The agent supplies data. The application owns the interface and all executable
 behavior. An assessment package cannot contain HTML, CSS, SVG, scripts, React
 components, scoring functions, or tool handlers.
 
-The universal engine does not try to copy every testing vendor. It provides one
-consistent exam interface with a header, timer, question area, declared learner
-tools, question navigation, a footer, submission, and results.
+The custom assessment engine provides a shared exam interface with a header,
+timer, question area, learner tools, navigation, submission, and results.
 
 ## Runtime model
 
@@ -44,13 +43,13 @@ custom assessments use the same package contract. A named authoring template is
 an example for the agent. It does not add an exam-specific branch to the
 runtime.
 
-The domain modules own the executable contract. `assessmentContract.ts`
-defines and validates packages, `assessmentScoring.ts` owns response and result
-records, `assessmentEvaluation.ts` owns rubric evaluation payloads, and
+The domain modules own the executable contract. `assessmentContract.ts` defines
+and validates packages, `assessmentScoring.ts` owns response and result records,
+`assessmentEvaluation.ts` owns rubric evaluation payloads, and
 `assessmentSubmission.ts` owns immutable submission and history records.
-`assessmentSession.ts` owns the live runner state. WebMCP
-converts those authoritative Zod schemas into the compact JSON Schema shown to
-agents. That teaching schema is not a second validation contract.
+`assessmentSession.ts` owns the live runner state. WebMCP converts those
+authoritative Zod schemas into the compact JSON Schema shown to agents. Runtime
+validation uses the original Zod schemas.
 
 ## Instructions for agents
 
@@ -62,8 +61,8 @@ Use the universal tools for other assessments:
 
 1. Call `get_assessment_authoring_kit` with the closest template.
 2. Read the returned coverage notes. Do not imitate an unsupported behavior.
-3. Copy `examplePackage` and replace its ID, title, content, answer keys, and
-   rubric details.
+3. Use the schema to build a package. When `examplesIncluded` is true, you can
+   adapt `examplePackage` with a new ID, title, content, answer keys, and rubric.
 4. Keep `schemaVersion` set to `3`. Do not add `source`; the application records
    authorship.
 5. Declare only the tools that the learner needs. Empty `tools` and `resources`
@@ -85,10 +84,9 @@ The available templates are:
 | `sat-style` | Original SAT-style Reading and Writing and Math practice |
 | `gre-style` | Original GRE-style Verbal, Quantitative, and analytical writing practice |
 
-The kit returns current capabilities, limits, short authoring rules, coverage
-notes, and one complete package. The examples are loaded only when requested,
-so the larger SAT-style and GRE-style packages do not occupy agent context for
-unrelated work.
+The kit returns current capabilities, limits, authoring rules, and coverage
+notes. It includes a complete example only when no unfinished or paused draft
+exists. `examplesIncluded` reports whether the example is present.
 
 ## Minimal JSON example
 
@@ -197,9 +195,9 @@ Learner tools are declared per part:
 - `calculator`
 - `reference_document`, which points to a declared resource
 
-Omission has meaning. A quiz without a formula sheet has no reference tool. An
-assessment without calculations has no calculator. The runtime never guesses
-tools from the exam name, subject, or part title.
+Only declared tools appear. A quiz without a formula sheet has no reference
+tool. An assessment without calculations has no calculator. The runtime never
+guesses tools from the exam name, subject, or part title.
 
 Use split layout only when an item has stimulus content. Labels such as
 `Passage`, `Data`, or `Source` belong in `presentation.stimulusLabel`.
@@ -221,8 +219,7 @@ The kit reports these limits to the agent:
 - Results contain practice accuracy and rubric feedback, not an ETS score or
   percentile.
 
-An agent can still build useful GRE-style practice. It must not describe the
-result as an official or predicted GRE score.
+Describe GRE-style results as practice accuracy and rubric feedback.
 
 ## Validation and runtime selection
 
@@ -265,15 +262,15 @@ layouts.
 All agent-evaluated items in one package share one rubric. On the result page,
 the agent can call `get_assessment_submission` to read the immutable submission
 according to its saved review policy. `answers` includes objective keys and
-correctness; `responses` returns responses without either; `none` hides objective
-item details and responses. Aggregate scores remain available. Agent-scored items,
-their submitted responses, and rubrics remain readable under every policy so
-evaluation still works. No active draft responses or keys are returned.
-The reader accepts `view: "summary"` for a compact outline with permitted part
-and item IDs. Full reads can be limited by `partId` or `itemId`; matching
-responses, per-item results, references, rubrics and annotations follow the
-same selection. A partial read keeps aggregate scores explicitly scoped to the
-whole assessment and omits global evaluation prose and criterion feedback.
+correctness; `responses` returns responses without either; `none` hides
+objective item details and responses. Aggregate scores remain available.
+Agent-scored items, their submitted responses, and rubrics remain readable under
+every policy so evaluation still works. No active draft responses or keys are
+returned. The reader accepts `view: "summary"` for a compact outline with
+permitted part and item IDs. Full reads can be limited by `partId` or `itemId`;
+matching responses, per-item results, references, rubrics and annotations follow
+the same selection. A partial read keeps aggregate scores explicitly scoped to
+the whole assessment and omits global evaluation prose and criterion feedback.
 Unfiltered full reads retain the complete existing response contract.
 
 `get_assessment_content` reads the current installed package for authoring,
@@ -285,14 +282,14 @@ incremented revision. Built-ins must be copied to a fresh package ID. Partial
 reads are labeled and cannot serve as complete replacement payloads.
 
 If evaluation is needed, call the registered `attach_assessment_evaluation`.
-That tool checks the rubric, scale, criteria,
-evidence, annotations, item IDs, and quoted response text before it saves the
-evaluation. Identical retries return the saved evaluation without changing its
-timestamp or revision. To revise feedback, read `evaluationRevision` from the
-submission tool and supply it as `expectedRevision` with the full replacement.
-The transaction rejects stale revisions, increments successful revisions, and
-updates the visible result without changing the submitted responses or scores
-from local objective grading. Older saved feedback is treated as revision 1.
+That tool checks the rubric, scale, criteria, evidence, annotations, item IDs,
+and quoted response text before it saves the evaluation. Identical retries
+return the saved evaluation without changing its timestamp or revision. To
+revise feedback, read `evaluationRevision` from the submission tool and supply
+it as `expectedRevision` with the full replacement. The transaction rejects
+stale revisions, increments successful revisions, and updates the visible result
+without changing the submitted responses or scores from local objective grading.
+Older saved feedback is treated as revision 1.
 
 Submission history records one explicit evaluation state:
 
@@ -314,15 +311,15 @@ Native IELTS remains separate because its section documents, navigation,
 scoring, bands, and result pages have different behavior. The universal package
 contract does not replace them.
 
-The two lanes may share attempt IDs, immutable submission rules, persistence
-conventions, WebMCP result and error shapes, and small UI components when their
-behavior is the same. They do not share an exam schema or score model merely
-because both produce a result page.
+IELTS and custom assessments may share attempt IDs, immutable submission rules,
+persistence conventions, WebMCP result and error shapes, and small UI components
+when their behavior is the same. They do not share an exam schema or score model
+merely because both produce a result page.
 
 ## Extending the engine
 
-Most new assessments should use the current contract without code changes. Add
-a new application capability only when the requested behavior cannot be stated
+Most new assessments should use the current contract without code changes. Add a
+new application capability only when the requested behavior cannot be stated
 with the existing fields.
 
 A new interaction requires the complete implementation:
@@ -359,16 +356,16 @@ choose the right tool from natural language.
 
 ### Package and draft lifecycle
 
-The application keeps at most one unfinished universal attempt. While that
-draft exists, another package cannot be started and that package cannot be
-replaced through `install_assessment`. The learner can resume it, restart it
-from an empty response state, or discard it from the assessment library.
+The application keeps at most one unfinished universal attempt. While that draft
+exists, another package cannot be started and that package cannot be replaced
+through `install_assessment`. The learner can resume it, restart it from an
+empty response state, or discard it from the assessment library.
 
 Only agent-installed packages can be deleted. Deleting one also discards its
 unfinished draft, if present, but never deletes submitted attempts. History and
 result review continue to work because every submission owns an immutable
-package, response, and result snapshot. These lifecycle actions belong to the
-human interface; they are not button-shaped WebMCP tools.
+package, response, and result snapshot. The learner controls these actions in
+the interface.
 
 The universal lane uses three submitted-content tables and the shared draft
 table in the same local database as native IELTS:
@@ -382,10 +379,11 @@ practice_drafts
 
 Each new draft pins its complete package snapshot, including revision, from the
 start. Catalog changes cannot replace the content used to render or score it.
-Submission stores the immutable snapshot and removes the draft in one transaction.
+Submission stores the immutable snapshot and removes the draft in one
+transaction.
 
 Schema version 3 has no adapter for the earlier profile, section, and module
 model. On databases that have not applied migration 9, the old universal tables
 are renamed to `legacy_*_v8` before current tables are created. They remain in
-local exports for recovery. Native IELTS records are untouched. This cannot
-recover records already deleted by an older version of migration 9.
+local exports for recovery. Native IELTS records are untouched. Recovery applies
+to records retained in the database or a backup.

@@ -48,8 +48,8 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
     </div> : null}
   </main>;
   return <main className="mx-auto max-w-lg px-6 py-24">
-    <h1 className="text-2xl font-semibold">{state === 'opening' ? 'Opening your practice…' : state === 'unsupported' ? 'This browser cannot safely edit local practice' : 'Practice is open in another tab'}</h1>
-    <p className="mt-4 leading-7">{state === 'unsupported' ? 'Use a browser that supports Web Locks and local file storage. Your data has not been changed.' : 'Only one tab can edit this local workspace at a time. Close the other practice tab, then try again.'}</p>
+    <h1 className="text-2xl font-semibold">{state === 'opening' ? 'Opening your practice…' : state === 'unsupported' ? 'This browser does not support saved practice' : 'Practice is open in another tab'}</h1>
+    <p className="mt-4 leading-7">{state === 'unsupported' ? 'Open Assessment Lab in an up-to-date browser with local storage enabled. Your saved data has not changed.' : 'Close the other Assessment Lab tab, then try again. Practice can be open in one tab at a time.'}</p>
     {state === 'blocked' ? <button className="mt-6 rounded-lg border px-4 py-2" onClick={() => { setState('opening'); setRetry(value => value + 1); }}>Try again</button> : null}
   </main>;
 }
@@ -91,9 +91,9 @@ export function StorageStatus({ children }: { children: ReactNode }) {
     void getLocalDatabase().then(async db => {
       setPersistent(await navigator.storage?.persisted?.() ?? false);
       const archived = await db.sql<{ name: string }>`SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'legacy_%'`;
-      if (archived.length) storageHealth.report('Older assessment tables were preserved. They are included in your database export, but cannot be opened by this version.');
+      if (archived.length) storageHealth.report('Some assessments from an older version cannot be opened here. Export a backup to keep their saved data.');
       const imports = await db.sql<{ storage_key: string }>`SELECT storage_key FROM storage_imports WHERE status = 'unavailable'`;
-      for (const row of imports) storageHealth.report(`${row.storage_key}: A legacy draft could not be imported. Its original data is included in local exports.`);
+      for (const row of imports) storageHealth.report(`${row.storage_key}: An older unfinished attempt could not be restored. Its saved data is included in backups.`);
     }).catch(error => setMessage(String(error)));
   }, []);
   useEffect(() => {
@@ -109,7 +109,7 @@ export function StorageStatus({ children }: { children: ReactNode }) {
     try {
       await (await backups()).downloadLocalBackup();
       setMessage('Backup download started. Keep the file somewhere safe; it contains private answers and recordings.');
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not export the database.'); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not export the backup. Please try again.'); }
     finally { setBusy(null); }
   };
   const chooseBackup = async (file: File) => {
@@ -134,7 +134,7 @@ export function StorageStatus({ children }: { children: ReactNode }) {
       <p role="status">{saves.error ?? (saves.pending ? 'Saving your latest changes. Keep this tab open.' : 'Changes are saved in this browser, on this device.')}</p>
       {saves.error ? <button disabled={!!busy} className="rounded border px-3 py-2 disabled:opacity-50" onClick={() => void draftSaves.flush().catch(() => {})}>Retry saving</button> : null}
       <p>Clearing browser data removes your work. Export a backup to keep it safe or move it to another browser.</p>
-      <p>One file includes saved practice, drafts, completed recordings, submissions, feedback, activity and recovery data. Voice-model downloads are not included. Nothing is uploaded.</p>
+      <p>Your backup includes practice sets, progress, saved recordings, audio, results, and feedback. Downloaded speech models are excluded. The file stays on your device and is not encrypted.</p>
       <div className="flex flex-wrap gap-2">
         <button disabled={!!busy} className="rounded bg-neutral-900 px-3 py-2 text-white disabled:opacity-50" onClick={() => void exportData()}>{busy === 'export' ? 'Preparing backup…' : 'Export backup'}</button>
         {canImport ? <label className={`relative rounded border px-3 py-2 focus-within:outline-2 focus-within:outline-offset-2 ${busy ? 'opacity-50' : 'cursor-pointer'}`}>
@@ -147,10 +147,10 @@ export function StorageStatus({ children }: { children: ReactNode }) {
       </div>
       {!canImport ? <p className="text-neutral-500">Return to the practice library to import a backup.</p> : null}
       {selected ? <section aria-labelledby="confirm-import-title" className="space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-4">
-        <h3 id="confirm-import-title" className="font-semibold">Replace this browser’s saved practice?</h3>
+        <h3 id="confirm-import-title" className="font-semibold">Replace this browser's saved practice?</h3>
         <p>{selected.name}</p>
         <p>{countLabel(selected.summary.practices, 'practice set')} · {countLabel(selected.summary.drafts, 'draft')} · {countLabel(selected.summary.submissions, 'submission')} · {countLabel(selected.summary.recordings, 'recording')}</p>
-        <p>This replaces your current local data; it does not merge. Export your current data first if you want to keep it. The app will reload.</p>
+        <p>Importing replaces all practice saved in this browser. Export a backup first to keep your current work. The app will reload after import.</p>
         <div className="flex flex-wrap gap-2">
           <button disabled={!!busy} className="rounded bg-neutral-900 px-3 py-2 text-white disabled:opacity-50" onClick={() => void importData()}>Replace and import</button>
           <button disabled={!!busy} className="rounded border px-3 py-2 disabled:opacity-50" onClick={() => {
@@ -160,9 +160,9 @@ export function StorageStatus({ children }: { children: ReactNode }) {
         </div>
       </section> : null}
       {message ? <p role="status">{message}</p> : null}
-      {issues.length ? <div role="alert"><p className="font-semibold">Some records need recovery; their original data has been kept.</p><ul className="mt-2 list-disc space-y-1 pl-4">{issues.map(issue => <li key={issue}>{issue}</li>)}</ul></div> : null}
+      {issues.length ? <div role="alert"><p className="font-semibold">Some saved work could not be opened. Its original data is included in backups.</p><ul className="mt-2 list-disc space-y-1 pl-4">{issues.map(issue => <li key={issue}>{issue}</li>)}</ul></div> : null}
       <details className="border-t pt-3"><summary className="cursor-pointer text-neutral-500">Storage protection</summary>
-      <p className="mt-2">{persistent === null ? 'Checking storage protection…' : persistent ? 'The browser has granted persistent storage. Clearing site data still removes your work.' : 'The browser has not granted persistent storage. It may remove local data under storage pressure.'}</p>
+      <p className="mt-2">{persistent === null ? 'Checking storage protection…' : persistent ? 'Your browser protects this saved practice from automatic cleanup. Clearing site data will still remove it.' : 'Your browser may clear saved practice when device storage runs low. Request protection or export a backup.'}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {!persistent ? <button className="rounded border px-3 py-2" onClick={() => void navigator.storage.persist().then(setPersistent).catch(error => setMessage(String(error)))}>Request storage protection</button> : null}
       </div></details>

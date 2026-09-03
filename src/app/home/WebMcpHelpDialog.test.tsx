@@ -35,11 +35,11 @@ describe("WebMCP help dialog", () => {
     expect(container.querySelector('[role="dialog"]')).toBeNull();
     await render(true);
     expect(container.querySelector('[role="dialog"]')?.getAttribute("aria-modal")).toBe("true");
-    expect(container.textContent).toContain("WebMCP Integration");
+    expect(container.textContent).toContain("Practice with your agent");
     const buttons = container.querySelectorAll<HTMLButtonElement>('button[aria-label^="Copy prompt:"]');
     expect(buttons).toHaveLength(4);
     await act(async () => buttons[0].click());
-    expect(writeText).toHaveBeenCalledWith("Create and install an original SAT-style diagnostic focused on algebra and inference.");
+    expect(writeText).toHaveBeenCalledWith("Create a short SAT-style practice test focused on algebra and inference.");
     expect(buttons[0].textContent).toBe("Copied");
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Close dialog"]')?.click());
     expect(onClose).toHaveBeenCalledOnce();

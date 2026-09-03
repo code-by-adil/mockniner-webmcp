@@ -16,7 +16,7 @@ describe('unscored Speaking feedback', () => {
         attemptId: submission.attemptId, status: 'insufficient_evidence', reason: 'No usable transcript was submitted.',
         summary: 'Feedback can still guide your next attempt.', strengths: [], improvements: ['Record a complete interview.'], evaluatedAt: '2026-09-03T10:15:00Z',
       }} />))
-      expect(container.textContent).toContain('Insufficient evidence to score')
+      expect(container.textContent).toContain('Feedback without a band score')
       expect(container.textContent).toContain('No band assigned.')
       expect(container.textContent).toContain('Record a complete interview.')
       expect(container.textContent).toContain('Interview transcript')

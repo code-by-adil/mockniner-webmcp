@@ -6,7 +6,7 @@ export const satPracticeAssessment = parseAssessmentPackage({
   revision: 1,
   title: "SAT-Style Foundations Diagnostic",
   description:
-    "A short original diagnostic demonstrating two-module Reading and Writing and Math practice.",
+    "A short diagnostic covering Reading and Writing and Math, with two modules per section.",
   source: "built-in",
   metadata: {
     subject: "College readiness",

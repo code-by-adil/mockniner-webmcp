@@ -61,7 +61,7 @@ describe("listening player dispatch and controls", () => {
     const html = renderAudio(listeningDocument, { ...session, hydrated: false });
     expect(html).toContain("<audio");
     expect(html).toContain("Buffering audio…");
-    expect(html).toContain("Loading timeline…");
+    expect(html).toContain("Loading audio navigation…");
     expect(html).not.toContain("Restoring saved listening audio");
   });
 

@@ -25,14 +25,14 @@ describe('pending Writing results', () => {
     expect(results).toBe(history)
     expect(results).toContain('My saved report.')
     expect(results).toContain('My saved essay.\n\nAnother paragraph.')
-    expect(results).toContain('Awaiting evaluation')
+    expect(results).toContain('Ready for feedback')
     expect(results).not.toContain('Objective answers')
   })
   it('offers a pending submission action from a full-exam results overview', () => {
     const html = renderToStaticMarkup(<Results session={{ ...pending, mode: 'full' }} onHome={noop} onReview={noop} />)
     expect(html).toContain('View submission')
     expect(html).toContain('Task 1: 3 words')
-    expect(html).toContain('Awaiting evaluation')
+    expect(html).toContain('Feedback pending')
   })
   it('uses the results return label when reviewing a full-exam submission', () => {
     const html = renderToStaticMarkup(<PendingAttemptReview review={{ kind: 'writing', section: 'writing', part: 1, returnTo: 'result', evaluation: null, submission }} onExit={noop} />)

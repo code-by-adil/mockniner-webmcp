@@ -1,23 +1,31 @@
 # SAT-style practice test 1
 
-This set contains 98 original questions: two Reading and Writing modules of 27
-questions and two Math modules of 22 questions. Timings are 32, 32, 35 and 35
-minutes. Reading and Writing covers all four domains in each module, including
-passage pairs, quantitative evidence, editing and research-note synthesis.
-Math contains 33 multiple-choice questions and 11 numeric-entry questions.
+This practice set contains 98 original questions across four timed modules.
 
-The structure and passage-length guidance were checked against College Board on
+| Section | Modules | Questions per module | Minutes per module |
+| --- | --- | --- | --- |
+| Reading and Writing | 2 | 27 | 32 |
+| Math | 2 | 22 | 35 |
+
+Each Reading and Writing module covers all four domains, including passage
+pairs, quantitative evidence, editing, and research-note synthesis. Math
+contains 33 multiple-choice questions and 11 numeric-entry questions.
+
+The test follows a fixed question sequence. Every question contributes to the
+practice score, and results show accuracy and performance by topic. It does
+not provide adaptive routing or an official scaled SAT score. Modules continue
+without an automatic ten-minute break.
+
+## Content sources
+
+All passages, fictional research scenarios, data, names, and mathematics
+questions were created for Assessment Lab. The question counts, timings, and
+passage-length guidance follow College Board's published format, reviewed on
 September 3, 2026:
 
-- https://satsuite.collegeboard.org/sat/whats-on-the-test/structure
-- https://satsuite.collegeboard.org/sat/whats-on-the-test/reading-writing
-- https://satsuite.collegeboard.org/sat/whats-on-the-test/math
+- [SAT structure](https://satsuite.collegeboard.org/sat/whats-on-the-test/structure)
+- [Reading and Writing](https://satsuite.collegeboard.org/sat/whats-on-the-test/reading-writing)
+- [Math](https://satsuite.collegeboard.org/sat/whats-on-the-test/math)
 
-All prose, fictional research scenarios, data, names and math problems were
-authored for Assessment Lab. No College Board test questions were copied. This
-is fixed-form practice. The application does not provide adaptive second-module
-routing, an automatic ten-minute section break, pretest-item exclusion or an
-official scaled score. All 98 questions count toward its practice raw score.
-
-The short diagnostic remains available for existing drafts and tests. This
-full-length set has its own identity so saved diagnostic attempts remain intact.
+SAT is a trademark of College Board. Assessment Lab is not affiliated with or
+endorsed by College Board.

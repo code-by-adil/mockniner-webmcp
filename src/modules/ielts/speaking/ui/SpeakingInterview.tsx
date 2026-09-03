@@ -19,7 +19,7 @@ export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPl
   const preparationMessage = preparationStage === 'microphone_access'
     ? 'Waiting for microphone access. Check the browser permission request.'
     : preparationStage === 'voice_and_recognition'
-      ? 'Preparing the voice and speech recognition. First-time model downloads may take longer.'
+      ? 'Preparing examiner audio and speech recognition. The first download needs an internet connection.'
       : 'Saving your interview plan…'
   const [notes, setNotes] = useState('')
   const question = plan.questions[index]!
@@ -35,7 +35,7 @@ export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPl
     return () => window.removeEventListener('keydown', key)
   }, [phase, completeAnswer, startRecording])
 
-  if (phase === 'loading' || phase === 'load-error') return <main className="m-auto max-w-xl p-8"><p role={error ? 'alert' : 'status'}>{error ?? 'Loading your saved interview…'}</p>{error ? <p>Your saved recordings have not been changed. Export your local data before attempting recovery.</p> : null}</main>
+  if (phase === 'loading' || phase === 'load-error') return <main className="m-auto max-w-xl p-8"><p role={error ? 'alert' : 'status'}>{error ?? 'Loading your saved interview…'}</p>{error ? <p>Your recordings are still saved. Open Local data and export a backup before trying to restore them.</p> : null}</main>
   if (phase === 'setup' || phase === 'preparing') return <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 py-10">
     <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--exam-accent-soft)] text-[var(--exam-accent)]"><Mic size={24} /></div>
     <p className="text-xs font-bold uppercase tracking-widest text-[var(--exam-text-muted)]">Speaking practice · 3 parts · {plan.questions.length} questions</p>
@@ -51,7 +51,7 @@ export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPl
       {phase === 'preparing' ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
       {phase === 'preparing' ? 'Preparing your interview…' : interview.recorded ? 'Resume interview' : 'Start interview'}
     </button>
-    <p role="status" className="mt-3 text-center text-xs leading-5 text-[var(--exam-text-muted)]">{phase === 'preparing' ? preparationMessage : interview.recorded ? `${interview.recorded} of ${plan.questions.length} answers saved on this device.` : 'Have a custom topic? Your agent can install the complete question set here before you start.'}</p>
+    <p role="status" className="mt-3 text-center text-xs leading-5 text-[var(--exam-text-muted)]">{phase === 'preparing' ? preparationMessage : interview.recorded ? `${interview.recorded} of ${plan.questions.length} answers saved on this device.` : 'Ask your agent to create an interview on a topic you want to practise before you start.'}</p>
   </main>
 
   const status = phase === 'speaking' ? 'Listen to the question' : phase === 'thinking' ? 'Preparation time' : phase === 'ready' ? 'Ready to record' : phase === 'starting' ? 'Starting microphone…' : phase === 'recording' ? 'Recording your answer' : phase === 'buffering' ? 'Preparing question audio…' : phase === 'stopping' ? 'Saving your answer…' : phase === 'saving' ? 'Preparing your interview transcript…' : 'Please try again'

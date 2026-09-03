@@ -55,7 +55,7 @@ export function AssessmentEvaluationPanel({
           </ul>
         </div>
         <div>
-          <h3 className="text-sm font-bold text-neutral-800">Next improvements</h3>
+          <h3 className="text-sm font-bold text-neutral-800">What to improve</h3>
           <ul className="mt-2 space-y-1 text-sm leading-6 text-neutral-600">
             {evaluation.improvements.map((improvement) => (
               <li key={improvement}>• {improvement}</li>
@@ -65,7 +65,7 @@ export function AssessmentEvaluationPanel({
       </div>
       {evaluation.annotations.length ? (
         <div className="mt-5 border-t border-neutral-200 pt-5">
-          <h3 className="text-sm font-bold">Response annotations</h3>
+          <h3 className="text-sm font-bold">Comments on your responses</h3>
           <div className="mt-3 space-y-3">
             {evaluation.annotations.map((annotation, index) => (
               <div

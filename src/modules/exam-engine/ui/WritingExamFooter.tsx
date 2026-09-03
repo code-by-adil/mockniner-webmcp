@@ -37,7 +37,7 @@ function getWritingSubmitDetails(
         task: part,
         words,
         minimum,
-        statusLabel: `Not started (minimum ${minimum} words)`,
+        statusLabel: `Not started. Write at least ${minimum} words.`,
         statusToneClass: "text-zinc-500",
       };
     }
@@ -93,8 +93,8 @@ export function WritingExamFooter({
       <div>
         <p className="text-sm font-semibold text-zinc-700">
           You started {writingSubmitDetails.startedTasks} of{" "}
-          {writingSubmitDetails.totalTasks} tasks. Minimum reached in{" "}
-          {writingSubmitDetails.minimumReachedTasks}.
+          {writingSubmitDetails.totalTasks} tasks. Tasks meeting the minimum word count:{" "}
+          {writingSubmitDetails.minimumReachedTasks} of {writingSubmitDetails.totalTasks}.
         </p>
         <div className="mt-3 space-y-1.5">
           {writingSubmitDetails.details.map((detail) => (
@@ -210,7 +210,7 @@ export function WritingExamFooter({
           isSubmitting={isSubmitting}
           submitSummary={writingSubmitSummary}
           submitTitle="Submit your writing test?"
-          submitPrompt="Please check both tasks before submitting. After you submit, you cannot edit your writing."
+          submitPrompt="Review both tasks before submitting. You cannot change your writing after submission."
         />
       </div>
     </footer>

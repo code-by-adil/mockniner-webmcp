@@ -31,7 +31,7 @@ export function FooterActions({
   isSubmitting = false,
   submitSummary,
   submitTitle = "Submit your test?",
-  submitPrompt = "Please make sure you have answered everything you want to answer. After you submit, you cannot change your answers.",
+  submitPrompt = "Review your answers before submitting. You cannot change them after submission.",
   hideNavigationOnMobile = false,
 }: FooterBaseProps & { totalParts: number; hideNavigationOnMobile?: boolean }) {
   const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
@@ -85,7 +85,7 @@ export function FooterActions({
           onClick={() => setIsSubmitConfirmOpen(false)}
           className="exam-control-button h-10 rounded-md border px-4 text-sm font-semibold transition-colors"
         >
-          Review Answers
+          Keep working
         </button>
         <button
           type="button"
@@ -93,7 +93,7 @@ export function FooterActions({
           disabled={isSubmitting}
           className={`${EXAM_PRIMARY_BUTTON_CLASS} h-10 px-4 text-sm font-semibold`}
         >
-          {isSubmitting ? "Submitting…" : "Yes, Submit Test"}
+          {isSubmitting ? "Submitting…" : "Submit test"}
         </button>
       </div>
     </>
@@ -136,21 +136,21 @@ export function FooterActions({
         >
           <button
             type="button"
-            aria-label="Previous Part"
+            aria-label="Previous part"
             onClick={() => onPartChange(Math.max(1, currentPart - 1))}
             disabled={currentPart === 1}
             className={`${FOOTER_ICON_BUTTON_CLASS} h-9 w-9 sm:h-10 sm:w-10`}
-            title="Previous Part"
+            title="Previous part"
           >
             <ArrowLeft size={16} aria-hidden="true" />
           </button>
           <button
             type="button"
-            aria-label="Next Part"
+            aria-label="Next part"
             onClick={() => onPartChange(Math.min(totalParts, currentPart + 1))}
             disabled={currentPart === totalParts}
             className={`${FOOTER_ICON_BUTTON_CLASS} h-9 w-9 sm:h-10 sm:w-10`}
-            title="Next Part"
+            title="Next part"
           >
             <ArrowRight size={16} aria-hidden="true" />
           </button>
@@ -159,13 +159,13 @@ export function FooterActions({
         {onSubmit ? (
           <button
             type="button"
-            aria-label="Submit Test"
+            aria-label="Submit test"
             onClick={handleOpenSubmitConfirm}
             disabled={isSubmitting}
             className={`${EXAM_PRIMARY_BUTTON_CLASS} ml-0.5 flex items-center gap-1.5 py-2 text-xs font-bold uppercase sm:ml-1 sm:gap-2 sm:text-sm`}
           >
             <span className="hidden sm:inline">
-              {isSubmitting ? "Submitting…" : "Submit Test"}
+              {isSubmitting ? "Submitting…" : "Submit test"}
             </span>
             <span className="sm:hidden">{isSubmitting ? "…" : "Submit"}</span>
             <Check size={16} strokeWidth={3} aria-hidden="true" />

@@ -47,8 +47,8 @@ describe("assessment library", () => {
     expect(html).toContain("Resume assessment");
     expect(html).toContain("Restart");
     expect(html).toContain("Discard");
-    expect(html).toContain("Discard the current attempt to start this assessment.");
-    expect(html).toMatch(/disabled=""[^>]*title="Discard the unfinished attempt/);
+    expect(html).toContain("Finish or discard your unfinished assessment to start this one.");
+    expect(html).toMatch(/disabled=""[^>]*title="Finish or discard your unfinished assessment/);
   });
 });
 
@@ -95,7 +95,7 @@ describe("assessment history", () => {
       />,
     );
 
-    expect(html).toContain("Evaluation pending");
-    expect(html).toContain("Evaluated");
+    expect(html).toContain("Feedback pending");
+    expect(html).toContain("Feedback ready");
   });
 });

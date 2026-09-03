@@ -56,7 +56,7 @@ describe('native attempt history rows', () => {
       ] },
     } }} onReview={async () => undefined} />)
     expect(html).toContain('data-attempt-id="speaking-qa" data-section="speaking"')
-    expect(html).toContain('Speaking Practice')
+    expect(html).toContain('Speaking practice')
     expect(html.match(/>Review<\/button>/g)).toHaveLength(5)
     expect(html).toContain('speaking-pending')
   })
@@ -72,6 +72,6 @@ describe('native attempt history rows', () => {
       'data-attempt-id="older-reading-attempt" data-section="reading"',
     )
     expect(html.match(/>Review<\/button>/g)).toHaveLength(3)
-    expect(html).toContain('Awaiting Evaluation')
+    expect(html).toContain('Feedback pending')
   })
 })

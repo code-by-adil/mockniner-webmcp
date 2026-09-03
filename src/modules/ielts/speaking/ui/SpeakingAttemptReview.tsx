@@ -13,7 +13,7 @@ type Props = {
 const criteria = [
   ['Fluency & coherence', 'fluencyCoherence'],
   ['Lexical resource', 'lexicalResource'],
-  ['Grammar range & accuracy', 'grammaticalRangeAccuracy'],
+  ['Grammatical range & accuracy', 'grammaticalRangeAccuracy'],
 ] as const
 
 export function SpeakingAttemptReview({ submission, evaluation, onExit, backLabel = 'Back to results' }: Props) {
@@ -29,12 +29,12 @@ export function SpeakingAttemptReview({ submission, evaluation, onExit, backLabe
             <section className="rounded-xl border border-[var(--exam-border-muted)] bg-[var(--exam-surface)] p-6 shadow-sm">
               <div className="text-xs font-bold uppercase tracking-widest text-[var(--exam-text-muted)]">Transcript-based feedback</div>
               {evaluation.status === 'insufficient_evidence' ? <div className="mt-3">
-                <h1 className="text-2xl font-bold">Insufficient evidence to score</h1>
+                <h1 className="text-2xl font-bold">Feedback without a band score</h1>
                 <p className="mt-3 text-sm leading-6">{evaluation.reason}</p>
                 <p className="mt-2 text-sm font-semibold">No band assigned.</p>
               </div> : <div className="mt-3 flex items-end gap-3">
                 <span className="text-6xl font-extrabold text-[var(--exam-accent)]">{evaluation.overallBand}</span>
-                <span className="pb-2 text-sm font-bold text-[var(--exam-text-muted)]">Overall band</span>
+                <span className="pb-2 text-sm font-bold text-[var(--exam-text-muted)]">Estimated band</span>
               </div>}
               <p className="mt-5 leading-7 text-[var(--exam-text-muted)]">{evaluation.summary}</p>
               <div className="mt-7 grid gap-3">
@@ -46,7 +46,7 @@ export function SpeakingAttemptReview({ submission, evaluation, onExit, backLabe
                 )) : null}
                 <div className="rounded border border-[var(--exam-border-muted)] bg-[var(--exam-surface-muted)] px-4 py-3">
                   <div className="flex items-center gap-2 text-sm font-semibold"><Volume2 size={16} /> Pronunciation not scored</div>
-                  <p className="mt-1 text-xs leading-5 text-[var(--exam-text-muted)]">The agent evaluated the completed interview transcript and did not receive your locally stored audio.</p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--exam-text-muted)]">Feedback covers your interview transcript. Your recording stays in this browser, so pronunciation is not included in the estimate.</p>
                 </div>
               </div>
 
@@ -80,7 +80,7 @@ export function SpeakingAttemptReview({ submission, evaluation, onExit, backLabe
                     <div className="text-xs font-bold uppercase tracking-widest text-[var(--exam-accent)]">{response.partLabel} · {Math.round(response.durationMs / 1000)}s</div>
                     <p className="mt-2 font-semibold leading-6">{response.promptText}</p>
                     <div className="mt-3 rounded bg-[var(--exam-surface-muted)] px-4 py-3 text-sm leading-6 text-[var(--exam-text-muted)]">
-                      {response.status === 'skipped' ? 'Question skipped — no answer recorded.' : response.transcript}
+                      {response.status === 'skipped' ? 'Question skipped. No answer recorded.' : response.transcript}
                     </div>
                   </li>
                 ))}

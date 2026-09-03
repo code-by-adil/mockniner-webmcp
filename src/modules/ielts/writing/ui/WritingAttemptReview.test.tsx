@@ -66,7 +66,7 @@ describe('Writing review surface', () => {
       />,
     )
 
-    expect(markup).toContain('Writing Review')
+    expect(markup).toContain('Writing review')
     expect(markup).toContain('Assessment ')
     expect(markup).toContain('>Lab</span>')
     expect(markup).toContain('Agent evaluation')

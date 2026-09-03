@@ -7,9 +7,9 @@ import { math2 } from './math2';
 export const satFullLengthAssessment = parseAssessmentPackage({
   schemaVersion: 3, packageId: 'local-sat-full-length-1', revision: 1,
   title: 'SAT-Style Practice Test 1', source: 'built-in',
-  description: '98 original questions across four timed modules. Reading and Writing: 54 questions in 64 minutes. Math: 44 questions in 70 minutes. This is fixed-form practice, with raw-score review.',
+  description: 'Practise with 98 questions across four timed modules, then review your answers and results by topic.',
   metadata: { subject: 'College readiness', difficulty: 'mixed', locale: 'en-US', shortLabel: 'SAT · Full length',
-    disclaimer: 'Original, independent SAT-style practice. This fixed-form set does not use adaptive routing or predict an official SAT score. SAT is a registered trademark of College Board, which is not affiliated with or endorsing this application.' },
+    disclaimer: 'Independent SAT-style practice with a fixed question sequence. Results show practice accuracy, not an official or predicted SAT score. SAT is a registered trademark of College Board. This application is not affiliated with or endorsed by College Board.' },
   presentation: { accent: 'red', density: 'comfortable' }, review: { mode: 'answers' }, rubrics: [],
   resources: [{ id: 'sat-math-reference', type: 'document', title: 'Math reference', content: [
     { type: 'text', variant: 'subtitle', text: 'Circles and angles' }, { type: 'math', expression: 'A = πr²     C = 2πr\nA full circle measures 360° or 2π radians.' },

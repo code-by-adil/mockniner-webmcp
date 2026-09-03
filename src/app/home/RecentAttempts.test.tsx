@@ -69,7 +69,7 @@ describe("recent attempts presentation", () => {
           onReviewAttempt={onReviewAttempt}
         />,
       ));
-      expect(container.textContent).toContain("2 universal and IELTS attempts saved locally");
+      expect(container.textContent).toContain("2 attempts saved in this browser");
       const buttons = container.querySelectorAll("button");
       expect(buttons).toHaveLength(2);
       await act(async () => { for (const button of buttons) button.click(); });

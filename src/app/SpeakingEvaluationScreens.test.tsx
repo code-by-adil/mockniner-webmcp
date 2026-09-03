@@ -20,7 +20,7 @@ describe('Speaking evaluation prompts on submission and results', () => {
   })
   it('keeps the prompt available after View results while evaluation is pending', () => {
     const html = renderToStaticMarkup(<Results session={pending} onHome={noop} onReview={noop} />)
-    expect(html).toContain('Awaiting evaluation')
+    expect(html).toContain('Feedback pending')
     expect(html).toContain('Copy evaluation prompt')
     expect(html).toContain(submission.attemptId)
     expect(html).not.toContain('Review answers')

@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { Check, Copy, X } from "lucide-react";
 
 const PROMPT_SUGGESTIONS = [
-  "Create and install an original SAT-style diagnostic focused on algebra and inference.",
-  "Build a six-question universal assessment with multiple choice, numeric entry, and one rubric-evaluated response.",
-  "Create and install an original 40-question IELTS Academic Reading set about renewable energy.",
-  "Grade my latest submitted IELTS Writing attempt against official band descriptors.",
+  "Create a short SAT-style practice test focused on algebra and inference.",
+  "Make a six-question biology quiz with multiple choice and one short written answer.",
+  "Create a 40-question IELTS Academic Reading test about renewable energy.",
+  "Review my latest IELTS Writing submission and suggest what to practise next.",
 ];
 
 export function WebMcpHelpDialog({
@@ -36,10 +36,10 @@ export function WebMcpHelpDialog({
         <div className="flex items-start justify-between p-6 pb-4 border-b border-neutral-100">
           <div>
             <h2 className="text-lg font-bold text-neutral-900 leading-tight">
-              WebMCP Integration
+              Practice with your agent
             </h2>
             <p className="text-xs text-neutral-500 mt-1">
-              Page-native capabilities for installing assessments, reading submissions, and returning structured evaluation.
+              Create a test, review your work, and plan your next practice session.
             </p>
           </div>
           <button
@@ -57,10 +57,10 @@ export function WebMcpHelpDialog({
           {/* How it works */}
           <div className="space-y-1.5">
             <h3 className="text-xs font-bold text-neutral-900">
-              How your agent works with this site
+              How to get started
             </h3>
             <p className="text-xs text-neutral-600 leading-relaxed">
-              Through WebMCP, your agent works with the same local assessment state as this interface. It can install universal or native IELTS content, read immutable submissions, and return validated rubric feedback without an application-owned model or credential.
+              Open this site in an agent browser that supports WebMCP, then ask your agent to create practice or review a completed test. New tests and feedback appear here, alongside your saved work.
             </p>
           </div>
 
@@ -68,10 +68,10 @@ export function WebMcpHelpDialog({
             <span className="h-2 w-2 rounded-full bg-emerald-500 mt-0.5 shrink-0" />
             <div className="space-y-0.5">
               <div className="font-semibold text-neutral-900">
-                Capabilities follow the current workspace
+                You complete the test. Your agent helps you improve.
               </div>
               <div className="text-neutral-500 text-[11px]">
-                Your agent can find practice and history from any screen, open saved results, and start or resume practice. It can read saved submissions by ID anywhere. Installing practice requires the library; attaching feedback requires the matching result to be open. Answering and submitting remain yours.
+                Your agent can find a test, resume saved practice, and review submitted answers. To receive feedback, open your results and ask your agent to evaluate them. Only you answer questions and submit your work.
               </div>
             </div>
           </div>
@@ -79,7 +79,7 @@ export function WebMcpHelpDialog({
           {/* Try Asking Section */}
           <div className="space-y-3 pt-3 border-t border-neutral-100">
             <div className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
-              Sample agent prompts
+              Try asking
             </div>
 
             <div className="space-y-2.5">
@@ -91,7 +91,7 @@ export function WebMcpHelpDialog({
                     className="flex items-start justify-between gap-3 rounded-xl border border-neutral-200/80 bg-neutral-50/60 p-3 text-xs text-neutral-800 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
                   >
                     <p className="flex-1 leading-relaxed text-neutral-800 font-normal select-text">
-                      “{promptText}”
+                      {promptText}
                     </p>
                     <button
                       type="button"

@@ -615,12 +615,12 @@ export const BundledListeningAudioBar: React.FC<Props> = ({
       )}
       {isTimelineLoading && (
         <span className="exam-subtle-text text-[10px] font-bold">
-          Loading timeline…
+          Loading audio navigation…
         </span>
       )}
       {timelineError && (
         <span className="text-[10px] font-bold text-amber-700">
-          Timeline unavailable
+          Audio navigation unavailable
         </span>
       )}
       {audioError && (

@@ -51,7 +51,7 @@ describe("native IELTS home metadata", () => {
     }
     const html = renderHome(session);
     for (const section of ['Speaking', 'Reading', 'Writing', 'Listening']) expect(html).toContain(`Resume ${section}`);
-    expect(html).toContain('Resume Exam (Listening)');
+    expect(html).toContain('Resume test (Listening)');
     expect(html).toContain('Saved local places interview');
   });
   it('shows the full active set names and escapes agent-authored markup', () => {
@@ -63,7 +63,7 @@ describe("native IELTS home metadata", () => {
     expect(html).not.toContain('<script>unsafe</script>')
   })
   it('explains playable buffering and shows actionable failure details', () => {
-    expect(renderHome(initialSession, undefined, { phase: 'generating', readyToPlay: true, completedChunks: 2, totalChunks: 10 })).toContain('Ready to start. Preparing remaining audio (2/10 chunks)')
+    expect(renderHome(initialSession, undefined, { phase: 'generating', readyToPlay: true, completedChunks: 2, totalChunks: 10 })).toContain('Ready to start. Preparing remaining audio. 2 of 10 audio segments ready.')
     const failed = renderHome(initialSession, undefined, { phase: 'error', readyToPlay: false, error: 'WebGPU unavailable.' })
     expect(failed).toContain('WebGPU unavailable.')
     expect(failed).toContain('Retry audio')
@@ -89,6 +89,6 @@ describe("native IELTS home metadata", () => {
       attemptId: '11111111-1111-4111-8111-111111111111',
       currentSection: "reading",
       completedSections: ["listening"],
-    })).toContain("Resume Exam (Reading)");
+    })).toContain("Resume test (Reading)");
   });
 });

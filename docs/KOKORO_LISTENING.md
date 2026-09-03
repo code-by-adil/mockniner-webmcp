@@ -51,12 +51,12 @@ built-in test. Its `audio` field has this form:
 }
 ```
 
-The application currently accepts four vetted English voices:
+The application supports four English voices:
 
-- `af_heart` — American English, female
-- `am_fenrir` — American English, male
-- `bf_emma` — British English, female
-- `bm_george` — British English, male
+- `af_heart`, American English, female
+- `am_fenrir`, American English, male
+- `bf_emma`, British English, female
+- `bm_george`, British English, male
 
 Speaker IDs are document-local. Part 1 uses exactly two speakers, Part 2 one,
 Part 3 two to four, and Part 4 one. Every spoken sentence belongs to exactly one
@@ -64,13 +64,12 @@ declared speaker turn; labels such as `Speaker 1:` do not belong in the text.
 Speakers in the same multi-speaker part use distinct, stable voices. The four
 audio parts must be in order and correspond to the four Listening question
 parts. A speech segment is a semantic speaker turn, not a TTS chunk. The
-application uses Kokoro's `TextSplitterStream` to retain natural sentences.
-It preserves a complete sentence up to Kokoro's safe 500-phoneme envelope and
-only falls back to punctuation, then a word boundary, if one sentence exceeds
-that hard limit. The agent therefore owns the script, while the application
-owns the audio implementation. Silence is
-explicit and deterministic; supported purposes are `conversation_pause`,
-`question_time`, and `part_transition`.
+application uses Kokoro's `TextSplitterStream` to retain natural sentences. It
+preserves a complete sentence up to Kokoro's safe 500-phoneme envelope and only
+falls back to punctuation, then a word boundary, if one sentence exceeds that
+hard limit. Agents supply speaker turns. The application handles audio chunking.
+Silence is explicit and deterministic; supported purposes are
+`conversation_pause`, `question_time`, and `part_transition`.
 
 The boundary accepts up to 4,000 characters per speaker turn, 60,000 spoken
 characters across the complete test, and 30 minutes of explicit silence. These
@@ -80,17 +79,17 @@ manually optimize audio chunks.
 The authoritative executable contract is the Zod schema exported through
 `src/domain/objectiveContent.ts`. Its implementation separates core objective
 blocks, Listening audio, map data, and whole-document validation. Call
-`get_ielts_authoring_kit` with
-`section: "listening"` to load that section's schema, then pass the complete
-document to `install_ielts_practice_set`. Installation invokes the existing
-`installContent` command.
-No TTS-specific WebMCP tool or second audio payload is needed.
+`get_ielts_authoring_kit` with `section: "listening"` to load that section's
+schema, then pass the complete document to `install_ielts_practice_set`.
+Installation invokes the existing `installContent` command. The script and
+questions are installed together.
 
 ## Runtime
 
 The first active Kokoro Listening document lazily downloads the official
-`onnx-community/Kokoro-82M-v1.0-ONNX` model through `kokoro-js`. Subsequent use
-reuses the browser's model cache, so normal practice can continue offline.
+`onnx-community/Kokoro-82M-v1.0-ONNX` model through `kokoro-js`. Subsequent
+generation reuses the downloaded model while it remains in the browser cache.
+Playing saved audio does not require a model download.
 
 Generation follows the official browser setup:
 
@@ -101,8 +100,8 @@ Generation follows the official browser setup:
 - generation in a dedicated Web Worker
 - `RawAudio.toBlob()` for playable WAV output
 
-The current MVP deliberately requires WebGPU instead of maintaining a second
-WASM configuration. A clear error is shown when WebGPU is unavailable.
+Speech generation requires WebGPU. If it is unavailable, the app displays
+browser compatibility guidance.
 
 The worker consumes the document segments in order. After every generated
 sentence or explicit silence:
@@ -125,23 +124,41 @@ page, restores the saved cursor and chunks instead of regenerating them. The
 cache retains generated media only for the active Listening document; activating
 a replacement removes the previous document's WAV rows while preserving its
 installed content and submitted attempt history. Late writes from a superseded
-worker are rejected. The existing bundled recording remains supported through
-`{ "type": "bundled", "assetKey": "local-original" }`.
+worker are rejected. The existing bundled recording remains supported through `{
+"type": "bundled", "assetKey": "local-original" }`.
 
-## Operational boundary
+## Downloads and storage
 
 - Model files are downloaded once per browser cache lifecycle.
 - Active generated WAV chunks and listening progress stay in browser-private
   storage.
 - Clearing site data removes generated audio and attempts.
-- No API key, backend, embedded chatbot, FFmpeg, MP3 encoder, voice cloning, or
-  application-side model service is involved.
+- The browser generates speech locally using the downloaded model.
 - `get_ielts_authoring_kit` loads the Listening guidance and schema only when an
   agent requests that section. `install_ielts_practice_set` keeps compact
   discovery metadata and applies the full runtime validator.
 
-Kokoro integration sources: the
-[`kokoro-js@1.2.1` package documentation](https://www.npmjs.com/package/kokoro-js),
-the [Kokoro JavaScript source and demo](https://github.com/hexgrad/kokoro/tree/main/kokoro.js),
-and the
-[`onnx-community/Kokoro-82M-v1.0-ONNX` model card](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX).
+Kokoro integration sources: the [`kokoro-js@1.2.1` package
+documentation](https://www.npmjs.com/package/kokoro-js), the [Kokoro JavaScript
+source and demo](https://github.com/hexgrad/kokoro/tree/main/kokoro.js), and the
+[`onnx-community/Kokoro-82M-v1.0-ONNX` model
+card](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX).
+
+## Bundled recording
+
+The built-in IELTS Listening set uses one bundled recording and a small
+synchronization timeline under `public/audio`.
+
+The original narration lives in `scripts/audio/part-*.txt`. Keep it natural:
+speakers supply facts, not question numbers, option letters, or answer-key cues.
+After editing it, run `bash scripts/generate-audio.sh` on macOS with Node.js,
+FFmpeg/ffprobe, and the Daniel, Karen, and Samantha system voices installed.
+This regenerates the recording, part timings, and cache revision together.
+Commit all generated changes; tests detect scripts changed without regeneration.
+
+Agent-created Listening sets use `kokoro-js@1.2.1` and the
+`onnx-community/Kokoro-82M-v1.0-ONNX` model in a lazy Web Worker. Speech is
+split at natural boundaries, generated serially, and stored as validated WAV
+chunks. Playback starts after the first two chunks are durable while generation
+continues. The full contract is documented in [Listening audio
+implementation](./KOKORO_LISTENING.md).

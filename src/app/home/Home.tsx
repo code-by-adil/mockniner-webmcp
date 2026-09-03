@@ -48,19 +48,19 @@ type HomeProps = {
 
 const SECTION_PRESENTATION = {
   listening: {
-    summary: "Recorded conversations and lectures with timed question pacing.",
+    summary: "Listen to conversations and lectures, then answer as you go.",
     icon: Headphones,
   },
   reading: {
-    summary: "Academic passages with split-pane text and interactive questions.",
+    summary: "Read academic passages and answer questions alongside the text.",
     icon: BookOpen,
   },
   writing: {
-    summary: "Report and essay responses stored locally for agent evaluation.",
+    summary: "Write a report and an essay, then ask your agent for feedback.",
     icon: FileText,
   },
   speaking: {
-    summary: "Voice prompts and audio recording with transcript scoring.",
+    summary: "Answer spoken questions and get feedback on your interview transcript.",
     icon: Mic,
   },
 } as const;
@@ -124,7 +124,7 @@ export function Home({
             Create practice with your agent, answer the questions here, and review your results.
           </p>
           <div className="border-l-2 border-neutral-300 pl-4 py-1 text-sm text-neutral-600 italic">
-            The application provides structure. Your agent provides intelligence.
+            Start with a ready-made test or ask your agent to create one for you.
           </div>
         </div>
 
@@ -134,14 +134,14 @@ export function Home({
             <div className="space-y-1.5">
               <div className="inline-flex items-center gap-2">
                 <span className="text-[10px] font-bold tracking-wider uppercase bg-neutral-900 text-white px-2 py-0.5 rounded">
-                  Native IELTS
+                  IELTS practice
                 </span>
                 <span className="text-xs text-neutral-500 inline-flex items-center gap-1">
                   <Clock size={12} /> ~{Math.floor(fullExamMinutes / 60)} hrs {fullExamMinutes % 60} mins · {SECTION_ORDER.length} sections
                 </span>
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-neutral-900">
-                Full IELTS Simulation
+                Full IELTS practice test
               </h2>
               <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed max-w-2xl">
                 {fullExamSequence}. Complete each section in order.
@@ -162,8 +162,8 @@ export function Home({
                 <PlayCircle size={16} />
                 <span>
                   {resumableFullExamSection
-                    ? `Resume Exam (${SECTION_META[resumableFullExamSection].label})`
-                    : "Start Full Exam"}
+                    ? `Resume test (${SECTION_META[resumableFullExamSection].label})`
+                    : "Start full test"}
                 </span>
               </button>
             </div>
@@ -171,10 +171,10 @@ export function Home({
 
           {fullDraft && (
             <div className="mt-4 pt-3 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
-              <span>Unfinished attempt in progress.</span>
+              <span>Your unfinished test is ready to resume.</span>
               <button
                 type="button"
-                onClick={() => { if (window.confirm('Discard the unfinished Full IELTS attempt and start over? Other section drafts will be kept.')) onStart("full", "listening"); }}
+                onClick={() => { if (window.confirm('Start this full IELTS test again? Your answers in this test will be cleared. Other section attempts will be kept.')) onStart("full", "listening"); }}
                 className="text-neutral-700 hover:text-neutral-950 inline-flex items-center gap-1 font-medium underline cursor-pointer"
               >
                 <RotateCcw size={11} /> Start over
@@ -263,11 +263,11 @@ export function Home({
                             </button>
                           </span>
                         ) : listeningAudio.phase === "loading" ? (
-                          "Loading Kokoro TTS voice engine…"
+                          "Preparing the listening voice…"
                         ) : listeningAudio.phase === "generating" ? (
-                          `${listeningReady ? 'Ready to start. Preparing remaining audio' : 'Generating audio'} (${listeningAudio.completedChunks}${
-                            listeningAudio.totalChunks ? `/${listeningAudio.totalChunks}` : ""
-                          } chunks)…`
+                          `${listeningReady ? 'Ready to start. Preparing remaining audio' : 'Preparing audio'}. ${listeningAudio.completedChunks}${
+                            listeningAudio.totalChunks ? ` of ${listeningAudio.totalChunks}` : ""
+                          } audio segments ready.`
                         ) : (
                           "Preparing audio…"
                         )}
@@ -314,7 +314,7 @@ export function Home({
             className="inline-flex items-center gap-1.5 text-neutral-600 hover:text-neutral-900 font-medium cursor-pointer"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            <span>WebMCP Tools</span>
+            <span>Practice with your agent</span>
           </button>
         </footer>
       </main>

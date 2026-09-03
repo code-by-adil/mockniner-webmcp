@@ -20,9 +20,9 @@ function EvaluationRequest() {
   }
 
   return (
-    <section aria-label="Writing evaluation" className="rounded-lg border border-neutral-200 bg-white p-5 sm:p-6">
-      <h2 className="font-semibold text-neutral-950">Awaiting evaluation</h2>
-      <p className="mt-2 text-sm leading-6 text-neutral-600">Your responses are saved. Send this request to your agent and keep this submission open. Its feedback will appear here.</p>
+    <section aria-label="Writing feedback" className="rounded-lg border border-neutral-200 bg-white p-5 sm:p-6">
+      <h2 className="font-semibold text-neutral-950">Ready for feedback</h2>
+      <p className="mt-2 text-sm leading-6 text-neutral-600">Your writing is saved. Copy this request to your agent and keep this page open to receive feedback.</p>
       <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <blockquote className="select-text text-sm leading-6 text-neutral-900">{evaluationRequest}</blockquote>
         <button
@@ -65,7 +65,7 @@ export function PendingWritingReview({ submission, onExit, backLabel = 'Back to 
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Writing submission</h1>
           <p className="mt-2 text-sm leading-6 text-neutral-600">
-            Submitted <time dateTime={submission.submittedAt}>{new Date(submission.submittedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time>. Your responses are read-only.
+            Submitted <time dateTime={submission.submittedAt}>{new Date(submission.submittedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time>. Your submitted writing is saved below.
           </p>
         </div>
         <EvaluationRequest key={submission.attemptId} />
