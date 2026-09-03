@@ -1,3 +1,5 @@
+import { useEvaluationActivity, type EvaluationKind } from '@/application/evaluationActivityContext';
+import { createEvaluationStartTool, evaluationTools } from './evaluationStartTool';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from 'react-dom';
 import { draftSaves } from '@/infrastructure/saveCoordinator';
@@ -53,6 +55,9 @@ const getAssessmentRepository = async () =>
 export type WebMcpRegistrationStatus = 'loading' | 'ready' | 'unavailable' | 'error';
 
 export function useWebMcpTools(options: WebMcpToolOptions) {
+  const evaluationActivity = useEvaluationActivity();
+  const evaluationRef = useRef(evaluationActivity);
+  useLayoutEffect(() => { evaluationRef.current = evaluationActivity }, [evaluationActivity]);
   const [interview] = useState(createSpeakingInterviewController);
   const [registrationStatus, setRegistrationStatus] = useState<WebMcpRegistrationStatus>('loading');
   const latest = useRef(options);
@@ -89,7 +94,7 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     const readAvailability = () => getToolAvailability(latest.current, interview.read(), interview.canLeave());
     const readContext = () => {
       const speaking = interview.read();
-      return { ...latest.current.context, listeningAudio: latest.current.workspace.listeningAudio,
+      return { ...latest.current.context, evaluationActivity: evaluationRef.current?.activity ?? null, listeningAudio: latest.current.workspace.listeningAudio,
         capabilities: summarizeToolAvailability(readAvailability(), includeAuthoringExamples(latest.current.workspace)),
         progress: getPracticeProgress(latest.current.workspace, 'currentQuestion' in speaking ? speaking : undefined) };
     };
@@ -166,6 +171,9 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
       ),
     );
     tools.push(createSpeakingInterviewToolDefinition(interview.configure), createSpeakingProgressToolDefinition(interview.read));
+    tools.push(createEvaluationStartTool({ tools, navigate: navigation,
+      begin: (kind, attemptId) => flushSync(() => evaluationRef.current?.begin(kind, attemptId)),
+    }));
     // Register once per document. Repeated contextual registration exhausts the
     // in-app browser's change budget. Discovery and execution share live guards.
     void Promise.all(
@@ -178,20 +186,29 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
             if (!availability) throw new Error(`Missing availability policy for ${tool.name}.`);
             return availability.status === 'blocked' ? toolFailure(availability.code, availability.message, true) : null;
           };
+          const feedbackKind = (Object.keys(evaluationTools) as EvaluationKind[]).find(kind => evaluationTools[kind].attach === tool.name);
+          const finishFeedback = (result: unknown) => {
+            if (feedbackKind && typeof input.attemptId === 'string') {
+              const saved = result && typeof result === 'object' && 'ok' in result && result.ok === true;
+              flushSync(() => saved ? evaluationRef.current?.finish(feedbackKind, input.attemptId as string)
+                : evaluationRef.current?.fail(feedbackKind, input.attemptId as string));
+            }
+            return result;
+          };
           const blocked = checkAvailability();
-          if (blocked) return blocked;
+          if (blocked) return finishFeedback(blocked);
           if (tool.annotations?.readOnlyHint) return tool.execute(input, options);
           try {
             await draftSaves.flush();
             throwIfCancelled(signal);
             const blockedAfterSave = checkAvailability();
-            if (blockedAfterSave) return blockedAfterSave;
+            if (blockedAfterSave) return finishFeedback(blockedAfterSave);
             const result = await tool.execute(input, options);
             await draftSaves.flush();
-            return result;
+            return finishFeedback(result);
           } catch (error) {
             if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) throw error;
-            return toolFailure('SAVE_FAILED', error instanceof Error ? error.message : 'Changes could not be saved. Retry saving in the page.', true);
+            return finishFeedback(toolFailure('SAVE_FAILED', error instanceof Error ? error.message : 'Changes could not be saved. Retry saving in the page.', true));
           }
         } }, { signal: controller.signal }),
       ),

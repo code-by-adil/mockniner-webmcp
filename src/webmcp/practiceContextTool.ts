@@ -5,7 +5,7 @@ import { getToolExecutionSignal, throwIfCancelled, toolFailure } from './toolRes
 export function createPracticeContextTool(read: () => PracticeContext): WebMCP.ModelContextTool {
   return {
     name: 'get_practice_context', title: 'Read practice context and available actions',
-    description: 'Start here to read visible attempt IDs, reviewLocation, progress and capabilities: available tools, conditional input requirements, blocked tools with reasons/recovery, and authoringExamplesIncluded. Availability is a live snapshot, rechecked on execution; valid IDs and payloads are still required. Listening/Speaking progress includes preparation, errors and recovery. Progress is null outside an exam. No draft answers, scripts or keys. Audio readiness is preparation, not playback.',
+    description: 'Start here to read visible attempt IDs, reviewLocation, progress and capabilities: available tools, conditional input requirements, blocked tools with reasons/recovery, and authoringExamplesIncluded. Availability is a live snapshot, rechecked on execution; valid IDs and payloads are still required. evaluationActivity reports an agent-started review notice. Listening/Speaking progress includes preparation, errors and recovery. Progress is null outside an exam. No draft answers, scripts or keys. Audio readiness is preparation, not playback.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     execute: async (input, options) => {

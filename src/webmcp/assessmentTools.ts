@@ -150,7 +150,7 @@ export function createAssessmentToolDefinitions({
     name: "get_assessment_submission",
     title: "Read assessment submission",
     description:
-      "Read a submitted assessment: omit IDs for visible, or use attemptId/latest:true. view summary lists permitted part/item IDs and totals without responses. full (default) accepts partId/itemId to return only matching content, responses and annotations; aggregate scores remain assessment-wide. Unfiltered full includes complete evaluation. Review policy applies: responses hides keys/correctness; none allows only rubric items. Never reads drafts or navigates.",
+      "For rubric evaluation use begin_submission_evaluation first to show progress. Read a submitted assessment: omit IDs for visible, or use attemptId/latest:true. view summary lists permitted part/item IDs and totals without responses. full (default) accepts partId/itemId to return only matching content, responses and annotations; aggregate scores remain assessment-wide. Unfiltered full includes complete evaluation. Review policy applies: responses hides keys/correctness; none allows only rubric items. Never reads drafts or navigates.",
     inputSchema: { ...readSubmissionJsonSchema, properties: {
       ...readSubmissionJsonSchema.properties,
       ...submissionSelectionSchema.properties,
@@ -208,7 +208,6 @@ export function createAssessmentToolDefinitions({
       }
       try {
         const evaluation = await attachEvaluation(parsed.data);
-        throwIfCancelled(signal);
         return {
           ok: true,
           data: {

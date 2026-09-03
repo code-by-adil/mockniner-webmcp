@@ -225,3 +225,19 @@ and Listening timer suspension during preparation and buffering. Browser checks
 must separately observe the exam, the saved attempt after reload, and locally
 continuing audio. Do not claim question-generation latency from a timed
 installation call; that call receives content the model has already written.
+
+## Evaluation progress checks
+
+For a submitted Writing attempt, ask “evaluate my writing.” The preferred first
+call is `begin_submission_evaluation` with `kind: "writing"`. It opens the exact
+submission and returns the two responses, assessment guidance, revision and save
+schema. The page must show progress before feedback is authored, then display the
+saved evaluation after attachment. Also check a historical ID, a revision, a
+failed attachment, and a reload during evaluation. Copying the request or merely
+reading a submission must not show a spinner. After five minutes without feedback,
+the indicator becomes a follow-up notice. That deadline is not a model timeout.
+
+The same flow covers Speaking transcripts and custom rubric assessments, subject
+to their existing review and revision policies. Deterministic and browser checks
+verify these transitions; they do not measure independent model latency or grading
+quality.

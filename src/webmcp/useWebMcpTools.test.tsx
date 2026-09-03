@@ -92,7 +92,7 @@ describe('stable page WebMCP registration', () => {
     }
     expect(flush).not.toHaveBeenCalled()
     expect((await capabilities()).conditional).toHaveProperty('save_ielts_objective_explanation')
-    expect(register).toHaveBeenCalledTimes(22)
+    expect(register).toHaveBeenCalledTimes(23)
   })
   it('distinguishes full authoring access, hidden examples, explicit reads and objective-only evaluation', async () => {
     const value = options(true)
@@ -129,7 +129,7 @@ describe('stable page WebMCP registration', () => {
     }
     await act(async () => root.render(<Harness value={options(true)} />))
     expect((await capabilities()).available).toContain('install_ielts_practice_set')
-    expect(register).toHaveBeenCalledTimes(22)
+    expect(register).toHaveBeenCalledTimes(23)
   })
   it('reads Speaking lifecycle eligibility from the bound runner without re-registration or a render', async () => {
     const value = options(false)
@@ -157,7 +157,7 @@ describe('stable page WebMCP registration', () => {
     unbind()
     expect((await capabilities()).blocked.set_ielts_speaking_interview.code).toBe('SPEAKING_NOT_OPEN')
     expect(configure).toHaveBeenCalledOnce()
-    expect(register).toHaveBeenCalledTimes(22)
+    expect(register).toHaveBeenCalledTimes(23)
   })
   it.each(['state_change', 'cancellation'] as const)('rechecks %s after waiting for draft persistence', async change => {
     const value = options(true)
@@ -181,7 +181,7 @@ describe('stable page WebMCP registration', () => {
   })
   it('registers serializable standard metadata with explicit read and output trust hints', async () => {
     await act(async () => root.render(<Harness value={options(true)} />))
-    const mutations = new Set(['open_practice', 'retry_ielts_listening_audio', 'install_ielts_practice_set', 'install_assessment',
+    const mutations = new Set(['begin_submission_evaluation', 'open_practice', 'retry_ielts_listening_audio', 'install_ielts_practice_set', 'install_assessment',
       'attach_ielts_writing_evaluation', 'attach_ielts_speaking_evaluation', 'attach_assessment_evaluation',
       'set_ielts_speaking_interview', 'save_ielts_objective_explanation'])
     for (const tool of registered.values()) {
@@ -224,7 +224,7 @@ describe('stable page WebMCP registration', () => {
     await act(async () => root.render(<Harness value={review} />))
     await expect(read.execute({ packageId }, execution)).resolves.toMatchObject({ ok: false, error: { code: 'TOOL_NOT_AVAILABLE' } })
     expect(registered.get('get_assessment_content')).toBe(read)
-    expect(register).toHaveBeenCalledTimes(22)
+    expect(register).toHaveBeenCalledTimes(23)
   })
   it('keeps the same activity reader available on home, an active exam, and results', async () => {
     await act(async () => root.render(<Harness value={options(true)} />))
@@ -240,7 +240,7 @@ describe('stable page WebMCP registration', () => {
       expect(JSON.stringify(value.workspace)).toBe(before)
     }
     expect(readActivity).toHaveBeenCalledWith({}, { limit: 5, offset: 0 })
-    expect(register).toHaveBeenCalledTimes(22)
+    expect(register).toHaveBeenCalledTimes(23)
   })
   it.each(['reading', 'listening', 'writing', 'speaking', 'assessment'] as const)(
     'returns schemas without examples for a %s draft, including while paused or viewing history', async kind => {
@@ -281,7 +281,7 @@ describe('stable page WebMCP registration', () => {
       // The same registered callbacks must unlock after the draft is finished.
       await act(async () => root.render(<Harness value={options(true)} />))
       for (const [name, input] of requests) await expect(registered.get(name)!.execute(input, config)).resolves.toMatchObject({ ok: true, data: { examplesIncluded: true } })
-      expect(register).toHaveBeenCalledTimes(22)
+      expect(register).toHaveBeenCalledTimes(23)
     },
   )
   it('reads live audio transitions and scopes retry without re-registering the catalog', async () => {
@@ -296,7 +296,7 @@ describe('stable page WebMCP registration', () => {
     await expect(context.execute({}, config)).resolves.toMatchObject({ data: { listeningAudio: { phase: 'error', canRetry: true } } })
     await registered.get('retry_ielts_listening_audio')!.execute({ contentKey: 'new-audio' }, config)
     expect(value.retryListeningAudio).toHaveBeenCalledTimes(1)
-    expect(register).toHaveBeenCalledTimes(22)
+    expect(register).toHaveBeenCalledTimes(23)
   })
   it('includes examples after completion but omits them while another family has a draft', async () => {
     const value = options(true)
@@ -310,7 +310,7 @@ describe('stable page WebMCP registration', () => {
       attemptId: '22222222-2222-4222-8222-222222222222', packageId: satPracticeAssessment.packageId } } }
     await act(async () => root.render(<Harness value={pending} />))
     await expect(tool.execute({ section: 'reading' }, config)).resolves.toMatchObject({ ok: true, data: { examplesIncluded: false } })
-    expect(register).toHaveBeenCalledTimes(22)
+    expect(register).toHaveBeenCalledTimes(23)
   })
   it('omits examples for a parked IELTS draft even with no current slot', async () => {
     const value = options(true)
@@ -341,18 +341,18 @@ describe('stable page WebMCP registration', () => {
     await expect(context.execute({}, config)).resolves.toMatchObject({ ok: true, data: { view: 'home', submissions: [] } })
     await expect(reader.execute({}, config)).resolves.toMatchObject({ ok: false, error: { code: 'NO_VISIBLE_SUBMISSION' } })
     await expect(reader.execute({ attemptId: older.attemptId }, config)).resolves.toMatchObject({ ok: true, data: { submission: { attemptId: older.attemptId } } })
-    expect(register).toHaveBeenCalledTimes(22)
+    expect(register).toHaveBeenCalledTimes(23)
   })
   it('keeps the same catalog through 30 context changes and rejects wrong-state execution', async () => {
     await act(async () => root.render(<Harness value={options(true)} />))
-    expect(registered.size).toBe(22)
+    expect(registered.size).toBe(23)
     const original = [...registered.values()]
     const metadata = JSON.stringify(original.map(({ execute: _execute, ...descriptor }) => descriptor))
     for (let index = 0; index < 30; index++) {
       await act(async () => root.render(<Harness value={options(index % 2 === 0)} />))
       expect([...registered.values()]).toEqual(original)
     }
-    expect(register).toHaveBeenCalledTimes(22)
+    expect(register).toHaveBeenCalledTimes(23)
     expect(JSON.stringify([...registered.values()].map(({ execute: _execute, ...descriptor }) => descriptor))).toBe(metadata)
     const callOptions = { signal: new AbortController().signal }
     await expect(registered.get('install_assessment')!.execute({}, callOptions)).resolves.toMatchObject({ ok: false, error: { code: 'TOOL_NOT_AVAILABLE' } })
@@ -360,7 +360,7 @@ describe('stable page WebMCP registration', () => {
     await expect(registered.get('set_ielts_speaking_interview')!.execute(defaultSpeakingPlan, callOptions)).resolves.toMatchObject({ ok: false, error: { code: 'SPEAKING_NOT_OPEN' } })
     await act(async () => root.render(<Harness value={options(true)} />))
     await expect(registered.get('get_ielts_authoring_kit')!.execute({ section: 'writing' }, callOptions)).resolves.toMatchObject({ ok: true })
-    expect(register).toHaveBeenCalledTimes(22)
+    expect(register).toHaveBeenCalledTimes(23)
   })
   it('surfaces registration failure and removes partial registrations', async () => {
     register.mockRejectedValueOnce(new Error('Registration failed'))

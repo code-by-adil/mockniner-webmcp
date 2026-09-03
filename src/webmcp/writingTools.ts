@@ -1,3 +1,4 @@
+import { writingEvaluationGuide } from '@/content/writingEvaluationGuide';
 import { z } from "zod";
 import { readSelectedSubmission, submissionSelectionSchema } from './submissionSelection';
 import type { IeltsCommands } from "@/application/ieltsCommands";
@@ -40,7 +41,7 @@ export function createWritingToolDefinitions(
     name: "get_ielts_writing_submission",
     title: "Read IELTS Writing submission",
     description:
-      "Read the visible IELTS Writing submission, original tasks, responses, word counts and attached evaluation. No parameters means the submission on screen. Use latest: true for the newest saved Writing attempt, or attemptId for an exact historical attempt. Reading never changes the visible page.",
+      "For a grading request use begin_submission_evaluation first to show progress and read everything in one call. Read the visible IELTS Writing submission, original tasks, responses, word counts and attached evaluation. No parameters means the submission on screen. Use latest: true for the newest saved Writing attempt, or attemptId for an exact historical attempt. Reading never changes the visible page.",
     inputSchema: submissionSelectionSchema,
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     execute: async (input, options) => {
@@ -63,6 +64,7 @@ export function createWritingToolDefinitions(
         data: {
           selection,
           evaluation: stored.evaluation,
+          evaluationGuidance: writingEvaluationGuide,
           submission: stored.submission,
           evaluationStatus: stored.evaluation
             ? "evaluated"
@@ -97,7 +99,6 @@ export function createWritingToolDefinitions(
       }
       try {
         const evaluation = await attachWritingEvaluation(parsed.data);
-        throwIfCancelled(signal);
         return {
           ok: true,
           data: {

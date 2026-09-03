@@ -103,6 +103,26 @@ navigation; universal assessments with review disabled reject question
 navigation. `get_practice_context.reviewLocation` reports the shared selection
 after either a tool call or a learner's navigation.
 
+When a learner asks for grading, call `begin_submission_evaluation` with
+`kind: "writing"`, `"speaking"`, or `"assessment"`. Omit selectors for the visible
+submission, supply an exact `attemptId` for history, or use `latest: true` only
+when that is what the learner requested. The tool opens that submission through
+shared navigation, returns its policy-filtered responses, saved feedback,
+revision and attachment schema, and shows an evaluating notice before returning.
+Evaluate the returned work and call `attachTool`; do not stop at announcing that
+evaluation has begun. Writing also includes original guidance based on the public
+IELTS criteria, so routine practice grading does not require fresh web research.
+
+The notice represents the agent's acknowledgement, not an application-owned AI
+job. A successful attachment clears it. Failed attachment shows recovery copy.
+After five minutes without feedback it stops spinning and offers a follow-up
+request with the same attempt ID. Dismissing the notice does not cancel the agent.
+Reload clears this temporary state; submitted responses and saved evaluations
+remain in SQLite. `get_practice_context.evaluationActivity` exposes the current
+notice without response text. Read-only submission calls do not start it.
+Speaking feedback that already exists and objective-only custom assessments do
+not start an evaluation. Writing and custom rubric revisions remain supported.
+
 Saved Writing and Speaking attempts can be opened before evaluation. The screen
 shows that feedback is pending and updates when the agent attaches it. A fresh
 agent can discover and open those attempts after reload, without clicking
@@ -324,7 +344,7 @@ get_assessment_authoring_kit -> install_assessment
                            learner completes attempt
                                       |
                                       v
-get_assessment_submission -> attach_assessment_evaluation when required
+begin_submission_evaluation -> attach_assessment_evaluation when required
                                       |
                                       v
                                visible results

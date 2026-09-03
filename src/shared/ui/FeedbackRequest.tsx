@@ -1,6 +1,9 @@
+import { useEvaluationActivity } from '@/application/evaluationActivityContext'
 import { CopyButton } from './CopyButton'
 
-export function FeedbackRequest({ request, label, note, reminder = false }: { request: string; label: string; note?: string; reminder?: boolean }) {
+export function FeedbackRequest({ request, label, note, reminder = false, attemptId }: { request: string; label: string; note?: string; reminder?: boolean; attemptId?: string }) {
+  const evaluation = useEvaluationActivity()
+  if (attemptId && evaluation?.activity?.attemptId === attemptId) return null
   return <section aria-label={label} className="min-w-0 rounded-lg border border-neutral-200 bg-white p-5 text-left sm:p-6">
     <h2 className="font-semibold text-neutral-950">Ask your agent to evaluate</h2>
     <p className="mt-2 text-sm leading-6 text-neutral-600">{reminder ? 'If you haven’t already asked for feedback, copy this request and paste it into your agent chat.' : 'Copy this request and paste it into your agent chat.'} Keep this submission open.</p>

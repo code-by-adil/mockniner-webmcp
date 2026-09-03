@@ -66,7 +66,7 @@ export function createSpeakingToolDefinitions(
     name: "get_ielts_speaking_submission",
     title: "Read IELTS Speaking transcript",
     description:
-      "Read the visible Speaking submission, all prompts, transcripts, durations and attached evaluation. Audio stays private. No parameters means the submission on screen. Use latest: true for the newest saved Speaking attempt, or attemptId for an exact historical attempt. Reading never changes the visible page.",
+      "For evaluation use begin_submission_evaluation first to show progress. Read the visible Speaking submission, all prompts, transcripts, durations and attached evaluation. Audio stays private. No parameters means the submission on screen. Use latest: true for the newest saved Speaking attempt, or attemptId for an exact historical attempt. Reading never changes the visible page.",
     inputSchema: submissionSelectionSchema,
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     execute: async (input, options) => {
@@ -139,7 +139,6 @@ export function createSpeakingToolDefinitions(
       }
       try {
         const evaluation = await attachSpeakingEvaluation(parsed.data);
-        throwIfCancelled(signal);
         return {
           ok: true,
           data: {

@@ -75,6 +75,21 @@ describe("Writing WebMCP tools", () => {
     expect(tool.annotations).toMatchObject({ readOnlyHint: true, untrustedContentHint: true });
   });
 
+  it("reports a committed evaluation as saved even if cancellation arrives afterward", async () => {
+    const controller = new AbortController();
+    const tool = createWritingToolDefinitions({
+      readWritingAttempt: async () => ({ submission, evaluation: null }),
+      getCurrentWritingAttemptId: () => attemptId,
+      attachWritingEvaluation: async () => {
+        controller.abort();
+        return { ...evaluationInput, evaluatedAt: "2026-09-04T00:00:00.000Z" };
+      },
+    }).find(item => item.name === "attach_ielts_writing_evaluation")!;
+    await expect(tool.execute(evaluationInput, { signal: controller.signal })).resolves.toMatchObject({
+      ok: true, data: { status: "saved", attemptId },
+    });
+  });
+
   it("validates and attaches a structured evaluation", async () => {
     const attached: WritingEvaluation = {
       ...evaluationInput,

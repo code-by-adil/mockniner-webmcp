@@ -84,7 +84,7 @@ export function createIeltsAuthoringToolDefinitions({
       name: 'get_ielts_authoring_kit',
       title: 'Get native IELTS authoring kit',
       description:
-        'Create native IELTS Listening, Academic Reading or Academic Writing from a complete original example and exam-owner format facts. Listening has all 40 questions and a full four-part spoken script; Reading has 40 questions and three substantial passages; Writing has both tasks. Use this kit directly for routine practice, without web research or Kokoro API research. Includes workflow instructions; install_ielts_practice_set opens practice by default. Full JSON Schema is opt-in with includeSchema:true. Examples are hidden during unfinished practice.',
+        'For new IELTS questions, create Listening, Academic Reading or Academic Writing from a complete original example and exam-owner format facts. For a general practice request, check get_practice_library first for saved tests and unfinished work. Listening has all 40 questions and a full four-part spoken script; Reading has 40 questions and three substantial passages; Writing has both tasks. Use this kit directly for routine practice, without web research or Kokoro API research. Includes workflow instructions; install_ielts_practice_set opens practice by default. Full JSON Schema is opt-in with includeSchema:true. Examples are hidden during unfinished practice.',
       inputSchema: ieltsAuthoringKitInputSchema,
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async (input, options) => {

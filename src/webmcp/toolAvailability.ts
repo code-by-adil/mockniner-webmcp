@@ -33,6 +33,7 @@ export function getToolAvailability(
   const blockedSections = authoringSections.filter(section => findContentBlockingDraft(workspace.native, section));
   const unlockedSections = authoringSections.filter(section => !blockedSections.includes(section));
   return {
+    begin_submission_evaluation: leaveBlocker ? blocked(leaveBlocker.code, leaveBlocker.message) : conditional('Call first when asked to evaluate. Opens and reads the saved submission and shows progress. Supply kind plus an exact attemptId, or omit IDs for the visible submission.'),
     get_practice_context: available,
     get_practice_library: available,
     get_practice_history: available,
@@ -81,7 +82,7 @@ export function getToolAvailability(
       : speaking.phase !== 'setup' || speaking.recordedAnswers + speaking.skippedAnswers > 0
         ? blocked('SPEAKING_ALREADY_STARTED', 'The question set is locked. Finish or exit this interview before installing another.') : available,
     retry_ielts_listening_audio: workspace.listeningAudio.canRetry
-      ? conditional('Supply listeningAudio.contentKey. Starts preparation; read listeningAudio for completion before starting practice.')
+      ? conditional('Supply listeningAudio.contentKey. Restarts preparation. Practice can stay open while audio prepares.')
       : blocked('AUDIO_RETRY_NOT_AVAILABLE', 'Audio is not in a failed generation state. Read listeningAudio for current progress.'),
   };
 }

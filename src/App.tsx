@@ -1,3 +1,5 @@
+import { EvaluationActivityProvider } from '@/application/EvaluationActivity';
+import { EvaluationProgress } from '@/shared/ui/EvaluationProgress';
 import {
   ArrowLeft,
   ArrowRight,
@@ -231,7 +233,7 @@ export function Results({
 }
 
 export default function App() {
-  return <WorkspaceGate><StorageStatus><PracticeApp /></StorageStatus></WorkspaceGate>;
+  return <WorkspaceGate><StorageStatus><EvaluationActivityProvider><PracticeApp /><EvaluationProgress /></EvaluationActivityProvider></StorageStatus></WorkspaceGate>;
 }
 
 function PracticeApp() {
