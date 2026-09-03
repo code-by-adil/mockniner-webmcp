@@ -17,6 +17,7 @@ import { WritingExamRunner } from "@/modules/ielts/writing/ui/WritingExamRunner"
 import { WritingAttemptReview } from "@/modules/ielts/writing/ui/WritingAttemptReview";
 import { PendingAttemptReview } from '@/app/PendingAttemptReview';
 import { PendingWritingReview } from '@/modules/ielts/writing/ui/PendingWritingReview';
+import { WritingEvaluationPrompt } from '@/modules/ielts/writing/ui/WritingEvaluationPrompt';
 import { PracticeHeader } from '@/app/layouts/PracticeHeader';
 import { ObjectiveResults } from '@/app/ObjectiveResults';
 import type { ObjectiveContentDocument } from '@/domain/objectiveContent';
@@ -51,17 +52,22 @@ const SECTION_ICONS = {
 export function Complete({
   section,
   mode,
+  writingAttemptId,
   speakingAttemptId,
+  feedbackReady = false,
   onContinue,
   onHome,
 }: {
   section: Section;
   mode: Mode;
+  writingAttemptId?: string;
   speakingAttemptId?: string;
+  feedbackReady?: boolean;
   onContinue: () => void;
   onHome: () => void;
 }) {
   const isFinal = mode === "section" || section === "speaking";
+  const needsFeedback = !feedbackReady && (section === 'writing' || section === 'speaking');
   return (
     <div className="min-h-screen bg-[var(--exam-surface-muted)] text-[var(--exam-text)]">
       <PracticeHeader />
@@ -78,16 +84,12 @@ export function Complete({
         <p className="mt-3 max-w-xl leading-7 text-[var(--exam-text-muted)]">
           Your answers are saved in this browser and ready to review.
         </p>
-        {section === "writing" ? (
-          <div className="mt-6 w-full max-w-xl rounded-lg border border-[var(--exam-accent-border)] bg-[var(--exam-surface)] px-5 py-4 text-left shadow-sm">
-            <p className="text-sm font-bold text-[var(--exam-text)]">Get feedback from your agent</p>
-            <p className="mt-1 text-sm leading-6 text-[var(--exam-text-muted)]">
-              Ask your agent to grade this IELTS Writing submission.
-              It can read your saved response and return feedback here.
-            </p>
+        {needsFeedback && section === 'writing' && writingAttemptId ? (
+          <div className="mt-6 w-full">
+            <WritingEvaluationPrompt attemptId={writingAttemptId} />
           </div>
-        ) : section === "speaking" && speakingAttemptId ? (
-          <SpeakingEvaluationPrompt key={speakingAttemptId} attemptId={speakingAttemptId} />
+        ) : needsFeedback && section === 'speaking' && speakingAttemptId ? (
+          <div className="mt-6 w-full"><SpeakingEvaluationPrompt attemptId={speakingAttemptId} /></div>
         ) : null}
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <button
@@ -104,7 +106,7 @@ export function Complete({
             className="inline-flex items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-5 py-3 text-sm font-semibold text-white hover:bg-[var(--exam-accent-hover)]"
           >
             {isFinal
-              ? "View results"
+              ? needsFeedback && mode === 'section' ? 'View submission' : 'View results'
               : `Continue to ${SECTION_META[SECTION_ORDER[SECTION_ORDER.indexOf(section) + 1]!].label}`}
             <ArrowRight size={16} />
           </button>
@@ -125,6 +127,9 @@ export function Results({
   onReview: (section: Section) => void;
   objectiveContent?: Partial<Record<'reading' | 'listening', ObjectiveContentDocument>>;
 }) {
+  const needsWritingFeedback = Boolean(session.writingSubmission && !session.writingEvaluation);
+  const needsSpeakingFeedback = Boolean(session.speakingSubmission && !session.speakingEvaluation);
+  const needsFeedback = needsWritingFeedback || needsSpeakingFeedback;
   const completedObjective = session.mode === 'section' && session.completedSections.length === 1
     ? session.completedSections[0] : undefined;
   if (completedObjective === 'reading' || completedObjective === 'listening') {
@@ -148,9 +153,9 @@ export function Results({
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--exam-success-border)] bg-[var(--exam-success-bg)] px-3 py-1 text-xs font-semibold text-[var(--exam-success-fg)]">
             <Check size={14} /> Attempt complete
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Practice results</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight">{session.mode === 'section' && needsSpeakingFeedback ? 'Speaking submission' : 'Practice results'}</h1>
           <p className="mt-2 text-[var(--exam-text-muted)]">
-            Review your scores and answers below. Ask your agent for feedback on Writing and Speaking.
+            {needsFeedback ? 'Your submission is saved. Copy a request below to ask your agent for feedback.' : 'Review your scores and feedback below.'}
           </p>
         </div>
         <div className="grid gap-5 md:grid-cols-2">
@@ -169,7 +174,7 @@ export function Results({
             return (
               <article
                 key={section}
-                className={`rounded-lg border border-[var(--exam-border-muted)] bg-[var(--exam-surface)] px-6 py-6 shadow-sm ${section === 'speaking' && !session.speakingEvaluation ? 'md:col-span-2' : ''}`}
+                className={`rounded-lg border border-[var(--exam-border-muted)] bg-[var(--exam-surface)] px-6 py-6 shadow-sm ${(section === 'speaking' && needsSpeakingFeedback) || (section === 'writing' && needsWritingFeedback) ? 'md:col-span-2' : ''}`}
               >
                 <div className="flex items-start gap-4">
                   <div className="flex h-11 w-11 items-center justify-center rounded bg-[var(--exam-accent)] text-white">
@@ -187,9 +192,9 @@ export function Results({
                               ? session.speakingEvaluation.status === 'insufficient_evidence'
                                 ? 'Feedback ready · Unscored'
                                 : `Estimated overall band ${session.speakingEvaluation.overallBand} · Feedback ready`
-                              : `${session.speakingSubmission.responses.filter(r => r.status === 'answered').length} answers recorded · ${session.speakingSubmission.responses.filter(r => r.status === 'skipped').length} skipped · Feedback pending`
+                              : `${session.speakingSubmission.responses.filter(r => r.status === 'answered').length} answers recorded · ${session.speakingSubmission.responses.filter(r => r.status === 'skipped').length} skipped · Not yet evaluated`
                             : section === 'writing' && session.writingSubmission
-                              ? `Task 1: ${session.writingSubmission.tasks[0].wordCount} words · Task 2: ${session.writingSubmission.tasks[1].wordCount} words · Feedback pending`
+                              ? `Task 1: ${session.writingSubmission.tasks[0].wordCount} words · Task 2: ${session.writingSubmission.tasks[1].wordCount} words · Not yet evaluated`
                               : "Ready for feedback"}
                     </p>
                     {canReview ? (
@@ -204,8 +209,10 @@ export function Results({
                     ) : null}
                   </div>
                 </div>
-                {section === 'speaking' && session.speakingSubmission && !session.speakingEvaluation ? (
-                  <SpeakingEvaluationPrompt key={session.speakingSubmission.attemptId} attemptId={session.speakingSubmission.attemptId} />
+                {section === 'writing' && session.writingSubmission && needsWritingFeedback ? (
+                  <div className="mt-6"><WritingEvaluationPrompt attemptId={session.writingSubmission.attemptId} reminder /></div>
+                ) : section === 'speaking' && session.speakingSubmission && needsSpeakingFeedback ? (
+                  <div className="mt-6"><SpeakingEvaluationPrompt attemptId={session.speakingSubmission.attemptId} reminder /></div>
                 ) : null}
               </article>
             );
@@ -335,7 +342,9 @@ function PracticeApp() {
       <Complete
         section={section}
         mode={mode}
+        writingAttemptId={state.writingSubmission?.attemptId}
         speakingAttemptId={state.speakingSubmission?.attemptId}
+        feedbackReady={section === 'writing' ? Boolean(state.writingEvaluation) : section === 'speaking' ? Boolean(state.speakingEvaluation) : true}
         onHome={uiCommands.goHome}
         onContinue={uiCommands.continueExam}
       />

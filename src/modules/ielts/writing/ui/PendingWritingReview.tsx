@@ -1,28 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { PracticeHeader } from '@/app/layouts/PracticeHeader'
-import { CopyButton } from '@/shared/ui/CopyButton'
+import { WritingEvaluationPrompt } from './WritingEvaluationPrompt'
 import type { WritingSubmission } from '@/domain/types'
 import { WritingTaskDisclosure } from './WritingTaskDisclosure'
-
-const evaluationRequest = 'Grade my IELTS Writing and add feedback to the submission open on this page.'
-
-function EvaluationRequest() {
-  return (
-    <section aria-label="Writing feedback" className="rounded-lg border border-neutral-200 bg-white p-5 sm:p-6">
-      <h2 className="font-semibold text-neutral-950">Ready for feedback</h2>
-      <p className="mt-2 text-sm leading-6 text-neutral-600">Your writing is saved. Copy this request to your agent and keep this page open to receive feedback.</p>
-      <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <blockquote className="select-text text-sm leading-6 text-neutral-900">{evaluationRequest}</blockquote>
-        <CopyButton
-          text={evaluationRequest}
-          label="Copy request"
-          className="inline-flex shrink-0 items-center gap-2 rounded border border-[var(--exam-accent-border)] bg-[var(--exam-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--exam-accent-hover)] disabled:opacity-60"
-        />
-      </div>
-    </section>
-  )
-}
 
 export function PendingWritingReview({ submission, onExit, backLabel = 'Back to practice', selectedTask, focusRequest }: {
   submission: WritingSubmission
@@ -51,7 +32,7 @@ export function PendingWritingReview({ submission, onExit, backLabel = 'Back to 
             Submitted <time dateTime={submission.submittedAt}>{new Date(submission.submittedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time>. Your submitted writing is saved below.
           </p>
         </div>
-        <EvaluationRequest key={submission.attemptId} />
+        <WritingEvaluationPrompt attemptId={submission.attemptId} reminder />
         <div className="mt-6 space-y-6">
           {submission.tasks.map(({ task, response, wordCount }) => (
             <section ref={node => { tasks.current[task.id] = node }} tabIndex={-1} key={`${submission.attemptId}-${task.id}`} aria-labelledby={`submitted-writing-task-${task.id}`} className="min-w-0 rounded-lg border border-neutral-200 bg-white">

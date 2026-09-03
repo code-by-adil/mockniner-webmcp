@@ -170,7 +170,7 @@ describe('focused assessment answer review', () => {
     expect(question().textContent).toContain('Response saved');
     expect(question().textContent).toContain('A saved response.\n\nA second paragraph.');
     expect(filterButton('Incorrect').textContent).toBe('Incorrect0');
-    expect(question().textContent).toContain('Awaiting feedback');
+    expect(question().textContent).toContain('Not yet evaluated');
   });
 
   it('shows GRE grouped choices within their own blanks without internal IDs', async () => {

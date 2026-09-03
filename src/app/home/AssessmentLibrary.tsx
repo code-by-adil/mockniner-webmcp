@@ -1,18 +1,8 @@
-import { useState, type ReactElement } from "react";
-import { ArrowRight, RotateCcw, Shapes, Trash2 } from "lucide-react";
-import {
-  getAssessmentDurationSeconds,
-  getAssessmentItemCount,
-  type AssessmentPackage,
-} from "@/domain/assessment";
-import {
-  getDraftAssessmentPackageId,
-  type AssessmentSession,
-} from "@/domain/assessmentSession";
-import {
-  AssessmentLifecycleDialog,
-  type AssessmentLifecycleAction,
-} from "./AssessmentLifecycleDialog";
+import { useState, type ReactElement } from 'react';
+import { ArrowRight, Shapes } from 'lucide-react';
+import { getAssessmentDurationSeconds, getAssessmentItemCount, type AssessmentPackage } from '@/domain/assessment';
+import { getDraftAssessmentPackageId, type AssessmentSession } from '@/domain/assessmentSession';
+import { AssessmentLifecycleDialog, type AssessmentLifecycleAction } from './AssessmentLifecycleDialog';
 
 export type AssessmentLibraryProps = {
   assessments: AssessmentPackage[];
@@ -24,143 +14,76 @@ export type AssessmentLibraryProps = {
   onDeleteAssessment: (packageId: string) => Promise<void>;
 };
 
-export function AssessmentLibrary({
-  assessments,
-  assessmentSession,
-  onStartAssessment,
-  onResumeAssessment,
-  onRestartAssessment,
-  onDiscardAssessment,
-  onDeleteAssessment,
-}: AssessmentLibraryProps): ReactElement {
+export function AssessmentLibrary({ assessments, assessmentSession, onStartAssessment, onResumeAssessment,
+  onRestartAssessment, onDiscardAssessment, onDeleteAssessment }: AssessmentLibraryProps): ReactElement {
   const [lifecycleAction, setLifecycleAction] = useState<AssessmentLifecycleAction | null>(null);
   const draftPackageId = getDraftAssessmentPackageId(assessmentSession);
   const confirmLifecycleAction = async (action: AssessmentLifecycleAction) => {
-    if (action.type === "restart") onRestartAssessment();
-    if (action.type === "discard") onDiscardAssessment();
-    if (action.type === "delete") await onDeleteAssessment(action.assessment.packageId);
+    if (action.type === 'restart') onRestartAssessment();
+    if (action.type === 'discard') onDiscardAssessment();
+    if (action.type === 'delete') await onDeleteAssessment(action.assessment.packageId);
     setLifecycleAction(null);
   };
 
-  return (
-    <section className="space-y-4">
-      <div className="flex items-end justify-between border-b border-neutral-200/80 pb-2.5">
-        <div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-            Custom assessments
-          </h2>
-          <p className="mt-1 text-xs text-neutral-400">
-            Ready-made practice and tests created by your agent
-          </p>
-        </div>
-        <span className="hidden text-xs text-neutral-400 sm:block">
-          Saved in this browser
-        </span>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {assessments.map((assessment) => {
-          const isResumable = draftPackageId === assessment.packageId;
-          const anotherAttemptIsActive = draftPackageId !== null && !isResumable;
-          const durationSeconds = getAssessmentDurationSeconds(assessment);
-          const itemCount = getAssessmentItemCount(assessment);
-          return (
-            <article
-              key={assessment.packageId}
-              className="flex flex-col justify-between rounded-xl border border-neutral-200/80 bg-white p-5 shadow-2xs transition-colors hover:border-neutral-300"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-900 text-white">
-                    <Shapes size={18} />
-                  </div>
-                  <div className="flex gap-1.5">
-                    <span className="rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-neutral-500">
-                      {assessment.metadata.shortLabel ?? assessment.metadata.subject ?? "Assessment"}
-                    </span>
-                    {assessment.source === "agent" ? (
-                      <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                        Agent-created
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-                <h3 className="mt-4 text-base font-bold text-neutral-950">
-                  {assessment.title}
-                </h3>
-                <p className="mt-1.5 min-h-[40px] text-xs leading-5 text-neutral-500">
-                  {assessment.description}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-medium text-neutral-400">
-                  <span>
-                    {assessment.parts.length} {assessment.parts.length === 1 ? "part" : "parts"}
-                  </span>
-                  <span>{itemCount} {itemCount === 1 ? "question" : "questions"}</span>
-                  <span>
-                    {durationSeconds ? `${Math.round(durationSeconds / 60)} mins` : "Untimed"}
-                  </span>
-                </div>
+  return <section aria-labelledby="saved-tests-title" className="space-y-3">
+    <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <h3 id="saved-tests-title" className="text-sm font-semibold text-neutral-700">Saved tests</h3>
+      <p className="text-xs text-neutral-600">Reusable question sets, separate from your results.</p>
+    </div>
+    {assessments.length ? <div className="divide-y divide-neutral-200/70 rounded-xl border border-neutral-200 bg-white">
+      {assessments.map(assessment => {
+        const isResumable = draftPackageId === assessment.packageId;
+        const anotherAttemptIsActive = draftPackageId !== null && !isResumable;
+        const durationSeconds = getAssessmentDurationSeconds(assessment);
+        const itemCount = getAssessmentItemCount(assessment);
+        return <article key={assessment.packageId} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 p-4 sm:p-5">
+          <div className="flex min-w-0 flex-1 basis-72 items-start gap-3">
+            <Shapes size={20} className="mt-1 shrink-0 text-neutral-600" aria-hidden="true" />
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h4 className="break-words text-base font-semibold text-neutral-950">{assessment.title}</h4>
+                <span className="text-xs text-neutral-600">{assessment.source === 'agent' ? 'Agent-created' : 'Ready-made'}</span>
               </div>
-              <div className="mt-5 border-t border-neutral-100 pt-3.5">
-                <button
-                  type="button"
-                  onClick={isResumable
-                    ? onResumeAssessment
-                    : () => onStartAssessment(assessment.packageId)}
-                  disabled={anotherAttemptIsActive}
-                  title={anotherAttemptIsActive
-                    ? "Finish or discard your unfinished assessment before starting another."
-                    : undefined}
-                  className="flex w-full items-center justify-between rounded-md border border-neutral-200/60 bg-neutral-50 px-3.5 py-2 text-xs font-semibold text-neutral-800 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-neutral-50"
-                >
-                  <span>{isResumable ? "Resume assessment" : "Start assessment"}</span>
-                  <ArrowRight size={13} className="text-neutral-400" />
-                </button>
-                {isResumable ? (
-                  <div className="mt-2.5 flex items-center justify-between text-[11px]">
-                    <span className="text-neutral-400">Unfinished attempt</span>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setLifecycleAction({ type: "restart", assessment })}
-                        className="inline-flex items-center gap-1 font-semibold text-neutral-600 hover:text-neutral-950"
-                      >
-                        <RotateCcw size={11} /> Restart
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setLifecycleAction({ type: "discard", assessment })}
-                        className="font-semibold text-red-600 hover:text-red-700"
-                      >
-                        Discard
-                      </button>
-                    </div>
-                  </div>
-                ) : anotherAttemptIsActive ? (
-                  <p className="mt-2.5 text-[11px] text-neutral-400">
-                    Finish or discard your unfinished assessment to start this one.
-                  </p>
-                ) : null}
-                {assessment.source === "agent" ? (
-                  <button
-                    type="button"
-                    onClick={() => setLifecycleAction({ type: "delete", assessment })}
-                    className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-400 hover:text-red-600"
-                  >
-                    <Trash2 size={11} /> Delete assessment
-                  </button>
-                ) : null}
+              <p className="max-w-3xl break-words text-sm leading-relaxed text-neutral-600">{assessment.description}</p>
+              <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-neutral-600">
+                <span>{assessment.metadata.shortLabel ?? assessment.metadata.subject ?? 'Practice test'}</span>
+                <span>{assessment.parts.length} {assessment.parts.length === 1 ? 'part' : 'parts'}</span>
+                <span>{itemCount} {itemCount === 1 ? 'question' : 'questions'}</span>
+                <span>{durationSeconds ? `${Math.round(durationSeconds / 60)} mins` : 'Untimed'}</span>
+                {isResumable ? <span className="font-medium text-neutral-900">In progress</span> : null}
+              </p>
+              {anotherAttemptIsActive ? <p className="text-xs text-neutral-600">
+                Finish or discard your unfinished assessment to start this one.
+              </p> : null}
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            <button type="button" onClick={isResumable ? onResumeAssessment : () => onStartAssessment(assessment.packageId)}
+              disabled={anotherAttemptIsActive} aria-label={`${isResumable ? 'Resume' : 'Start practice:'} ${assessment.title}`}
+              title={anotherAttemptIsActive ? 'Finish or discard your unfinished assessment before starting another.' : undefined}
+              className="inline-flex min-h-10 items-center justify-center gap-3 rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-800 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-neutral-500 disabled:hover:bg-white">
+              {isResumable ? 'Resume' : 'Start practice'} <ArrowRight size={15} aria-hidden="true" />
+            </button>
+            {isResumable || assessment.source === 'agent' ? <details className="basis-full text-xs">
+              <summary className="w-fit cursor-pointer py-2 font-medium text-neutral-600">Manage test</summary>
+              <div className="flex flex-wrap gap-4 pt-1">
+                {isResumable ? <>
+                  <button type="button" onClick={() => setLifecycleAction({ type: 'restart', assessment })}
+                    className="min-h-9 font-medium text-neutral-700 underline underline-offset-4">Restart</button>
+                  <button type="button" onClick={() => setLifecycleAction({ type: 'discard', assessment })}
+                    className="min-h-9 font-medium text-red-700">Discard attempt</button>
+                </> : null}
+                {assessment.source === 'agent' ? <button type="button" onClick={() => setLifecycleAction({ type: 'delete', assessment })}
+                  className="min-h-9 font-medium text-red-700">Delete assessment</button> : null}
               </div>
-            </article>
-          );
-        })}
-      </div>
-      <AssessmentLifecycleDialog
-        key={lifecycleAction ? `${lifecycleAction.type}-${lifecycleAction.assessment.packageId}` : "closed"}
-        action={lifecycleAction}
-        onClose={() => setLifecycleAction(null)}
-        onConfirm={confirmLifecycleAction}
-      />
-    </section>
-  );
+            </details> : null}
+          </div>
+        </article>;
+      })}
+    </div> : <p className="rounded-xl border border-dashed border-neutral-300 p-4 text-sm text-neutral-600">
+      Ask your agent to create a test. It will appear here, ready to start.
+    </p>}
+    <AssessmentLifecycleDialog key={lifecycleAction ? `${lifecycleAction.type}-${lifecycleAction.assessment.packageId}` : 'closed'}
+      action={lifecycleAction} onClose={() => setLifecycleAction(null)} onConfirm={confirmLifecycleAction} />
+  </section>;
 }

@@ -3,6 +3,7 @@ import type { AssessmentEvaluation, AssessmentSubmission } from '@/domain/assess
 import { ResultAction, ResultBreakdown, ResultScore, ResultsLayout } from '@/shared/ui/results/ResultsLayout';
 import { AssessmentAnswerReview } from './AssessmentAnswerReview';
 import { AssessmentEvaluationPanel } from './AssessmentEvaluationPanel';
+import { AssessmentEvaluationPrompt } from './AssessmentEvaluationPrompt';
 import { getAssessmentThemeStyle } from './assessmentTheme';
 import type { AssessmentReviewFilter, AssessmentReviewSelection } from '@/domain/assessmentReview';
 
@@ -35,12 +36,13 @@ export function AssessmentResults({ submission, evaluation, onHome, review, onRe
     subtitle={review ? `${showAnswers ? 'Answer review' : 'Response review'} · ${questionCount}` : <><time dateTime={submission.submittedAt}>{new Date(submission.submittedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</time> · {partCount} · {questionCount}</>}
     footer={assessment.metadata.disclaimer} compactHeading={review !== null}>
     <div ref={contentRef} tabIndex={-1} className="min-w-0 scroll-mt-6 outline-none">
+      {awaitingFeedback ? <div className="mb-8"><AssessmentEvaluationPrompt attemptId={submission.attemptId} /></div> : null}
       {review && canReview ? <AssessmentAnswerReview submission={submission} evaluation={evaluation} selection={review} onSelectionChange={onReviewChange} /> : <>
         <div className={`grid min-w-0 gap-8 ${result.domains.length ? 'lg:grid-cols-[minmax(0,1fr)_240px] lg:gap-10' : ''}`}>
           <div className="min-w-0">
             <ResultScore label={percentage !== null ? 'Correct answers' : evaluation ? 'Evaluation score' : 'Submission saved'}
-              score={percentage !== null ? result.rawScore : evaluation ? evaluation.overallScore : <span className="text-3xl">{awaitingFeedback ? 'Ready for feedback' : 'Responses saved'}</span>}
-              maximum={percentage !== null ? result.maximumScore : rubric?.scale.maximum}
+              score={percentage !== null ? result.rawScore : evaluation ? evaluation.overallScore : <span className="text-3xl">{awaitingFeedback ? 'Not yet evaluated' : 'Responses saved'}</span>}
+              maximum={percentage !== null ? result.maximumScore : evaluation ? rubric?.scale.maximum : undefined}
               detail={percentage !== null ? `${percentage}% correct on ${result.maximumScore === 1 ? 'the objective question' : 'objective questions'}` : undefined}
               metrics={[
                 { label: 'Answered', value: result.answeredCount },
@@ -67,9 +69,6 @@ export function AssessmentResults({ submission, evaluation, onHome, review, onRe
             <div className="hidden lg:block"><h2 className="mb-5 text-sm font-semibold">Performance by domain</h2><DomainList submission={submission} /></div>
           </aside> : null}
         </div>
-        {awaitingFeedback ? <section className="mt-8 border-l-2 border-neutral-300 pl-4">
-          <h2 className="text-base font-semibold">Get feedback on your responses</h2><p className="mt-1 text-sm leading-6 text-neutral-600">Ask your agent to evaluate this submission. Your feedback will appear here.</p>
-        </section> : null}
         {evaluation ? <AssessmentEvaluationPanel evaluation={evaluation} rubric={rubric}
           itemLabels={Object.fromEntries(assessment.parts.flatMap(part => part.items.map((item, index) => [item.id, `Review ${[part.groupTitle, part.title].filter(Boolean).join(' · ')} · Question ${index + 1}`])))}
           onReviewItem={canReview ? itemId => openReview('all', itemId) : undefined} /> : null}

@@ -7,7 +7,7 @@ export function PendingAttemptReview({ review, onExit }: { review: Exclude<Ielts
   return <main className="mx-auto max-w-3xl px-6 py-10">
     <button className="mb-8 rounded border px-4 py-2 text-sm" onClick={onExit}>{review.returnTo === 'home' ? 'Back to practice' : 'Back to results'}</button>
     <h1 className="text-2xl font-bold">Speaking submitted</h1>
-    <p role="status" className="mt-3 text-[var(--exam-text-muted)]">Your answers are saved. Ask your agent to review your interview. Its feedback will appear here.</p>
-    <SpeakingEvaluationPrompt attemptId={review.submission.attemptId} />
+    <p role="status" className="mt-3 text-[var(--exam-text-muted)]">Your interview is saved in this browser.</p>
+    <div className="mt-6"><SpeakingEvaluationPrompt attemptId={review.submission.attemptId} reminder /></div>
   </main>
 }

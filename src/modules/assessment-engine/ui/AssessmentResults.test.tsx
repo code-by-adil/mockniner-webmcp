@@ -74,8 +74,16 @@ describe("universal assessment result review policy", () => {
       submittedAt: '2026-09-03T10:05:00.000Z',
     };
     const html = renderToStaticMarkup(<AssessmentResults submission={submission} onHome={() => undefined} review={null} onReviewChange={() => undefined} />);
-    expect(html).toContain('Ready for feedback');
-    expect(html).toContain('Get feedback on your responses');
+    expect(html).toContain('Ask your agent to evaluate');
+    expect(html).toContain('If you haven’t already asked for feedback');
+    expect(html).toContain('Copy request');
+    expect(html).toContain(submission.attemptId);
+    expect(html).toContain('saved rubric');
+    expect(html).not.toContain('text-neutral-500">/ ');
+    expect(html.indexOf('Copy request')).toBeLessThan(html.indexOf('Result summary'));
+    const review = renderToStaticMarkup(<AssessmentResults submission={submission} onHome={() => undefined} review={{ filter: 'all' }} onReviewChange={() => undefined} />);
+    expect(review).toContain('Copy request');
+    expect(review).toContain(submission.attemptId);
     expect(html).toContain('Review responses');
     expect(html).not.toContain('0% correct');
     expect(html).not.toContain('Correct answers');
@@ -111,7 +119,7 @@ describe("universal assessment result review policy", () => {
     expect(html).toContain('Evaluation score');
     expect(html).toContain('Evaluation complete.');
     expect(html).toContain('Revision 2');
-    expect(html).not.toContain('Get feedback on your responses');
+    expect(html).not.toContain('Copy request');
   });
 
   it("shows grouped-choice labels instead of internal IDs", () => {

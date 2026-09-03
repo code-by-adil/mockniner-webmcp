@@ -36,12 +36,12 @@ describe("WebMCP help dialog", () => {
     await render(true);
     const dialog = container.querySelector('dialog')!;
     expect(dialog.open).toBe(true);
-    expect(document.getElementById(dialog.getAttribute('aria-labelledby')!)?.textContent).toContain('Practice with your agent');
-    expect(container.textContent).toContain("Practice with your agent");
+    expect(document.getElementById(dialog.getAttribute('aria-labelledby')!)?.textContent).toContain('How to use MockNiner');
+    expect(container.textContent).toContain('Copy a prompt into your agent chat');
     const buttons = container.querySelectorAll<HTMLButtonElement>('button[aria-label^="Copy prompt:"]');
     expect(buttons).toHaveLength(4);
     await act(async () => buttons[0].click());
-    expect(writeText).toHaveBeenCalledWith("Create a short SAT-style practice test focused on algebra and inference.");
+    expect(writeText).toHaveBeenCalledWith('Open https://assessment-lab.dgkhan08.workers.dev/ in your browser. Create a 20-minute GRE-style diagnostic with verbal and quantitative questions and add it to my practice library. Let me answer and submit it myself.');
     expect(buttons[0].textContent).toBe("Copied");
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Close dialog"]')?.click());
     expect(onClose).toHaveBeenCalledOnce();
@@ -70,6 +70,22 @@ describe("WebMCP help dialog", () => {
     await act(async () => button.click());
     expect(button.textContent).toBe('Copy');
     expect(container.querySelector('[role="alert"]')!.textContent).toContain('Select and copy the text');
-    expect(container.querySelector('.select-text')?.textContent).toContain('Create a short SAT-style practice test');
+    expect(container.querySelector('.select-text')?.textContent).toContain('20-minute GRE-style diagnostic');
+  });
+
+  it('explains agent-free practice, explicit feedback requests, and site-inclusive examples', async () => {
+    await act(async () => root.render(<WebMcpHelpDialog open onClose={vi.fn()} />));
+    expect(container.querySelectorAll('ol > li')).toHaveLength(3);
+    expect(container.textContent).toContain('Ready-made tests work without an agent');
+    expect(container.textContent).toContain('it does not arrive automatically');
+    expect(container.textContent).toContain('not synced to an account');
+    const prompts = [...container.querySelectorAll('.select-text')].map(element => element.textContent!);
+    for (const text of prompts.slice(0, 3)) {
+      expect(text).toContain('https://assessment-lab.dgkhan08.workers.dev/');
+      expect(text).toContain('Let me answer and submit it myself');
+    }
+    expect(prompts[1]).toContain('IELTS Academic Reading');
+    expect(prompts[2]).toContain('biology');
+    expect(prompts[3]).toContain('completed attempt I have open');
   });
 });

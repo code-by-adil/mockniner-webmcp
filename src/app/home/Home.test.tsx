@@ -47,6 +47,9 @@ describe("native IELTS home metadata", () => {
     expect(html).toContain('>Mock</span>');
     expect(html).toContain('>Niner</span>');
     expect(html).toContain('SAT, GRE, IELTS, and more');
+    expect(html.match(/How to use</g)).toHaveLength(2);
+    expect(html).toContain('href="#practice-history"');
+    expect(html).not.toContain('continue-practice-title');
   });
   it('shows independent resume actions for every parked section and full exam', () => {
     let session = initialSession;
@@ -58,6 +61,7 @@ describe("native IELTS home metadata", () => {
     for (const section of ['Speaking', 'Reading', 'Writing', 'Listening']) expect(html).toContain(`Resume ${section}`);
     expect(html).toContain('Resume test (Listening)');
     expect(html).toContain('Saved local places interview');
+    expect(html.indexOf('continue-practice-title')).toBeLessThan(html.indexOf('practice-library-title'));
   });
   it('shows the full active set names and escapes agent-authored markup', () => {
     const html = renderHome(initialSession, { listening: { ...listeningDocument, name: 'QA Harbour Listening', source: 'agent' },

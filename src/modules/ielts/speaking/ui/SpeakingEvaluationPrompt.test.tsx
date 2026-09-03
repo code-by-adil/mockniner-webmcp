@@ -25,8 +25,8 @@ const click = () => act(async () => button().click())
 describe('copyable Speaking evaluation prompt', () => {
   it('requests feedback for the visible attempt without exposing tool instructions', () => {
     const prompt = host.querySelector('blockquote')!.textContent!
-    expect(prompt).toBe('Review my IELTS Speaking interview and add feedback to the attempt open on this page.')
-    expect(prompt).not.toContain(attemptId)
+    expect(prompt).toBe(`Open my IELTS Speaking submission with attempt ID ${attemptId}, review the interview transcript, and add feedback to that same attempt.`)
+    expect(prompt).toContain(attemptId)
     expect(prompt).not.toContain('WebMCP')
     expect(host.textContent).toContain('Pronunciation is not included.')
     expect(prompt).not.toContain('latest')

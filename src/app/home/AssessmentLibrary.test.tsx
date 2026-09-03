@@ -27,7 +27,9 @@ describe("assessment library", () => {
   it("offers start for idle packages and deletion only for agent-installed packages", () => {
     const html = renderLibrary();
 
-    expect(html.match(/Start assessment/g)).toHaveLength(2);
+    expect(html.match(/>Start practice/g)).toHaveLength(2);
+    expect(html).toContain('Saved tests');
+    expect(html).toContain('Reusable question sets, separate from your results.');
     expect(html.match(/Delete assessment/g)).toHaveLength(1);
     expect(html).not.toContain("Restart");
     expect(html).not.toContain("Discard");
@@ -44,9 +46,9 @@ describe("assessment library", () => {
       startedAt: "2026-09-02T10:00:00.000Z",
     });
 
-    expect(html).toContain("Resume assessment");
+    expect(html).toContain(`aria-label="Resume ${satPracticeAssessment.title}"`);
     expect(html).toContain("Restart");
-    expect(html).toContain("Discard");
+    expect(html).toContain("Discard attempt");
     expect(html).toContain("Finish or discard your unfinished assessment to start this one.");
     expect(html).toMatch(/disabled=""[^>]*title="Finish or discard your unfinished assessment/);
   });

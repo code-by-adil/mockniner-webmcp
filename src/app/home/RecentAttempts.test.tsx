@@ -18,8 +18,11 @@ const assessment: HistoryEntry = { attemptId: 'assessment-attempt', kind: 'asses
   submittedAt: '2026-09-02T11:00:00.000Z', evaluationStatus: 'not_required', rawScore: 2, maximumScore: 3 };
 
 describe('recent attempts', () => {
-  it('omits an empty first page without claiming a truncated saved count', () => {
-    expect(renderToStaticMarkup(<RecentAttempts history={history([])} onReview={async () => {}} />)).toBe('');
+  it('explains empty history without claiming a truncated saved count', () => {
+    const empty = renderToStaticMarkup(<RecentAttempts history={history([])} onReview={async () => {}} />);
+    expect(empty).toContain('id="practice-history"');
+    expect(empty).toContain('No completed attempts yet');
+    expect(empty).not.toContain('Review results');
     const html = renderToStaticMarkup(<RecentAttempts history={history([reading], 6)} onReview={async () => {}} />);
     expect(html).toContain('Saved in this browser');
     expect(html).not.toContain('1 attempt saved');
@@ -53,7 +56,7 @@ describe('recent attempts', () => {
       { ...assessment, attemptId: 'evaluated', rawScore: 0, maximumScore: 0, evaluationStatus: 'evaluated', evaluationScore: 4, evaluationMaximumScore: 6 },
       { ...reading, attemptId: 'speaking', kind: 'speaking', rawScore: undefined, maximumScore: undefined, band: undefined, evaluationStatus: 'insufficient_evidence' },
     ])} onReview={async () => {}} />);
-    expect(html).toContain('Feedback pending');
+    expect(html).toContain('Ask your agent for feedback');
     expect(html).toContain('Feedback score 4/6');
     expect(html).toContain('Feedback ready · Unscored');
     expect(html).not.toContain('0/0');
@@ -66,5 +69,14 @@ describe('recent attempts', () => {
     expect(html).toContain('Newer attempts');
     expect(html).toContain('Older attempts');
     expect(html).toContain('Page 2');
+    expect(html).not.toContain('No completed attempts yet');
+  });
+
+  it('keeps even the latest completion in history with review, never resume', () => {
+    const html = renderToStaticMarkup(<RecentAttempts history={history([reading])} onReview={async () => {}} />);
+    expect(html).toContain('Practice history');
+    expect(html).toContain('Review results');
+    expect(html).toContain('2026');
+    expect(html).not.toContain('Resume');
   });
 });

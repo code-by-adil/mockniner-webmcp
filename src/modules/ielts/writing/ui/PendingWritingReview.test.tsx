@@ -58,7 +58,7 @@ describe('pending Writing submission', () => {
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('Denied')).mockResolvedValue(undefined)
     await act(async () => copyButton().click())
     expect(host.querySelector('[role="alert"]')!.textContent).toContain('Select and copy')
-    expect(host.querySelector('blockquote')!.textContent).not.toContain(submission.attemptId)
+    expect(host.querySelector('blockquote')!.textContent).toContain(submission.attemptId)
     await act(async () => copyButton().click())
     expect(host.querySelector('[role="alert"]')).toBeNull()
     expect(copyButton().textContent).toContain('Copied')

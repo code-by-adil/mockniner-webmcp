@@ -97,7 +97,7 @@ export function AssessmentAnswerReview({ submission, evaluation, selection, onSe
             <div className="min-w-0 space-y-6">
               <AssessmentReviewContent blocks={active.item.prompt} />
               <AssessmentReviewAnswer item={active.item} response={submission.responses[active.item.id]} showAnswers={showAnswers} correct={active.result.correct} />
-              {active.item.scoring.type === 'agent' && !evaluation ? <p className="border-t border-neutral-200 pt-4 text-sm leading-6 text-neutral-600">Awaiting feedback. Ask your agent to evaluate this submission.</p> : null}
+              {active.item.scoring.type === 'agent' && !evaluation ? <p className="text-sm text-neutral-600">Not yet evaluated</p> : null}
               {annotations.length ? <section className="border-t border-neutral-200 pt-5" aria-label="Feedback on this response">
                 <h3 className="mb-4 text-sm font-semibold">Feedback on this response</h3>
                 <div className="space-y-5">{annotations.map((annotation, index) => <div key={index} className="text-sm leading-6">

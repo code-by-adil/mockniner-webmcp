@@ -54,14 +54,16 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
 }
 
 const StorageContext = createContext((_canImport: boolean) => {});
+// Routine autosaves (including timer checkpoints) are not header notifications.
+const getSaveError = () => draftSaves.getSnapshot().error;
 
 export function StorageButton({ canImport = false }: { canImport?: boolean }) {
   const open = useContext(StorageContext);
-  const saves = useSyncExternalStore(draftSaves.subscribe, draftSaves.getSnapshot, draftSaves.getSnapshot);
+  const saveError = useSyncExternalStore(draftSaves.subscribe, getSaveError, getSaveError);
   const issues = useSyncExternalStore(storageHealth.subscribe, storageHealth.getSnapshot, storageHealth.getSnapshot);
-  const label = saves.error ? 'Changes not saved' : saves.pending ? 'Saving…' : issues.length ? 'Local data · recovery notice' : 'Local data';
+  const label = saveError ? 'Changes not saved' : issues.length ? 'Local data · recovery notice' : 'Local data';
   return <button type="button" onClick={() => open(canImport)} aria-label={label} title={label}
-    className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-2 text-xs ${saves.error || issues.length ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-neutral-200 bg-white text-neutral-600'}`}>
+    className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-2 text-xs ${saveError || issues.length ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-neutral-200 bg-white text-neutral-600'}`}>
     <Database size={15} aria-hidden="true" /><span className="hidden sm:inline">{label}</span>
   </button>;
 }
