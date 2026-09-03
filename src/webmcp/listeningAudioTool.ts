@@ -9,7 +9,7 @@ export function createListeningAudioRetryTool(read: () => ListeningAudioStatus, 
     name: 'retry_ielts_listening_audio', title: 'Retry Listening audio preparation',
     description: 'Restart failed audio preparation for the active Listening contentKey, reusing saved chunks. Read listeningAudio in get_practice_context first. Returns immediately with current status; generation continues locally. Does not restart the test, change answers or start playback. Retry is available only after a generation error.',
     inputSchema: z.toJSONSchema(inputSchema, { target: 'draft-07' }),
-    annotations: { readOnlyHint: false, untrustedContentHint: false },
+    annotations: { readOnlyHint: false, untrustedContentHint: true },
     execute: async (input, options) => {
       throwIfCancelled(getToolExecutionSignal(options))
       const parsed = inputSchema.safeParse(input)

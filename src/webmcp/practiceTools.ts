@@ -35,7 +35,7 @@ export function createPracticeTools(deps: {
         attemptId: { type: 'string', format: 'uuid' }, contentKey: { type: 'string' }, packageId: { type: 'string' },
         location: z.toJSONSchema(reviewLocationSchema, { target: 'draft-07' }),
       }, required: ['action'], additionalProperties: false },
-      annotations: { readOnlyHint: false, untrustedContentHint: false },
+      annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: async (input, options) => {
         const signal = getToolExecutionSignal(options); throwIfCancelled(signal)
         const parsed = navigationSchema.safeParse(input)

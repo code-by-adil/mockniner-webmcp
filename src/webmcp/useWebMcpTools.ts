@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from 'react-dom';
 import { draftSaves } from '@/infrastructure/saveCoordinator';
-import { createPracticeNavigation, getResumablePractices, type PracticeWorkspace } from '@/application/practiceNavigation';
+import { createPracticeNavigation, type PracticeWorkspace } from '@/application/practiceNavigation';
 import type { PracticeContentDocument } from '@/domain/contentDocument';
 import { createPracticeTools } from './practiceTools';
 import { createPracticeActivityTool } from './practiceActivityTool';
@@ -13,7 +13,8 @@ import { getPracticeProgress } from '@/application/practiceProgress';
 import { createObjectiveReviewTool } from './objectiveReviewTool';
 import { createObjectiveExplanationTool } from './objectiveExplanationTool';
 import { createAssessmentContentTool } from './assessmentContentTool';
-import { toolFailure } from './toolResult';
+import { getToolExecutionSignal, throwIfCancelled, toolFailure } from './toolResult';
+import { getToolAvailability, includeAuthoringExamples, summarizeToolAvailability } from './toolAvailability';
 import type { IeltsCommands } from "@/application/ieltsCommands";
 import type { AssessmentApplicationCommands } from "@/application/assessmentCommands";
 import { reportHandledError } from "@/shared/reportHandledError";
@@ -68,14 +69,16 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
   const { enabled } = options;
   useEffect(() => {
     if (!enabled) return;
-    if (!document.modelContext) return;
+    if (typeof document.modelContext?.registerTool !== 'function') return;
     const modelContext = document.modelContext;
     const controller = new AbortController();
     const tools: WebMCP.ModelContextTool[] = [];
     const visibleAttemptId = (kind: VisibleSubmission['kind']) => latest.current.context.submissions.find(submission => submission.kind === kind)?.attemptId;
+    const readAvailability = () => getToolAvailability(latest.current, interview.read(), interview.canLeave());
     const readContext = () => {
       const speaking = interview.read();
       return { ...latest.current.context, listeningAudio: latest.current.workspace.listeningAudio,
+        capabilities: summarizeToolAvailability(readAvailability(), includeAuthoringExamples(latest.current.workspace)),
         progress: getPracticeProgress(latest.current.workspace, 'currentQuestion' in speaking ? speaking : undefined) };
     };
     const readListeningAudio = () => latest.current.workspace.listeningAudio;
@@ -123,30 +126,17 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
       },
       navigate: async input => ({ ...await navigation(input), view: latest.current.context.view, context: readContext() }),
     }));
-    // Register once per document. Repeated contextual registration exhausts the
-    // in-app browser's change budget. Preserve state restrictions at execution.
-    const guard = (tool: WebMCP.ModelContextTool, available: () => boolean, message: string): WebMCP.ModelContextTool => ({
-      ...tool,
-      execute: (input, executionOptions) => available()
-        ? tool.execute(input, executionOptions)
-        : Promise.resolve(toolFailure('TOOL_NOT_AVAILABLE', message, true)),
-    });
-    const homeAvailable = () => latest.current.nativeAuthoringEnabled && latest.current.assessmentToolSurface === 'authoring';
     // Kits include answer-bearing examples that agents can install verbatim.
     // Paused drafts and drafts hidden behind history need the same protection.
-    const includeAuthoringExamples = () => getResumablePractices(latest.current.workspace).length === 0;
-      tools.push(
-        ...createHomeToolDefinitions({
-          includeAuthoringExamples,
-          installContent: (input) =>
-            latest.current.commands.installContent(input),
-          readListeningAudio,
-          installAssessment: (input) =>
-            latest.current.assessmentCommands.installAssessment(input),
-          readLearningSummary: async (limit) =>
-            (await getIeltsRepository()).readLearningSummary(limit),
-        }).map((tool) => tool.annotations?.readOnlyHint ? tool : guard(tool, homeAvailable, 'Use open_practice with action library before installing practice.')),
-      );
+    tools.push(
+      ...createHomeToolDefinitions({
+        includeAuthoringExamples: () => includeAuthoringExamples(latest.current.workspace),
+        installContent: (input) => latest.current.commands.installContent(input),
+        readListeningAudio,
+        installAssessment: (input) => latest.current.assessmentCommands.installAssessment(input),
+        readLearningSummary: async (limit) => (await getIeltsRepository()).readLearningSummary(limit),
+      }),
+    );
     tools.push(
       ...createWritingToolDefinitions(
         {
@@ -158,10 +148,7 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
             visibleAttemptId('writing'),
         },
         'evaluation',
-      ).map((tool) => guard(tool, () => tool.name.startsWith('attach_')
-        ? latest.current.writingToolSurface !== 'none'
-        : true,
-      'Open a submitted IELTS Writing attempt before attaching or revising its evaluation.')),
+      ),
     );
     tools.push(
       ...createSpeakingToolDefinitions(
@@ -174,41 +161,45 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
             visibleAttemptId('speaking'),
         },
         'evaluation',
-      ).map((tool) => guard(tool, () => tool.name.startsWith('attach_')
-        ? latest.current.speakingToolSurface === 'evaluation'
-        : true,
-      'Open a submitted IELTS Speaking attempt. Evaluation attachment requires the visible attempt to be awaiting evaluation.')),
+      ),
     );
-      tools.push(
-        ...createAssessmentToolDefinitions(
-          {
-            installAssessment: (input) =>
-              latest.current.assessmentCommands.installAssessment(input),
-            readAssessmentAttempt: async (id) =>
-              (await getAssessmentRepository()).readAttempt(id),
-            attachEvaluation: (input) =>
-              latest.current.assessmentCommands.attachEvaluation(input),
-            getCurrentAttemptId: () =>
-              visibleAttemptId('assessment'),
-          },
-          'evaluation',
-        ).map((tool) => guard(tool, () => tool.name.startsWith('attach_')
-          ? ['evaluation', 'results'].includes(latest.current.assessmentToolSurface)
-          : true,
-        'Open a submitted universal assessment before attaching or revising its evaluation.')),
-      );
+    tools.push(
+      ...createAssessmentToolDefinitions(
+        {
+          installAssessment: (input) => latest.current.assessmentCommands.installAssessment(input),
+          readAssessmentAttempt: async (id) => (await getAssessmentRepository()).readAttempt(id),
+          attachEvaluation: (input) => latest.current.assessmentCommands.attachEvaluation(input),
+          getCurrentAttemptId: () => visibleAttemptId('assessment'),
+        },
+        'evaluation',
+      ),
+    );
     tools.push(createSpeakingInterviewToolDefinition(interview.configure), createSpeakingProgressToolDefinition(interview.read));
+    // Register once per document. Repeated contextual registration exhausts the
+    // in-app browser's change budget. Discovery and execution share live guards.
     void Promise.all(
       tools.map((tool) =>
         modelContext.registerTool({ ...tool, execute: async (input, options) => {
+          const signal = getToolExecutionSignal(options);
+          throwIfCancelled(signal);
+          const checkAvailability = () => {
+            const availability = readAvailability()[tool.name];
+            if (!availability) throw new Error(`Missing availability policy for ${tool.name}.`);
+            return availability.status === 'blocked' ? toolFailure(availability.code, availability.message, true) : null;
+          };
+          const blocked = checkAvailability();
+          if (blocked) return blocked;
           if (tool.annotations?.readOnlyHint) return tool.execute(input, options);
           try {
             await draftSaves.flush();
+            throwIfCancelled(signal);
+            const blockedAfterSave = checkAvailability();
+            if (blockedAfterSave) return blockedAfterSave;
             const result = await tool.execute(input, options);
             await draftSaves.flush();
             return result;
           } catch (error) {
-            if (error instanceof DOMException && error.name === 'AbortError') throw error;
+            if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) throw error;
             return toolFailure('SAVE_FAILED', error instanceof Error ? error.message : 'Changes could not be saved. Retry saving in the page.', true);
           }
         } }, { signal: controller.signal }),
@@ -224,5 +215,7 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     });
     return () => controller.abort();
   }, [enabled, interview]);
-  return { bindSpeakingInterview: interview.bind, canLeaveSpeaking: interview.canLeave, registrationStatus: enabled && !document.modelContext ? 'unavailable' as const : registrationStatus };
+  const status: WebMcpRegistrationStatus = !enabled ? 'loading'
+    : typeof document.modelContext?.registerTool !== 'function' ? 'unavailable' : registrationStatus;
+  return { bindSpeakingInterview: interview.bind, canLeaveSpeaking: interview.canLeave, registrationStatus: status };
 }
