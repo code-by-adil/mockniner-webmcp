@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Database } from 'lucide-react';
+import { BrandMark } from '@/shared/ui/global/BrandMark';
 import { useExamNativeDialog } from '@/shared/ui/exam/useExamNativeDialog';
 import { draftSaves } from '@/infrastructure/saveCoordinator';
 import { storageHealth } from '@/infrastructure/storageHealth';
@@ -46,11 +47,24 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
       <button className="rounded-lg border px-4 py-2" onClick={() => void backups().then(backup => backup.cancelBackupImport()).then(() => window.location.reload()).catch(error => setRestoreError(String(error)))}>Cancel import</button>
     </div> : null}
   </main>;
-  return <main className="mx-auto max-w-lg px-6 py-24">
-    <h1 className="text-2xl font-semibold">{state === 'opening' ? 'Opening your practice…' : state === 'unsupported' ? 'This browser does not support saved practice' : 'Practice is open in another tab'}</h1>
-    <p className="mt-4 leading-7">{state === 'unsupported' ? 'Open MockNiner in an up-to-date browser with local storage enabled. Your saved data has not changed.' : 'Close the other MockNiner tab, then try again. Practice can be open in one tab at a time.'}</p>
-    {state === 'blocked' ? <button className="mt-6 rounded-lg border px-4 py-2" onClick={() => { setState('opening'); setRetry(value => value + 1); }}>Try again</button> : null}
-  </main>;
+  return <div className="flex min-h-dvh flex-col bg-neutral-50 text-neutral-900">
+    <header className="border-b border-neutral-200/80 bg-white">
+      <div className="mx-auto flex h-[60px] max-w-[1400px] items-center px-4 sm:px-8"><BrandMark /></div>
+    </header>
+    <main className="flex flex-1 items-center justify-center px-4 pb-24 pt-12">
+      <section aria-labelledby="workspace-status-title" className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-6 sm:p-8">
+        <div aria-live="polite">
+          <h1 id="workspace-status-title" className="text-2xl font-semibold tracking-tight">
+            {state === 'opening' ? 'Opening your practice...' : state === 'unsupported' ? 'This browser does not support saved practice' : 'Already open in another tab'}
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-neutral-600">
+            {state === 'opening' ? 'Loading your saved practice.' : state === 'unsupported' ? 'Open MockNiner in an up-to-date browser with local storage enabled. Your saved data has not changed.' : 'Close the other MockNiner tab to continue here.'}
+          </p>
+        </div>
+        {state === 'blocked' ? <button type="button" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#c1121f] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#a30f1a] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#c1121f]" onClick={() => { setState('opening'); setRetry(value => value + 1); }}>Try again</button> : null}
+      </section>
+    </main>
+  </div>;
 }
 
 const StorageContext = createContext((_canImport: boolean) => {});
