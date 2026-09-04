@@ -58,13 +58,13 @@ export function createAssessmentAuthoringToolDefinitions({
   installAssessment,
   openPractice,
   includeAuthoringExamples = () => true,
-}: { openPractice: OpenInstalledPractice; installAssessment: AssessmentApplicationCommands["installAssessment"]; includeAuthoringExamples?: () => boolean }): WebMCP.ModelContextTool[] {
+}: { openPractice: OpenInstalledPractice; installAssessment: AssessmentApplicationCommands["installAssessment"]; includeAuthoringExamples?: (target: string) => boolean | Promise<boolean> }): WebMCP.ModelContextTool[] {
   return [
     {
       name: "get_assessment_authoring_kit",
       title: "Get universal assessment authoring kit",
       description:
-        "Return universal engine capabilities and a complete original example: sat-style has 98 questions in four modules; gre-style has an Issue essay and 54 questions in five sections. Exam-owner format facts, timings and question rules are included. Use the matching kit directly for routine SAT/GRE authoring without web research. Use minimal-objective or writing-with-rubric for custom practice; research uncovered formats when needed. install_assessment saves and opens by default. Full schema is opt-in with includeSchema:true. Examples are hidden during unfinished practice.",
+        "Return universal engine capabilities and a complete original example: sat-style has 98 questions in four modules; gre-style has an Issue essay and 54 questions in five sections. Exam-owner format facts, timings and question rules are included. Use the matching kit directly for routine SAT/GRE authoring without web research. Use minimal-objective or writing-with-rubric for custom practice; research uncovered formats when needed. install_assessment saves and opens by default. Full schema is opt-in with includeSchema:true. Examples are available alongside unrelated unfinished tests; only examples containing their questions are withheld.",
       inputSchema: getAuthoringKitInputSchema,
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async (input, options) => {
@@ -79,11 +79,12 @@ export function createAssessmentAuthoringToolDefinitions({
             zodIssues(parsed.error),
           );
         }
-        const examplesIncluded = includeAuthoringExamples();
+        const examplesIncluded = await includeAuthoringExamples(parsed.data.template);
+        throwIfCancelled(signal);
         return { ok: true, data: {
           ...(examplesIncluded ? getAssessmentAuthoringKit(parsed.data.template) : {
             ...getAssessmentAuthoringGuide(parsed.data.template),
-            nextAction: "Examples are omitted while unfinished practice exists to protect answer keys. Build original content using the rules and packageSchema. Open the library before calling install_assessment.",
+            nextAction: "This example overlaps an unfinished test, so its answer-bearing content is omitted. Other kits remain available. Build original content using the rules and packageSchema. Open the library before calling install_assessment.",
           }),
           examplesIncluded,
           schemaIncluded: parsed.data.includeSchema || !examplesIncluded,

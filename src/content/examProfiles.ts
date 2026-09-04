@@ -59,6 +59,7 @@ export const authoringWorkflow = [
   'For a general request to practise, existing suitable library practice is the fastest route: get_practice_library, then open_practice. For an explicit request to make new questions, read the matching kit once and author original content.',
   'A complete example can be installed directly with a fresh ID if the learner wants the example itself. For new practice, replace the passages, scripts, questions, distractors and answers together; changing only names or numbers is not new question design.',
   'The application validates installation and returns repair paths. Submit the complete object directly; do not write a separate schema validator or inspect app source files.',
+  'Creating a new IELTS test preserves existing unfinished attempts, their answers and generated audio. Use a fresh contentKey. Resume a particular attempt only when the learner asks to continue it; deletion is an explicit learner action in the library.',
   'Installation opens practice by default. Set openAfterInstall:false only when the learner asks to save for later. Check opened in the result. If false, follow openAction and openingError before claiming completion.',
   'Listening opens with preparation visible and continues locally after the agent ends its turn. readyToPlay can be true while phase is generating. Playback starts automatically when the browser permits it; describe preparation honestly and leave answering and submission to the learner.',
 ]

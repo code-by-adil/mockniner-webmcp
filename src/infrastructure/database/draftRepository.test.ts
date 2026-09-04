@@ -167,6 +167,7 @@ describe('durable practice drafts', () => {
   it('upgrades audio-only Speaking rows from before migration 10 without dropping audio', async () => {
     await db.sql`DROP TABLE objective_explanations`;
     await db.sql`DELETE FROM app_schema_migrations WHERE version >= 10`;
+    await db.sql`ALTER TABLE content_documents DROP COLUMN archived`;
     await db.sql`DROP TABLE draft_recordings`; await db.sql`DROP TABLE practice_drafts`; await db.sql`DROP TABLE storage_imports`; await db.sql`DROP TABLE practice_activity`;
     await db.sql`DROP TABLE speaking_responses`;
     await db.sql`CREATE TABLE speaking_responses (id TEXT PRIMARY KEY, attempt_id TEXT, prompt_id INTEGER, part_label TEXT, sequence INTEGER, prompt_text TEXT,

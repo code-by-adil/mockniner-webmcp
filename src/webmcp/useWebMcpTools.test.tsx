@@ -100,7 +100,7 @@ describe('stable page WebMCP registration', () => {
     value.workspace.assessment = { ...initialAssessmentSession, attemptId: crypto.randomUUID(), packageId: satPracticeAssessment.packageId }
     await act(async () => root.render(<Harness value={value} />))
     const report = await capabilities()
-    expect(report.authoringExamplesIncluded).toBe(false)
+    expect(report.authoringExampleAccess).toBe('checked_per_kit')
     expect(report.available).toEqual(expect.arrayContaining(['get_ielts_authoring_kit', 'get_assessment_authoring_kit']))
     expect(report.conditional.get_assessment_content).toContain('no unfinished attempt for that package')
     expect(report.conditional.get_assessment_submission).toContain('Supply attemptId')
@@ -114,20 +114,14 @@ describe('stable page WebMCP registration', () => {
     await act(async () => root.render(<Harness value={{ ...result }} />))
     expect((await capabilities()).conditional.attach_assessment_evaluation).toContain('expectedRevision')
   })
-  it.each(['reading', 'full', 'separate_drafts'] as const)('reports exact native authoring restrictions for %s drafts', async kind => {
+  it.each(['reading', 'full', 'separate_drafts'] as const)('keeps native installation available alongside %s drafts', async kind => {
     const value = options(true)
     value.workspace.native = { ...initialSession, pausedDrafts: (kind === 'separate_drafts'
       ? ['listening', 'reading', 'writing'] as const : ['reading'] as const).map(section => ({ ...initialSession,
         mode: kind === 'full' ? 'full' : 'section', currentSection: section, attemptId: crypto.randomUUID() })) }
     await act(async () => root.render(<Harness value={value} />))
     const report = await capabilities()
-    if (kind === 'reading') {
-      expect(report.conditional.install_ielts_practice_set).toContain('Available sections: listening, writing.')
-      expect(report.conditional.install_ielts_practice_set).toContain('Drafts block installation for: reading.')
-    } else {
-      expect(report.blocked.install_ielts_practice_set.code).toBe('ACTIVE_ATTEMPT')
-      await expect(registered.get('install_ielts_practice_set')!.execute({}, execution())).resolves.toMatchObject({ ok: false, error: report.blocked.install_ielts_practice_set })
-    }
+    expect(report.available).toContain('install_ielts_practice_set')
     await act(async () => root.render(<Harness value={options(true)} />))
     expect((await capabilities()).available).toContain('install_ielts_practice_set')
     expect(register).toHaveBeenCalledTimes(24)
@@ -244,7 +238,7 @@ describe('stable page WebMCP registration', () => {
     expect(register).toHaveBeenCalledTimes(24)
   })
   it.each(['reading', 'listening', 'writing', 'speaking', 'assessment'] as const)(
-    'returns schemas without examples for a %s draft, including while paused or viewing history', async kind => {
+    'returns examples alongside unrelated %s drafts, including while paused or viewing history', async kind => {
       const config = { signal: new AbortController().signal }
       const requests = [
         ['get_ielts_authoring_kit', { section: 'reading' }],
@@ -271,10 +265,8 @@ describe('stable page WebMCP registration', () => {
         await act(async () => root.render(<Harness value={value} />))
         for (const [name, input] of requests) {
           const result = await registered.get(name)!.execute(input, config)
-          expect(result).toMatchObject({ ok: true, data: { examplesIncluded: false } })
-          expect(result).not.toHaveProperty('data.exampleDocument')
-          expect(result).not.toHaveProperty('data.examplePackage')
-          expect(result).toHaveProperty(name === 'get_ielts_authoring_kit' ? 'data.documentSchema' : 'data.packageSchema')
+          expect(result).toMatchObject({ ok: true, data: { examplesIncluded: true } })
+          expect(result).toHaveProperty(name === 'get_ielts_authoring_kit' ? 'data.exampleDocument' : 'data.examplePackage')
         }
         await expect(registered.get('get_practice_context')!.execute({}, config)).resolves.toMatchObject({ ok: true })
         expect(JSON.stringify(value.workspace)).toBe(before)
@@ -299,7 +291,7 @@ describe('stable page WebMCP registration', () => {
     expect(value.retryListeningAudio).toHaveBeenCalledTimes(1)
     expect(register).toHaveBeenCalledTimes(24)
   })
-  it('includes examples after completion but omits them while another family has a draft', async () => {
+  it('includes examples after completion and alongside unrelated family drafts', async () => {
     const value = options(true)
     value.workspace.native = { ...initialSession, mode: 'section', currentSection: 'reading', view: 'result',
       attemptId: '11111111-1111-4111-8111-111111111111', completedSections: ['reading'] }
@@ -310,16 +302,16 @@ describe('stable page WebMCP registration', () => {
     const pending = { ...value, workspace: { ...value.workspace, assessment: { ...initialAssessmentSession,
       attemptId: '22222222-2222-4222-8222-222222222222', packageId: satPracticeAssessment.packageId } } }
     await act(async () => root.render(<Harness value={pending} />))
-    await expect(tool.execute({ section: 'reading' }, config)).resolves.toMatchObject({ ok: true, data: { examplesIncluded: false } })
+    await expect(tool.execute({ section: 'reading' }, config)).resolves.toMatchObject({ ok: true, data: { examplesIncluded: true } })
     expect(register).toHaveBeenCalledTimes(24)
   })
-  it('omits examples for a parked IELTS draft even with no current slot', async () => {
+  it('includes unrelated examples alongside a parked IELTS draft', async () => {
     const value = options(true)
     value.workspace.native = { ...initialSession, pausedDrafts: [{ ...initialSession, mode: 'section', currentSection: 'speaking',
       attemptId: '11111111-1111-4111-8111-111111111111' }] }
     await act(async () => root.render(<Harness value={value} />))
     for (const name of ['get_ielts_authoring_kit', 'get_assessment_authoring_kit']) {
-      await expect(registered.get(name)!.execute(name === 'get_ielts_authoring_kit' ? { section: 'writing' } : { template: 'minimal-objective' }, { signal: new AbortController().signal })).resolves.toMatchObject({ ok: true, data: { examplesIncluded: false } })
+      await expect(registered.get(name)!.execute(name === 'get_ielts_authoring_kit' ? { section: 'writing' } : { template: 'minimal-objective' }, { signal: new AbortController().signal })).resolves.toMatchObject({ ok: true, data: { examplesIncluded: true } })
     }
   })
   it('keeps context and default reads aligned through navigation without re-registering', async () => {

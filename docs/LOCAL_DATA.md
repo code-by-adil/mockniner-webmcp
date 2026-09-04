@@ -18,6 +18,18 @@ content keys to saved documents; universal drafts own a package snapshot from
 the start, so an updated catalog cannot change an unfinished test. Answer and
 timer updates share a serialized, coalescing save queue. Submission and draft
 retirement happen in one transaction; full IELTS retains its remaining sections.
+Multiple native attempts can use the same section or the same saved test.
+Resuming loads the exact pinned documents before publishing the exam state.
+
+The library provides two delete actions. Deleting an unfinished attempt removes
+only that attempt and its draft recordings. Deleting an agent-created IELTS
+set removes it from the library, its generated Listening chunks, and all drafts
+that pin it, including full IELTS attempts. Submitted results remain readable:
+the immutable content row is marked `archived`, not removed. These changes use
+one transaction, and a failed deletion leaves the test available for retry.
+Built-in tests cannot be deleted. Late audio writes for a deleted set are rejected.
+Migration 15 adds the archive flag without deleting existing work.
+
 Only one tab can edit the local workspace, enforced by a Web Lock before the app
 loads. WebMCP waits for pending saves before reporting a successful action.
 

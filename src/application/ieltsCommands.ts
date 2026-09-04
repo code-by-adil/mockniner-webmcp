@@ -41,14 +41,14 @@ import { ApplicationError } from "@/domain/errors";
 import { locateIeltsReview, reviewLocationSchema, type ReviewLocation } from '@/domain/reviewLocation';
 import { objectiveExplanationInputSchema, type ObjectiveExplanationInput, type ObjectiveExplanation } from '@/domain/objectiveExplanation';
 import { resolveWritingEvaluation } from "@/domain/writingAnnotations";
-import { findContentBlockingDraft, sessionReducer } from "@/domain/session";
+import { getIeltsDrafts, sessionReducer } from "@/domain/session";
 import { defaultSpeakingPlan, speakingPlanSchema, type SpeakingPlan } from '@/domain/speakingPlan';
 
 type CommandDependencies = {
   getState: () => IeltsSession;
   dispatch: (action: SessionAction) => void;
-  publishSession: (session: IeltsSession) => void;
-  persistSession: (session: IeltsSession) => void | Promise<void>;
+  publishSession: (session: IeltsSession, content?: ActiveContentDocuments) => void;
+  persistSession: (session: IeltsSession, content?: ActiveContentDocuments, removedContentKey?: string) => void | Promise<void>;
   flushDrafts?: () => Promise<void>;
   now?: () => Date;
   getRepository: () => Promise<AttemptReader & AttemptWriter>;
@@ -58,6 +58,8 @@ type CommandDependencies = {
 };
 
 export type IeltsCommands = {
+  deleteContent: (contentKey: string) => Promise<void>;
+  discardDraft: (attemptId: string) => void | Promise<void>;
   start: (mode: IeltsMode, section: SectionKey) => void | Promise<void>;
   resume: (attemptId?: string) => void | Promise<void>;
   configureSpeakingPlan: (plan: SpeakingPlan) => void | Promise<void>;
@@ -156,18 +158,18 @@ export function createIeltsCommands({
     cause instanceof Error ? `Could not save the practice draft: ${cause.message}` : 'Could not save the practice draft.',
     true,
   );
-  const commit = (action: SessionAction): void | Promise<void> => {
+  const commit = (action: SessionAction, content?: ActiveContentDocuments, removedContentKey?: string): void | Promise<void> => {
     const before = getState();
     const next = sessionReducer(before, action);
     try {
-      const saved = persistSession(next);
+      const saved = persistSession(next, content, removedContentKey);
       if (saved) return saved.then(() => {
         // Answer edits remain available while saving. Save their latest state
         // before leaving; never publish an older snapshot over those edits.
-        if (getState() !== before) return commit(action);
-        publishSession(next);
+        if (getState() !== before) return commit(action, content, removedContentKey);
+        publishSession(next, content);
       }).catch(cause => { throw cause instanceof ApplicationError ? cause : saveFailure(cause); });
-      publishSession(next);
+      publishSession(next, content);
     } catch (cause) { throw saveFailure(cause); }
   };
   const openReview = (review: IeltsReview) => {
@@ -277,13 +279,47 @@ export function createIeltsCommands({
         attemptId: crypto.randomUUID(),
       }));
     },
+    async deleteContent(contentKey) {
+      await changePractice(async () => {
+        if (getState().view !== 'home') throw new ApplicationError('LIBRARY_REQUIRED', 'Open the library before deleting a saved test.', true);
+        const store = await getContentStore();
+        const library = await store.loadLibrary();
+        const document = library.find(item => item.contentKey === contentKey);
+        if (!document || document.source !== 'agent') throw new ApplicationError('PRACTICE_NOT_DELETABLE', 'Only agent-created saved IELTS tests can be deleted.', true);
+        const fallback = library.find(item => item.section === document.section && item.contentKey !== contentKey);
+        if (!fallback) throw new ApplicationError('CONTENT_NOT_FOUND', 'The default practice could not be loaded. Try reloading the library.', true);
+        const content = getContent()[document.section].contentKey === contentKey ? replaceActiveContent(getContent(), fallback) : getContent();
+        await commit({ type: 'DELETE_CONTENT', contentKey }, content, contentKey);
+      });
+    },
+    discardDraft(attemptId) {
+      return changePractice(() => {
+        if (getState().view !== 'home') throw new ApplicationError('LIBRARY_REQUIRED', 'Open the library before deleting an unfinished test.', true);
+        if (!getIeltsDrafts(getState()).some(draft => draft.attemptId === attemptId)) throw new ApplicationError('RESUMABLE_ATTEMPT_NOT_FOUND', 'This unfinished test no longer exists.', true);
+        return commit({ type: 'DISCARD_DRAFT', attemptId });
+      });
+    },
     resume(targetAttemptId) {
-      return changePractice(() => commit({
-        type: "RESUME",
-        targetAttemptId,
-        startedAt: now().toISOString(),
-        attemptId: crypto.randomUUID(),
-      }));
+      return changePractice(async () => {
+        const target = getIeltsDrafts(getState()).find(draft => draft.attemptId === (targetAttemptId ?? getState().attemptId));
+        if (!target) throw new ApplicationError('RESUMABLE_ATTEMPT_NOT_FOUND', 'This unfinished test no longer exists.', true);
+        let documents = getContent();
+        const keys = Object.entries(target.contentKeys ?? {});
+        if (keys.some(([section, key]) => documents[section as keyof ActiveContentDocuments].contentKey !== key)) {
+          const store = await getContentStore();
+          for (const [section, key] of keys) {
+            const document = await store.loadByKey(key);
+            if (!document || document.section !== section) throw new ApplicationError('CONTENT_NOT_FOUND', 'The original questions could not be loaded. Your unfinished test has been kept.', true);
+            documents = replaceActiveContent(documents, document);
+          }
+        }
+        await commit({
+          type: "RESUME",
+          targetAttemptId: target.attemptId!,
+          startedAt: now().toISOString(),
+          attemptId: crypto.randomUUID(),
+        }, documents);
+      });
     },
     goHome() {
       return changePractice(() => commit({ type: "GO_HOME" }));
@@ -332,20 +368,12 @@ export function createIeltsCommands({
     async installContent(input) {
       return changePractice(async () => {
         const document = parsePracticeContentDocument(input);
-        const assertContentUnlocked = () => {
-          if (findContentBlockingDraft(getState(), document.section))
-            throw new ApplicationError(
-              "ACTIVE_ATTEMPT",
-              "Finish the unfinished practice using this section before replacing its content. Other section drafts are preserved.",
-              true,
-            );
-        };
-        assertContentUnlocked();
         const store = await getContentStore();
-        assertContentUnlocked();
+        // Persist the old draft against its own questions before activating a new set.
+        if (getState().view !== 'home') await commit({ type: 'GO_HOME' });
+        await flushDrafts();
         await store.saveAndActivate(document);
         setContent(replaceActiveContent(getContent(), document));
-        if (getState().view !== 'home') await commit({ type: 'GO_HOME' });
         return document;
       });
     },

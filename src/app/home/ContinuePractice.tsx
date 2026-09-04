@@ -1,5 +1,7 @@
-import { ArrowRight, BookOpen, FileText, Headphones, Mic, Shapes } from 'lucide-react';
-import type { ActiveContentDocuments } from '@/domain/contentDocument';
+import { useState } from 'react';
+import { DeletePracticeDialog, type DeletePracticeAction } from './DeletePracticeDialog';
+import { Trash2, ArrowRight, BookOpen, FileText, Headphones, Mic, Shapes } from 'lucide-react';
+import type { ActiveContentDocuments, PracticeContentDocument } from '@/domain/contentDocument';
 import { getIeltsDrafts, getResumableSection, type IeltsSession } from '@/domain/session';
 import { getDraftAssessmentPackageId } from '@/domain/assessmentSession';
 import { SECTION_META, SECTION_ORDER } from '@/domain/sections';
@@ -8,6 +10,8 @@ import type { AssessmentLibraryProps } from './AssessmentLibrary';
 
 type Props = {
   session: IeltsSession;
+  documents?: PracticeContentDocument[];
+  onDeleteDraft?: (attemptId: string) => void | Promise<void>;
   content: ActiveContentDocuments;
   listeningReady: boolean;
   onResume: (attemptId: string) => void;
@@ -22,14 +26,16 @@ type ContinuingPractice = {
   startedAt?: string;
   audioPreparing?: boolean;
   resume: () => void;
+  remove?: () => void | Promise<void>;
 };
 
 const icons = { listening: Headphones, reading: BookOpen, writing: FileText, speaking: Mic, assessment: Shapes };
 
-export function ContinuePractice({ session, content, listeningReady, onResume, assessmentLibrary }: Props) {
+export function ContinuePractice({ session, content, documents = Object.values(content), onDeleteDraft, listeningReady, onResume, assessmentLibrary }: Props) {
+  const [deleting, setDeleting] = useState<DeletePracticeAction | null>(null);
   const practices: ContinuingPractice[] = getIeltsDrafts(session).map(draft => {
     const section = getResumableSection(draft)!;
-    const document = section === 'speaking' ? null : content[section];
+    const document = section === 'speaking' ? null : documents.find(item => item.contentKey === draft.contentKeys?.[section]) ?? content[section];
     const contentKey = section === 'speaking' ? null : draft.contentKeys?.[section];
     // A parked draft may pin a different set from the library's active content.
     const matchingDocument = document && (!contentKey || contentKey === document.contentKey) ? document : null;
@@ -41,7 +47,8 @@ export function ContinuePractice({ session, content, listeningReady, onResume, a
       : section === 'speaking' ? 'Speaking interview · In progress'
       : `${SECTION_META[section].label} · ${section === 'writing' ? 'Task' : section === 'reading' ? 'Passage' : 'Part'} ${draft.partBySection[section]}`;
     return { attemptId: draft.attemptId!, kind: section, title, progress,
-      startedAt: draft.startedAt, audioPreparing: section === 'listening' && !listeningReady,
+      startedAt: draft.startedAt, audioPreparing: section === 'listening' && (!contentKey || contentKey === content.listening.contentKey) && !listeningReady,
+      remove: onDeleteDraft ? () => onDeleteDraft(draft.attemptId!) : undefined,
       resume: () => onResume(draft.attemptId!) };
   });
 
@@ -59,6 +66,7 @@ export function ContinuePractice({ session, content, listeningReady, onResume, a
         : 'In progress',
       startedAt: assessment.startedAt,
       resume: assessmentLibrary.onResumeAssessment,
+      remove: assessmentLibrary.onDiscardAssessment,
     });
   }
 
@@ -87,14 +95,18 @@ export function ContinuePractice({ session, content, listeningReady, onResume, a
               {practice.audioPreparing ? <p className="text-xs text-neutral-600">Resume to see audio preparation. Your timer pauses while audio is unavailable.</p> : null}
             </div>
           </div>
+          <div className="flex items-center gap-2">
           <button type="button" onClick={practice.resume} aria-label={`Resume ${practice.title}`}
             className={`inline-flex min-h-10 items-center justify-center gap-3 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${index === 0
               ? 'bg-[var(--exam-accent)] text-white hover:bg-[var(--exam-accent-hover)]'
               : 'border border-neutral-200 text-neutral-800 hover:bg-neutral-50'}`}>
             Resume <ArrowRight size={15} aria-hidden="true" />
           </button>
+          {practice.remove && <button type="button" aria-label={`Delete unfinished test ${practice.title}`} onClick={() => setDeleting({ title: practice.title, description: 'This unfinished attempt and its answers will be deleted. The saved test and submitted results remain available.', remove: practice.remove! })} className="min-h-10 rounded-lg p-2 text-neutral-500 hover:bg-red-50 hover:text-red-700"><Trash2 size={17} aria-hidden="true" /></button>}
+          </div>
         </article>;
       })}
     </div>
+    {deleting && <DeletePracticeDialog action={deleting} onClose={() => setDeleting(null)} />}
   </section>;
 }

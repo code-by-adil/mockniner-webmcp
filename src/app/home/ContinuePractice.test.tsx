@@ -47,7 +47,7 @@ describe('continue practice', () => {
         .toEqual([assessment.attemptId, reading.attemptId]);
       expect(element.textContent).toContain('Started');
       expect(element.textContent).not.toMatch(/Last edited|private answer/);
-      const buttons = element.querySelectorAll<HTMLButtonElement>('button');
+      const buttons = element.querySelectorAll<HTMLButtonElement>('button[aria-label^="Resume"]');
       await act(async () => { buttons[0].click(); buttons[1].click(); });
       expect(onResumeAssessment).toHaveBeenCalledOnce();
       expect(onResume).toHaveBeenCalledWith(reading.attemptId);

@@ -239,7 +239,7 @@ export default function App() {
 }
 
 function PracticeApp() {
-  const { state, content, contentReady, loadError, commands, loadPracticeContent } = useIeltsApplication();
+  const { state, content, library, contentReady, loadError, commands, loadPracticeContent } = useIeltsApplication();
   const assessmentApplication = useAssessmentApplication();
   const audioPreparation = useAudioPreparation();
   const listeningAudio = useListeningAudio(content.listening);
@@ -254,7 +254,7 @@ function PracticeApp() {
     enabled: contentReady && assessmentApplication.assessmentReady,
   });
   const uiCommands = {
-    start: (mode: Mode, section: Section) => { void webMcp.navigate({ action: 'start', kind: mode === 'full' ? 'full_ielts' : section }, { replaceIeltsDraft: true }).catch(draftSaves.reportFailure); },
+    start: (mode: Mode, section: Section) => { void webMcp.navigate({ action: 'start', kind: mode === 'full' ? 'full_ielts' : section }).catch(draftSaves.reportFailure); },
     resume: (attemptId = state.attemptId) => { if (attemptId) void webMcp.navigate({ action: 'resume', kind: 'ielts', attemptId }).catch(draftSaves.reportFailure); },
     goHome: () => { void webMcp.navigate({ action: 'library' }).catch(draftSaves.reportFailure); },
     leaveSpeaking: () => { void webMcp.navigate({ action: 'library' }, { confirmedSpeakingExit: true }).catch(draftSaves.reportFailure); },
@@ -324,6 +324,10 @@ function PracticeApp() {
       <>
       {audioPreparation.progress && <div className="mx-auto max-w-3xl px-6 pt-5"><AudioPreparationProgress progress={audioPreparation.progress} retry={audioPreparation.start} /></div>}
       <Home
+        documents={library}
+        onDeleteDraft={commands.discardDraft}
+        onDeleteContent={commands.deleteContent}
+        onStartContent={document => { void webMcp.navigate({ action: 'start', kind: document.section, contentKey: document.contentKey }).catch(draftSaves.reportFailure); }}
         onStart={uiCommands.start}
         onResume={uiCommands.resume}
         session={state}

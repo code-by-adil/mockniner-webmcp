@@ -3,6 +3,7 @@ import type {
 } from "@/domain/contentDocument";
 
 export type ContentStore = {
+  loadLibrary: () => Promise<PracticeContentDocument[]>;
   loadActive: () => Promise<PracticeContentDocument[]>;
   loadByKey: (contentKey: string) => Promise<PracticeContentDocument | null>;
   saveAndActivate: (document: PracticeContentDocument) => Promise<void>;

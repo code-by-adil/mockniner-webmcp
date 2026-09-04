@@ -13,6 +13,7 @@ import { writingDocument } from "@/content/writing";
 import {
   replaceActiveContent,
   type ActiveContentDocuments,
+  type PracticeContentDocument,
 } from "@/domain/contentDocument";
 import { createIeltsCommands } from "./ieltsCommands";
 import { reportHandledError } from "@/shared/reportHandledError";
@@ -49,18 +50,23 @@ export function useIeltsApplication(persistence = defaultPersistence) {
     reading: readingDocument,
     writing: writingDocument,
   });
+  const [library, setLibrary] = useState<PracticeContentDocument[]>(bundledContent);
   const [contentReady, setContentReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const current = useRef({ state, content });
   const getState = useCallback(() => current.current.state, []);
   const getContent = useCallback(() => current.current.content, []);
-  const publishSession = useCallback((session: typeof state) => {
+  const publishSession = useCallback((session: typeof state, documents?: ActiveContentDocuments) => {
     current.current.state = session;
-    flushSync(() => setState(session));
+    if (documents) current.current.content = documents;
+    flushSync(() => { setState(session); if (documents) setContent(documents); });
   }, []);
   const publishContent = useCallback((documents: ActiveContentDocuments) => {
     current.current.content = documents;
-    flushSync(() => setContent(documents));
+    flushSync(() => {
+      setContent(documents);
+      setLibrary(items => [...new Map([...items, ...Object.values(documents)].map(item => [item.contentKey, item])).values()]);
+    });
   }, []);
   const save = useCallback((session: typeof state) => {
     const documents = getContent();
@@ -83,9 +89,10 @@ export function useIeltsApplication(persistence = defaultPersistence) {
         getContent,
         dispatch: dispatchAndSave,
         publishSession,
-        persistSession: async session => {
+        persistSession: async (session, documents, removedContentKey) => {
           await draftSaves.flush();
-          await (await persistence.getDraftRepository()).saveIelts(session, getContent());
+          await (await persistence.getDraftRepository()).saveIelts(session, documents ?? getContent(), removedContentKey);
+          if (removedContentKey) setLibrary(items => items.filter(item => item.contentKey !== removedContentKey));
           draftSaves.clearError();
         },
         flushDrafts: draftSaves.flush,
@@ -101,15 +108,16 @@ export function useIeltsApplication(persistence = defaultPersistence) {
   useEffect(() => {
     let cancelled = false;
     void Promise.all([
-      persistence.getContentStore().then((store) => store.loadActive()),
+      persistence.getContentStore().then(async (store) => ({ active: await store.loadActive(), library: await store.loadLibrary() })),
       persistence.getRepository(),
     ])
       .then(async ([documents, reader]) => {
-        const active = documents.reduce(replaceActiveContent, { listening: listeningDocument, reading: readingDocument, writing: writingDocument });
+        const active = documents.active.reduce(replaceActiveContent, { listening: listeningDocument, reading: readingDocument, writing: writingDocument });
         const drafts = await persistence.getDraftRepository();
         const restored = await drafts.loadIelts(reader);
         if (cancelled) return;
-        publishContent(restored.documents.reduce(replaceActiveContent, active));
+        setLibrary(documents.library);
+        publishContent(restored.documents.filter(document => restored.session.contentKeys?.[document.section] === document.contentKey).reduce(replaceActiveContent, active));
         publishSession(sessionReducer(getState(), { type: 'RESTORE', session: restored.session }));
         setContentReady(true);
       })
@@ -125,5 +133,5 @@ export function useIeltsApplication(persistence = defaultPersistence) {
     };
   }, [persistence, getState, publishSession, publishContent]);
   const loadPracticeContent = useCallback(async (key: string) => (await persistence.getContentStore()).loadByKey(key), [persistence]);
-  return { state, content, contentReady, loadError, commands, loadPracticeContent };
+  return { state, content, library, contentReady, loadError, commands, loadPracticeContent };
 }

@@ -36,13 +36,14 @@ function createHarness({
   )
   const commands = createIeltsCommands({
     getState: () => state,
-    publishSession: next => { state = next },
+    publishSession: (next, documents) => { state = next; if (documents) content = documents },
     persistSession: () => {},
     getContent: () => content,
     setContent: (next) => {
       content = next
     },
     getContentStore: async () => ({
+      loadLibrary: async () => [listeningDocument, readingDocument, writingDocument, ...storedContent],
       loadActive: async () => [],
       loadByKey,
       saveAndActivate,
@@ -112,13 +113,14 @@ function createHarness({
 }
 
 describe('exam application commands', () => {
-  it('protects an unfinished full exam while home is showing between sections', async () => {
+  it('allows installing a set while preserving an unfinished full exam', async () => {
     const harness = createHarness()
     harness.commands.start('full', 'listening')
     await harness.commands.submitObjective('listening')
     harness.commands.goHome()
-    await expect(harness.commands.installContent(readingDocument)).rejects.toMatchObject({ code: 'ACTIVE_ATTEMPT' })
-    expect(harness.saveAndActivate).not.toHaveBeenCalled()
+    await expect(harness.commands.installContent(readingDocument)).resolves.toEqual(readingDocument)
+    expect(harness.getState().mode).toBe('full')
+    expect(harness.getState().contentKeys?.reading).toBe(readingDocument.contentKey)
   })
 
   it('uses the same answer state to grade, persist, and complete an objective section', async () => {
@@ -174,7 +176,7 @@ describe('exam application commands', () => {
     expect(harness.getState()).toEqual(initialSession)
   })
 
-  it('protects an active attempt from practice-set replacement', async () => {
+  it('preserves the original draft when installing new practice', async () => {
     const harness = createHarness()
     harness.commands.start('section', 'writing')
     harness.commands.setWritingDraft(1, 'Unsaved learner response')
@@ -184,8 +186,8 @@ describe('exam application commands', () => {
         ...writingDocument,
         contentKey: 'agent-writing-v1',
       }),
-    ).rejects.toMatchObject({ code: 'ACTIVE_ATTEMPT' })
-    expect(harness.saveAndActivate).not.toHaveBeenCalled()
+    ).resolves.toMatchObject({ contentKey: 'agent-writing-v1' })
+    expect(harness.saveAndActivate).toHaveBeenCalledOnce()
     expect(harness.getState().writingDrafts[1]).toBe('Unsaved learner response')
   })
 

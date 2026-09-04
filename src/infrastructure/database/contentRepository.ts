@@ -30,6 +30,7 @@ export async function loadActiveContent(
     FROM active_content
     INNER JOIN content_documents
       ON content_documents.content_key = active_content.content_key
+    WHERE content_documents.archived = 0
     ORDER BY content_documents.section
   `;
 
@@ -101,21 +102,12 @@ export async function saveAndActivateContent(
         ${documentJson}, ${new Date().toISOString()}
       )
     `;
+    await transaction.sql`UPDATE content_documents SET archived = 0 WHERE content_key = ${document.contentKey}`;
     await transaction.sql`
       INSERT INTO active_content (section, content_key)
       VALUES (${document.section}, ${document.contentKey})
       ON CONFLICT(section) DO UPDATE SET content_key = excluded.content_key
     `;
-    if (document.section === "listening") {
-      await transaction.sql`
-        DELETE FROM listening_audio_chunks
-        WHERE content_key IN (
-          SELECT content_key
-          FROM content_documents
-          WHERE section = 'listening' AND content_key <> ${document.contentKey}
-        )
-      `;
-    }
     if (!existing && !options.bundled) await recordPracticeActivity(transaction, {
       type: 'practice_installed', kind: document.section,
       contentKey: document.contentKey, title: document.name,
@@ -129,6 +121,14 @@ export function createContentStore(
   bundledDocuments: PracticeContentDocument[] = [],
 ): ContentStore {
   return {
+    loadLibrary: async () => {
+      const rows = await database.sql<{ contentKey: string; section: string }>`SELECT content_key AS contentKey, section FROM content_documents WHERE archived = 0 ORDER BY installed_at DESC`;
+      const documents = await Promise.all(rows.map(async row => {
+        try { return await loadContentByKey(database, row.contentKey); }
+        catch (error) { onInvalidContent?.(error instanceof Error ? error : new Error(String(error)), row); return null; }
+      }));
+      return [...new Map([...bundledDocuments, ...documents.filter(doc => doc !== null)].map(doc => [doc.contentKey, doc])).values()];
+    },
     loadActive: () => loadActiveContent(database, onInvalidContent),
     loadByKey: async (contentKey) =>
       (await loadContentByKey(database, contentKey)) ??

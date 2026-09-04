@@ -112,10 +112,16 @@ export function createDraftRepository(database: SQLocal) {
       }
       return { session: attempts.length ? { ...attempts[0]!, pausedDrafts: attempts.slice(1) } : initialSession, documents };
     },
-    async saveIelts(session: IeltsSession, content: ActiveContentDocuments) {
+    async saveIelts(session: IeltsSession, content: ActiveContentDocuments, removedContentKey?: string) {
       const rows = await database.transaction(async tx => {
         const rows = await nativeRows(tx, session, content);
         await write(tx, 'ielts', rows);
+        if (removedContentKey) {
+          // Keep immutable question data for submitted objective reviews.
+          await tx.sql`UPDATE content_documents SET archived = 1 WHERE content_key = ${removedContentKey}`;
+          await tx.sql`DELETE FROM active_content WHERE content_key = ${removedContentKey}`;
+          await tx.sql`DELETE FROM listening_audio_chunks WHERE content_key = ${removedContentKey}`;
+        }
         return rows;
       });
       known.ielts = new Set(rows.map(row => row.id));

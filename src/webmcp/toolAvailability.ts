@@ -1,7 +1,6 @@
-import { getPracticeLeaveBlocker, getResumablePractices, type PracticeWorkspace } from '@/application/practiceNavigation';
+import { getPracticeLeaveBlocker, type PracticeWorkspace } from '@/application/practiceNavigation';
 import type { PracticeContext } from '@/application/practiceContext';
 import type { SpeakingProgress } from '@/application/speakingInterviewController';
-import { findContentBlockingDraft } from '@/domain/session';
 
 type Availability = { status: 'available' } | { status: 'conditional'; requirement: string }
   | { status: 'blocked'; code: string; message: string };
@@ -29,9 +28,6 @@ export function getToolAvailability(
   const objective = context.view === 'review' && context.reviewLocation
     && ['reading', 'listening'].includes(context.reviewLocation.kind);
   const speakingSubmission = submission('speaking');
-  const authoringSections = ['listening', 'reading', 'writing'] as const;
-  const blockedSections = authoringSections.filter(section => findContentBlockingDraft(workspace.native, section));
-  const unlockedSections = authoringSections.filter(section => !blockedSections.includes(section));
   return {
     prepare_practice_audio: available,
     begin_submission_evaluation: leaveBlocker ? blocked(leaveBlocker.code, leaveBlocker.message) : conditional('Call first when asked to evaluate. Opens and reads the saved submission and shows progress. Supply kind plus an exact attemptId, or omit IDs for the visible submission.'),
@@ -47,13 +43,8 @@ export function getToolAvailability(
       ? 'The saved Speaking draft is loading. Wait for loading to finish, then read get_practice_context before navigating.'
       : leaveBlocker.message)
       : conditional('library and saved results are available. Use IDs returned by installation or get_practice_library for start/resume. Listening can open during preparation. Drafts remain protected.'),
-    install_ielts_practice_set: home
-      ? !unlockedSections.length
-        ? blocked('ACTIVE_ATTEMPT', 'Unfinished practice locks content installation for Listening, Reading and Writing. Finish the blocking drafts first; get_practice_library lists their resume IDs. Authoring schemas remain available.')
-        : blockedSections.length
-          ? conditional(`Available sections: ${unlockedSections.join(', ')}. Drafts block installation for: ${blockedSections.join(', ')}. Read get_practice_library for resume IDs.`)
-          : available
-      : blocked('TOOL_NOT_AVAILABLE', 'Use open_practice with action library before installing practice.'),
+    install_ielts_practice_set: home ? available
+      : blocked('TOOL_NOT_AVAILABLE', 'Use open_practice with action library before installing practice. Existing unfinished IELTS tests remain saved.'),
     install_assessment: home
       ? conditional('Use a new packageId, or increase the installed revision. An unfinished attempt for that package blocks replacement; built-ins cannot be replaced.')
       : blocked('TOOL_NOT_AVAILABLE', 'Use open_practice with action library before installing practice.'),
@@ -88,12 +79,12 @@ export function getToolAvailability(
   };
 }
 
-export function summarizeToolAvailability(availability: Record<string, Availability>, includeExamples: boolean) {
+export function summarizeToolAvailability(availability: Record<string, Availability>) {
   const result = {
     available: [] as string[],
     conditional: {} as Record<string, string>,
     blocked: {} as Record<string, { code: string; message: string }>,
-    authoringExamplesIncluded: includeExamples,
+    authoringExampleAccess: 'checked_per_kit',
   };
   for (const [name, entry] of Object.entries(availability)) {
     if (entry.status === 'available') result.available.push(name);
@@ -102,5 +93,3 @@ export function summarizeToolAvailability(availability: Record<string, Availabil
   }
   return result;
 }
-
-export const includeAuthoringExamples = (workspace: PracticeWorkspace) => getResumablePractices(workspace).length === 0;

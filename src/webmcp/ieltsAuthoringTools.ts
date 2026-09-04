@@ -18,7 +18,7 @@ type IeltsAuthoringToolDependencies = {
   openPractice: OpenInstalledPractice
   installContent: IeltsCommands['installContent']
   readListeningAudio: () => ListeningAudioStatus
-  includeAuthoringExamples?: () => boolean
+  includeAuthoringExamples?: (target: string) => boolean | Promise<boolean>
 }
 
 const ieltsAuthoringKitInputSchema = {
@@ -84,7 +84,7 @@ export function createIeltsAuthoringToolDefinitions({
       name: 'get_ielts_authoring_kit',
       title: 'Get native IELTS authoring kit',
       description:
-        'For new IELTS questions, create Listening, Academic Reading or Academic Writing from a complete original example and exam-owner format facts. For a general practice request, check get_practice_library first for saved tests and unfinished work. For Listening, call prepare_practice_audio before authoring so voices download while you work. Listening has all 40 questions and a full four-part spoken script; Reading has 40 questions and three substantial passages; Writing has both tasks. Use this kit directly for routine practice, without web research or Kokoro API research. Includes workflow instructions; install_ielts_practice_set opens practice by default. Full JSON Schema is opt-in with includeSchema:true. Examples are hidden during unfinished practice.',
+        'For new IELTS questions, create Listening, Academic Reading or Academic Writing from a complete original example and exam-owner format facts. For a general practice request, check get_practice_library first for saved tests and unfinished work. For Listening, call prepare_practice_audio before authoring so voices download while you work. Listening has all 40 questions and a full four-part spoken script; Reading has 40 questions and three substantial passages; Writing has both tasks. Use this kit directly for routine practice, without web research or Kokoro API research. Includes workflow instructions; install_ielts_practice_set opens practice by default. Full JSON Schema is opt-in with includeSchema:true. Examples are available alongside unrelated unfinished tests; only examples containing their questions are withheld.',
       inputSchema: ieltsAuthoringKitInputSchema,
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async (input, options) => {
@@ -102,14 +102,16 @@ export function createIeltsAuthoringToolDefinitions({
             zodIssues(parsed.error),
           )
         }
-        return { ok: true, data: getIeltsAuthoringKit(parsed.data.section, includeAuthoringExamples(), parsed.data.includeSchema) }
+        const examplesIncluded = await includeAuthoringExamples(parsed.data.section)
+        throwIfCancelled(signal)
+        return { ok: true, data: getIeltsAuthoringKit(parsed.data.section, examplesIncluded, parsed.data.includeSchema) }
       },
     },
     {
       name: 'install_ielts_practice_set',
       title: 'Install IELTS practice set',
       description:
-        'Save and open a complete native IELTS set from get_ielts_authoring_kit in one call. Defaults to opening immediately, including Listening while audio prepares in the exam. Its timer pauses while audio is unavailable. Playback begins automatically when ready, subject to browser permission. Set openAfterInstall:false only for a save-for-later request. Check opened and any openingError; never claim saved practice is open unless opened is true. The learner answers and submits.',
+        'Create and open a new native IELTS test from get_ielts_authoring_kit in one call. Existing unfinished IELTS attempts, answers and audio remain saved; no discard is required. Use a fresh contentKey for new questions. Defaults to opening immediately, including Listening while audio prepares in the exam. Its timer pauses while audio is unavailable. Playback begins automatically when ready, subject to browser permission. Set openAfterInstall:false only for a save-for-later request. Check opened and any openingError; never claim saved practice is open unless opened is true. The learner answers and submits.',
       inputSchema: ieltsPracticeSetTeachingSchema,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: async (input, options) => {

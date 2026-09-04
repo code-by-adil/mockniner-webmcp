@@ -79,12 +79,10 @@ export type IeltsAttemptState = {
 
 export type IeltsSession = IeltsAttemptState & { pausedDrafts: IeltsAttemptState[] }
 
-export function findContentBlockingDraft(state: IeltsSession, section: SectionKey) {
-  return getIeltsDrafts(state).find(draft => draft.mode === 'full' || draft.currentSection === section)
-}
-
 export type SessionAction =
   | { type: 'RESTORE'; session: IeltsSession }
+  | { type: 'DELETE_CONTENT'; contentKey: string }
+  | { type: 'DISCARD_DRAFT'; attemptId: string }
   | { type: 'START'; mode: IeltsMode; section: SectionKey; startedAt: string; attemptId: string; contentKeys?: IeltsAttemptState['contentKeys']; speakingPlan?: SpeakingPlan }
   | { type: 'RESUME'; startedAt: string; attemptId: string; targetAttemptId?: string }
   | { type: 'SET_SPEAKING_PLAN'; plan: SpeakingPlan }
@@ -182,10 +180,18 @@ export function sessionReducer(state: IeltsSession, action: SessionAction): Ielt
   switch (action.type) {
     case 'RESTORE':
       return state.mode === null ? action.session : state
+    case 'DELETE_CONTENT': {
+      const drafts = parkedDrafts(state).filter(draft => !Object.values(draft.contentKeys ?? {}).includes(action.contentKey));
+      return { ...initialSession, pausedDrafts: drafts };
+    }
+    case 'DISCARD_DRAFT':
+      return state.attemptId === action.attemptId
+        ? { ...initialSession, pausedDrafts: state.pausedDrafts }
+        : { ...state, pausedDrafts: state.pausedDrafts.filter(draft => draft.attemptId !== action.attemptId) }
     case 'START':
       return {
         ...initialSession,
-        pausedDrafts: parkedDrafts(state).filter(draft => !(draft.mode === action.mode && (action.mode === 'full' || draft.currentSection === action.section))),
+        pausedDrafts: parkedDrafts(state),
         attemptId: action.attemptId,
         view: 'exam',
         mode: action.mode,

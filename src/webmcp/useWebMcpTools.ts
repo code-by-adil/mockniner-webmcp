@@ -1,3 +1,4 @@
+import { canIncludeAuthoringExample } from './authoringAccess';
 import { createAudioPreparationTool } from './audioPreparationTool';
 import type { AudioPreparation } from '@/infrastructure/media/audioAssets';
 import { useEvaluationActivity, type EvaluationKind } from '@/application/evaluationActivityContext';
@@ -18,7 +19,7 @@ import { createObjectiveReviewTool } from './objectiveReviewTool';
 import { createObjectiveExplanationTool } from './objectiveExplanationTool';
 import { createAssessmentContentTool } from './assessmentContentTool';
 import { getToolExecutionSignal, throwIfCancelled, toolFailure } from './toolResult';
-import { getToolAvailability, includeAuthoringExamples, summarizeToolAvailability } from './toolAvailability';
+import { getToolAvailability, summarizeToolAvailability } from './toolAvailability';
 import type { IeltsCommands } from "@/application/ieltsCommands";
 import type { AssessmentApplicationCommands } from "@/application/assessmentCommands";
 import { reportHandledError } from "@/shared/reportHandledError";
@@ -98,7 +99,7 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     const readContext = () => {
       const speaking = interview.read();
       return { ...latest.current.context, audioPreparation: latest.current.audioPreparation.progress ?? null, evaluationActivity: evaluationRef.current?.activity ?? null, listeningAudio: latest.current.workspace.listeningAudio,
-        capabilities: summarizeToolAvailability(readAvailability(), includeAuthoringExamples(latest.current.workspace)),
+        capabilities: summarizeToolAvailability(readAvailability()),
         progress: getPracticeProgress(latest.current.workspace, 'currentQuestion' in speaking ? speaking : undefined) };
     };
     const readListeningAudio = () => latest.current.workspace.listeningAudio;
@@ -134,7 +135,7 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     tools.push(
       ...createHomeToolDefinitions({
         openPractice: navigation,
-        includeAuthoringExamples: () => includeAuthoringExamples(latest.current.workspace),
+        includeAuthoringExamples: target => canIncludeAuthoringExample(latest.current.workspace, target, key => latest.current.loadPracticeContent(key)),
         installContent: (input) => latest.current.commands.installContent(input),
         readListeningAudio,
         installAssessment: (input) => latest.current.assessmentCommands.installAssessment(input),

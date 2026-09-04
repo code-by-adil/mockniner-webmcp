@@ -30,7 +30,7 @@ afterEach(async () => { await source.destroy(true); await destination.destroy(tr
 
 describe('local backup replacement', () => {
   it('rejects older backups before replacing current practice', async () => {
-    await source.sql`DELETE FROM app_schema_migrations WHERE version = 14`;
+    await source.sql`DELETE FROM app_schema_migrations WHERE version = 15`;
     await destination.sql`INSERT INTO attempts VALUES ('current', 'reading', 'original', 'submitted', ${now}, ${now})`;
     await expect(restoreBackup(source, destination)).rejects.toThrow('older storage format');
     expect(await destination.sql`SELECT id FROM attempts`).toEqual([{ id: 'current' }]);

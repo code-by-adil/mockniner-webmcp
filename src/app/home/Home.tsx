@@ -8,18 +8,19 @@ import {
   CircleHelp,
   Mic,
   PlayCircle,
-  RotateCcw,
+
 } from "lucide-react";
 import { PracticeHeader } from '@/app/layouts/PracticeHeader';
 import { SECTION_META, SECTION_ORDER } from "@/domain/sections";
 import {
   getResumableSection,
+  getIeltsDrafts,
   findIeltsDraft,
   type IeltsMode,
   type IeltsSession,
 } from "@/domain/session";
 import type { SectionKey } from "@/domain/types";
-import type { ActiveContentDocuments } from "@/domain/contentDocument";
+import type { ActiveContentDocuments, PracticeContentDocument } from "@/domain/contentDocument";
 import type { ListeningAudioSession } from "@/application/useListeningAudio";
 import { usePracticeHistory } from '@/application/usePracticeHistory';
 import type { HistoryKind } from '@/infrastructure/database/historyRepository';
@@ -29,12 +30,17 @@ import {
 } from "./AssessmentLibrary";
 import { RecentAttempts } from "./RecentAttempts";
 import { WebMcpHelpDialog } from "./WebMcpHelpDialog";
+import { SavedIeltsTests } from './SavedIeltsTests';
 import { ContinuePractice } from './ContinuePractice';
 
 type Section = SectionKey;
 type Mode = IeltsMode;
 type HomeProps = {
   assessmentLibrary: AssessmentLibraryProps;
+  documents?: PracticeContentDocument[];
+  onDeleteDraft?: (attemptId: string) => void | Promise<void>;
+  onDeleteContent?: (contentKey: string) => Promise<void>;
+  onStartContent?: (document: PracticeContentDocument) => void;
   onStart: (mode: Mode, section: Section) => void;
   onResume: (attemptId?: string) => void;
   session: IeltsSession;
@@ -85,7 +91,7 @@ export function Home({
   content,
   historyRevision,
   onReviewAttempt,
-  assessmentLibrary,
+  assessmentLibrary, documents, onDeleteDraft, onDeleteContent, onStartContent,
 }: HomeProps): React.ReactElement {
   const [toolsModalOpen, setToolsModalOpen] = useState(false);
   const history = usePracticeHistory(historyRevision);
@@ -111,7 +117,7 @@ export function Home({
           </button>
         </div>
 
-        <ContinuePractice session={session} content={content} listeningReady={listeningReady}
+        <ContinuePractice documents={documents} onDeleteDraft={onDeleteDraft} session={session} content={content} listeningReady={listeningReady}
           onResume={onResume} assessmentLibrary={assessmentLibrary} />
 
         <section aria-labelledby="practice-library-title" className="space-y-5">
@@ -124,6 +130,8 @@ export function Home({
           </div>
 
           <AssessmentLibrary {...assessmentLibrary} />
+
+          {documents && onDeleteContent && onStartContent && <SavedIeltsTests documents={documents} session={session} onDelete={onDeleteContent} onStart={onStartContent} />}
 
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-neutral-700">IELTS practice</h3>
@@ -171,10 +179,10 @@ export function Home({
                   <span>Your unfinished test is ready to resume.</span>
                   <button
                     type="button"
-                    onClick={() => { if (window.confirm('Start this full IELTS test again? Your answers in this test will be cleared. Other section attempts will be kept.')) onStart("full", "listening"); }}
+                    onClick={() => onStart("full", "listening")}
                     className="text-neutral-700 hover:text-neutral-950 inline-flex items-center gap-1 font-medium underline cursor-pointer"
                   >
-                    <RotateCcw size={11} /> Start over
+                    Start new attempt
                   </button>
                 </div>
               )}
@@ -191,7 +199,7 @@ export function Home({
                     (activeDoc.source === "agent" ||
                       !activeDoc.contentKey.startsWith("local-")),
                 );
-                const draft = findIeltsDraft(session, 'section', sec);
+                const draft = getIeltsDrafts(session).find(item => item.mode === 'section' && item.currentSection === sec && (sec === 'speaking' || !item.contentKeys?.[sec] || item.contentKeys[sec] === activeDoc?.contentKey));
                 const isResumable = Boolean(draft);
 
                 return (

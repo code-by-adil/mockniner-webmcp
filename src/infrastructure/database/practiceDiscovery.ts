@@ -14,7 +14,7 @@ const page = <T>(items: T[], input: DiscoveryPage) => ({ items: items.slice(inpu
 
 export async function readPracticeLibrary(database: Pick<SQLocal, 'sql'>, workspace: PracticeWorkspace, input: DiscoveryPage) {
   const speakingPlan = findIeltsDraft(workspace.native, 'section', 'speaking')?.speakingPlan ?? defaultSpeakingPlan
-  const rows = await database.sql<{ documentJson: string; contentKey: string; section: string }>`SELECT document_json AS documentJson, content_key AS contentKey, section FROM content_documents ORDER BY installed_at DESC, content_key`
+  const rows = await database.sql<{ documentJson: string; contentKey: string; section: string }>`SELECT document_json AS documentJson, content_key AS contentKey, section FROM content_documents WHERE archived = 0 ORDER BY installed_at DESC, content_key`
   const unavailableContentKeys: string[] = []
   const saved = rows.flatMap(row => {
     try {

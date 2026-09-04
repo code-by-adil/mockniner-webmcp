@@ -12,7 +12,7 @@ type HomeAuthoringToolDependencies = {
   installAssessment: AssessmentApplicationCommands["installAssessment"];
   readLearningSummary: (recentLimit: number) => Promise<LearningSummary>;
   readListeningAudio: () => ListeningAudioStatus;
-  includeAuthoringExamples?: () => boolean;
+  includeAuthoringExamples?: (target: string) => boolean | Promise<boolean>;
 };
 
 export function createHomeToolDefinitions({

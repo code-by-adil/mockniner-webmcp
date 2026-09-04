@@ -11,9 +11,12 @@ operate on the same local state. The tool catalog is registered once per loaded
 document and remains available on every screen. Each handler checks whether its
 action is allowed in the current practice state. Discovery, history, learning
 summaries, and explicit submission reads work everywhere. Authoring kits also
-work during unfinished practice: they return schemas, rules, and capabilities
-with `examplesIncluded: false`, omitting the answer-bearing examples while any
-active or paused draft exists. When there are no drafts, examples are included.
+work during unfinished practice. Complete examples remain available alongside
+unrelated drafts. A kit with questions copied into an unfinished test returns
+`examplesIncluded: false` and a full schema instead, including when that draft
+is parked or its content key has changed. Writing examples have no answer keys.
+The context reports `authoringExampleAccess: "checked_per_kit"`; each kit reports
+its own `examplesIncluded` value.
 Installing practice requires the library; evaluation attachment requires the
 matching visible submission. Writing and universal feedback support retries and
 revisions; Speaking feedback is saved once. Unavailable calls return an
@@ -82,12 +85,17 @@ active exam.
 { "action": "resume", "kind": "assessment", "attemptId": "<id from resumable>" }
 ```
 
-Opening results or the library preserves unfinished answers. A new attempt
-cannot overwrite another draft in the same slot (`ACTIVE_ATTEMPT`). Each
-standalone IELTS section and Full IELTS have an independent saved slot; a
-universal draft can also coexist. Switch sections and resume the exact ID from
-`get_practice_library`. The home screen exposes each saved slot's Resume action.
-Content used by an unfinished section or Full IELTS cannot be replaced. Empty
+Opening results or the library preserves unfinished answers. Starting native
+IELTS creates an independent attempt, even when another attempt uses the same
+section or set. Installing new content never requires discarding an IELTS draft.
+Use a fresh content key for new questions; an existing key cannot change meaning.
+Resume the exact attempt ID from `get_practice_library` to restore its pinned
+questions, answers, position, timer and playback. Full IELTS pins every section.
+Generated Listening chunks remain cached when another set is installed.
+The home screen lists all unfinished attempts with Resume and Delete actions,
+plus saved agent-created IELTS tests with Start new attempt and Delete actions.
+Deletion is learner-controlled, with a confirmation; it is not a WebMCP tool.
+A universal assessment still has one unfinished draft at a time. Empty
 Speaking setup can be left safely, preserving the configured questions. Once the
 interview starts, navigation is blocked (`SPEAKING_IN_PROGRESS`) because the
 learner must finish or use Exit test to pause. Completed answers are saved
@@ -140,7 +148,7 @@ keys.
 Universal assessment tools:
 
 - `get_assessment_authoring_kit` returns current capabilities, coverage limits,
-  authoring rules and a complete example when no draft exists. SAT has 98 questions;
+  authoring rules and a complete example unless its questions overlap an unfinished test. SAT has 98 questions;
   GRE has one Issue essay and 54 objective questions. Exam formats include
   source links and current timings. Request `includeSchema: true` for the full
   `packageSchema`; it is also included when examples are withheld.

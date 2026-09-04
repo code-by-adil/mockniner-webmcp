@@ -50,6 +50,6 @@ export function getIeltsAuthoringKit(section: IeltsAuthoringSection, includeExam
     ...(includeExamples ? { exampleDocument: getIeltsExample(section) } : {}),
     nextAction: includeExamples ?
       "Use the complete exampleDocument directly for example practice, or replace its content for new practice. Choose a fresh contentKey and call install_ielts_practice_set. Installation opens the exam, including Listening preparation. The returned opened flag confirms the handoff. The application validates the document; repair returned paths if needed."
-      : "Examples are omitted while unfinished practice exists to protect answer keys. Create original content using the rules and documentSchema, with a fresh contentKey. Open the library before installing; content used by an unfinished attempt cannot be replaced.",
+      : "This example contains questions used by an unfinished test, so it is omitted to protect its answers. Other kits remain available. Create original content using the rules and documentSchema, with a fresh contentKey. Open the library before installing; new tests preserve existing unfinished attempts.",
   };
 }

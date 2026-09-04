@@ -171,8 +171,8 @@ export async function saveListeningAudioChunk(
       ${new Date().toISOString()}
     WHERE EXISTS (
       SELECT 1
-      FROM active_content
-      WHERE section = 'listening' AND content_key = ${input.contentKey}
+      FROM content_documents
+      WHERE archived = 0 AND section = 'listening' AND content_key = ${input.contentKey}
     )
     ON CONFLICT(content_key, sequence) DO UPDATE SET
       cache_version = excluded.cache_version,
@@ -188,7 +188,7 @@ export async function saveListeningAudioChunk(
   `;
   if (saved.length === 0) {
     throw new Error(
-      `Listening content ${input.contentKey} is no longer active.`,
+      `Listening content ${input.contentKey} is unavailable or has been deleted.`,
     );
   }
 

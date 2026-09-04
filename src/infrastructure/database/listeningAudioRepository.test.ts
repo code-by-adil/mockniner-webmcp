@@ -185,7 +185,7 @@ describe("Listening audio chunk repository", () => {
       .resolves.toHaveLength(1);
   });
 
-  it("prunes inactive generated audio while retaining the installed document", async () => {
+  it("retains audio across installs and accepts chunks for a saved set", async () => {
     await saveListeningAudioChunk(database, {
       contentKey: "local-listening-v1",
       cacheVersion: KOKORO_CACHE_VERSION,
@@ -208,7 +208,7 @@ describe("Listening audio chunk repository", () => {
     );
 
     await expect(listListeningAudioChunks(database, "local-listening-v1"))
-      .resolves.toEqual([]);
+      .resolves.toHaveLength(1);
     const retained = await database.sql<{ count: number }>`
       SELECT COUNT(*) AS count
       FROM content_documents
@@ -223,6 +223,6 @@ describe("Listening audio chunk repository", () => {
       segmentIndex: 1,
       kind: "silence",
       durationMs: 500,
-    })).rejects.toThrow("is no longer active");
+    })).resolves.toMatchObject({ sequence: 1 });
   });
 });

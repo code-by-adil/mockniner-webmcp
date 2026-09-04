@@ -248,6 +248,10 @@ const migrations = [
       `DROP TABLE IF EXISTS legacy_assessment_packages_v8`,
     ],
   },
+  {
+    version: 15,
+    statements: ["ALTER TABLE content_documents ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1))"],
+  },
 ] as const
 
 export const DATABASE_VERSION = migrations.at(-1)!.version

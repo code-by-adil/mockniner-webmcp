@@ -241,3 +241,24 @@ The same flow covers Speaking transcripts and custom rubric assessments, subject
 to their existing review and revision policies. Deterministic and browser checks
 verify these transitions; they do not measure independent model latency or grading
 quality.
+
+## Existing-draft regression
+
+For a live model check, begin with an unfinished IELTS Listening test containing
+a saved answer, then use a fresh agent outside the project directory. Ask only:
+
+> Make me a new full 40-question IELTS Listening test.
+
+The agent should use the complete kit, install with a new content key and obtain
+`opened: true` without asking to discard the old attempt. The learner must see
+the new exam and audio preparation immediately. Return to the library, resume
+the old attempt, and verify its questions, answer and playback position. Reload
+and repeat. If the old test copied the kit example, that particular example is
+withheld to protect its answers; unrelated kits remain available.
+
+`ieltsLifecycle.test.ts` covers the durable transitions, multiple same-section
+attempts, retained audio, targeted deletion, rollback and submitted reviews.
+`authoringAccess.test.ts` covers copied examples with renamed IDs and unrelated
+drafts. Browser checks must also exercise Delete cancellation and confirmation,
+then verify the remaining test after reload. These deterministic checks do not
+establish natural-language model behavior.

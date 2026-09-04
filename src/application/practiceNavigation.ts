@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ApplicationError } from '@/domain/errors'
 import { reviewLocationSchema } from '@/domain/reviewLocation'
-import { getIeltsDrafts, getResumableSection, findIeltsDraft, findContentBlockingDraft, type IeltsSession } from '@/domain/session'
+import { getIeltsDrafts, getResumableSection, type IeltsSession } from '@/domain/session'
 import type { AssessmentSession } from '@/domain/assessmentSession'
 import type { AssessmentPackage } from '@/domain/assessment'
 import type { ActiveContentDocuments, PracticeContentDocument } from '@/domain/contentDocument'
@@ -30,7 +30,7 @@ export const navigationSchema = z.discriminatedUnion('action', [
   z.strictObject({ action: z.literal('resume'), kind: z.enum(['ielts', 'assessment']), attemptId: z.uuid() }),
 ])
 export type PracticeNavigationInput = z.infer<typeof navigationSchema>
-export type PracticeNavigationOptions = { signal?: AbortSignal; replaceIeltsDraft?: boolean; confirmedSpeakingExit?: boolean }
+export type PracticeNavigationOptions = { signal?: AbortSignal; confirmedSpeakingExit?: boolean }
 export type PracticeWorkspace = { native: IeltsSession; assessment: AssessmentSession; content: ActiveContentDocuments; assessments: AssessmentPackage[]; listeningAudio: ListeningAudioStatus; canLeaveSpeaking?: boolean }
 
 type StartKind = 'assessment' | 'listening' | 'reading' | 'writing' | 'speaking' | 'full_ielts'
@@ -40,26 +40,19 @@ export function getPracticeLeaveBlocker(workspace: PracticeWorkspace) {
 }
 
 export function getPracticeDraftBlocker(workspace: PracticeWorkspace, kind: StartKind) {
-  const existing = kind === 'assessment' ? workspace.assessment.attemptId
-    : findIeltsDraft(workspace.native, kind === 'full_ielts' ? 'full' : 'section', kind === 'full_ielts' ? 'listening' : kind)?.attemptId
+  const existing = kind === 'assessment' ? workspace.assessment.attemptId : null
   return existing ? { code: 'ACTIVE_ATTEMPT', attemptId: existing,
-    message: 'An unfinished attempt exists for this practice. Resume its attemptId, or let the learner finish or replace it in the interface. Other IELTS sections can be practised without discarding it.' } : null
+    message: 'An unfinished custom assessment exists. Resume it, or use the interface to discard it before starting another custom assessment.' } : null
 }
 
-export function getPracticeStartability(workspace: PracticeWorkspace, kind: StartKind, contentKey?: string) {
+export function getPracticeStartability(workspace: PracticeWorkspace, kind: StartKind, _contentKey?: string) {
   const blocked = getPracticeLeaveBlocker(workspace) ?? getPracticeDraftBlocker(workspace, kind)
-  if (blocked) return { canStart: false, blockingReason: blocked }
-  if (contentKey && (kind === 'reading' || kind === 'listening' || kind === 'writing') && workspace.content[kind].contentKey !== contentKey) {
-    const draft = findContentBlockingDraft(workspace.native, kind)
-    if (draft) return { canStart: false, blockingReason: { code: 'ACTIVE_ATTEMPT', attemptId: draft.attemptId,
-      message: 'An unfinished practice uses this section. It can use the active set, but cannot activate a different set until that practice is finished.' } }
-  }
-  return { canStart: true, blockingReason: null }
+  return blocked ? { canStart: false, blockingReason: blocked } : { canStart: true, blockingReason: null }
 }
 
 export function getResumablePractices({ native, assessment }: PracticeWorkspace) {
   return [
-    ...getIeltsDrafts(native).map(draft => ({ kind: 'ielts' as const, attemptId: draft.attemptId!, section: getResumableSection(draft)!, mode: draft.mode })),
+    ...getIeltsDrafts(native).map(draft => ({ kind: 'ielts' as const, attemptId: draft.attemptId!, section: getResumableSection(draft)!, mode: draft.mode, contentKeys: draft.contentKeys })),
     ...(assessment.attemptId && assessment.packageId ? [{ kind: 'assessment' as const, attemptId: assessment.attemptId, packageId: assessment.packageId }] : []),
   ]
 }
@@ -102,7 +95,7 @@ export function createPracticeNavigation(deps: {
         else { await deps.native.goHome(); checkCancelled(); deps.assessment.resume() }
         return { view: 'exam', kind: input.kind, resumedFromAttemptId: input.attemptId }
       }
-      if (input.kind === 'assessment' || !options.replaceIeltsDraft) assertNoDraft(input.kind)
+      assertNoDraft(input.kind)
       if (input.kind === 'assessment') {
         if (!deps.getWorkspace().assessments.some(p => p.packageId === input.packageId)) throw new ApplicationError('PRACTICE_NOT_FOUND', 'That assessment is not installed. Read get_practice_library.', true)
         await deps.native.goHome()
@@ -113,7 +106,7 @@ export function createPracticeNavigation(deps: {
         if (input.contentKey && deps.getWorkspace().content[input.kind as keyof ActiveContentDocuments]?.contentKey !== input.contentKey) {
           const content = await deps.loadContent(input.contentKey)
           checkCancelled()
-          assertCanLeave(); if (!options.replaceIeltsDraft) assertNoDraft(input.kind)
+          assertCanLeave(); assertNoDraft(input.kind)
           if (!content || content.section !== input.kind) throw new ApplicationError('PRACTICE_NOT_FOUND', 'That content key is not a saved practice of the requested kind.', true)
           await deps.native.installContent(content)
         }
