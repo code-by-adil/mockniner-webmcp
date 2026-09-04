@@ -98,7 +98,7 @@ The first active Kokoro Listening document prepares pinned model, voice and
 runtime files from the app's origin. Agents can start the download earlier with
 `prepare_practice_audio`, while authoring. Subsequent generation reuses verified
 files. Playing saved audio needs no model download. See
-[audio assets and release checks](./AUDIO_ASSETS.md).
+[audio setup](./LOCAL_DATA.md#deployment).
 
 Generation follows the official browser setup:
 
@@ -165,10 +165,3 @@ After editing it, run `bash scripts/generate-audio.sh` on macOS with Node.js,
 FFmpeg/ffprobe, and the Daniel, Karen, and Samantha system voices installed.
 This regenerates the recording, part timings, and cache revision together.
 Commit all generated changes; tests detect scripts changed without regeneration.
-
-Agent-created Listening sets use `kokoro-js@1.2.1` and the
-`onnx-community/Kokoro-82M-v1.0-ONNX` model in a lazy Web Worker. Speech is
-split at natural boundaries, generated serially, and stored as validated WAV
-chunks. Playback starts after the first two chunks are durable while generation
-continues. The full contract is documented in [Listening audio
-implementation](./KOKORO_LISTENING.md).

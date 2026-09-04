@@ -149,11 +149,24 @@ The app uses React and TypeScript, with SQLocal storing SQLite data in the
 browser's origin private file system. The development server already sets the
 headers required for persistence.
 
+### Browser and agent checks
+
+With the development server running, use
+`npm run eval:agent:smoke -- --chrome-channel chrome-canary` to check tool calls
+and saved content in a browser. This requires no model credentials.
+
+`npm run eval:agent:browser -- --backend vercel --model openai:gpt-5.4 --chrome-channel chrome-canary`
+tests natural-language authoring with a configured model provider.
+`eval:agent:local` uses mocked tool results; `eval:agent:release` repeats browser
+cases and applies the suite's pass thresholds. Set `AGENT_EVAL_URL` to target
+another deployment. Cases live in `agent-evals/authoring-cases.json`; reports
+are saved locally under `.evals/`.
+
 ### Hosting
 
 The build is in `dist/`. Generated speech also needs the pinned audio assets
 served on the same origin. The Cloudflare deployment streams those files from
-R2 through a small Worker. See [audio setup and release checks](./docs/AUDIO_ASSETS.md).
+R2 through a small Worker. See [deployment and audio setup](./docs/LOCAL_DATA.md#deployment).
 Use an HTTPS host that supports custom response headers. The included `public/_headers` supplies them for Cloudflare hosting.
 Other hosts must return equivalent headers:
 
@@ -177,7 +190,6 @@ rules, and rubrics. New subjects do not require a new exam-specific runtime.
 - [Listening audio](./docs/KOKORO_LISTENING.md)
 - [Speaking interviews](./docs/SPEAKING.md)
 - [Local storage, backups, and deployment](./docs/LOCAL_DATA.md)
-- [Agent authoring evaluations](./docs/AGENT_EVALUATIONS.md)
 
 ## License and attribution
 

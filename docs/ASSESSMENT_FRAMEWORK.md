@@ -341,24 +341,6 @@ A new interaction requires the complete implementation:
 Do not add an exam-specific condition when a general interaction can express the
 same behavior.
 
-## Verification
-
-Deterministic tests cover schema rules, examples, scoring, state changes,
-persistence, tool handlers, rendering, and results. Model evaluations should
-also check these requests in the target browser and agent:
-
-- Create a ten-question GRE-style verbal diagnostic.
-- Create mixed GRE-style quantitative practice with a calculator and data table.
-- Create a three-blank text-completion question.
-- Create native IELTS Reading practice.
-- Create a biology quiz without a calculator or reference document.
-- Create a writing assessment with a four-criterion rubric.
-
-Record tool choice, template choice, first-install success, validation repair
-count, unsupported-feature handling, installed UI behavior, answer-key privacy,
-and result accuracy. Deterministic unit tests cannot prove that a model will
-choose the right tool from natural language.
-
 ## Persistence
 
 ### Package and draft lifecycle

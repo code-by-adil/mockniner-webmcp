@@ -93,14 +93,10 @@ retry and revision handling.
 
 Live site: [mockniner-webmcp.dgkhan08.workers.dev](https://mockniner-webmcp.dgkhan08.workers.dev).
 
-The previous `assessment-lab.dgkhan08.workers.dev` deployment has been removed.
-Storage is scoped to each origin, so saved work does not automatically transfer
-to the new address. Previously exported backups can be imported through Local data.
-
 The project deploys to Cloudflare Workers Static Assets using `wrangler.jsonc`.
 The Vite output in `dist` provides the application. A small Worker streams
 pinned audio assets from a private R2 bucket on the same origin; it does not run
-AI models or handle learner data. See [audio assets](./AUDIO_ASSETS.md).
+AI models or handle learner data.
 No application database, model API credentials, or custom domain is needed. The configuration
 enables the Worker's `workers.dev` address, disables preview URLs, and declares
 no custom-domain routes. Missing navigation paths serve the SPA's `index.html`.
@@ -116,6 +112,19 @@ npm run audio:prepare
 npm run audio:upload
 npm run deploy
 ```
+
+`audio:prepare` downloads pinned assets into ignored `.audio-assets/`, verifies
+their hashes, and copies the matching ONNX runtime from the installed package.
+Vite serves these files locally. Tests and builds do not download model weights.
+The manifest at `src/infrastructure/media/audioAssetManifest.json` records
+source revisions, sizes, and SHA-256 hashes. Model weights are split into five
+parts to fit the upload limit. Keep bytes unchanged under an existing asset version.
+
+Resume an interrupted upload with
+`npm run audio:upload -- --from=onnx/model.onnx.part2`, substituting the file
+to resume from. Run `npm run typecheck:worker` after Worker changes.
+`npm run audio:verify -- https://your-deployment.example` checks the deployed
+files against the manifest. License texts and notices are in `public/licenses/`.
 
 Wrangler prints the deployed `https://mockniner-webmcp.<account-subdomain>.workers.dev`
 address. Check `npx wrangler whoami` before deploying to confirm the account.

@@ -3,7 +3,7 @@
 `prepare_practice_audio` starts the shared Listening/Speaking voice download
 without waiting for it. Call it before authoring new spoken practice. Progress
 is visible in the page and exposed as `audioPreparation` by
-`get_practice_context`. See [audio downloads](./AUDIO_ASSETS.md).
+`get_practice_context`. See [audio setup](./LOCAL_DATA.md#deployment).
 
 The top-level application registers semantic tools through
 `document.modelContext`. React and WebMCP call the same application commands and
@@ -372,6 +372,5 @@ get_ielts_authoring_kit -> install_ielts_practice_set -> visible IELTS module
 Natural-language authoring behavior is covered by a development-only model
 evaluation suite. It tests routing between native IELTS and universal tools,
 template selection, complete package construction, validation recovery, and
-unsupported-capability handling against the production schemas. See [Agent
-authoring evaluations](./AGENT_EVALUATIONS.md) for the cases, commands, semantic
-report checks, and release thresholds.
+unsupported-capability handling against the production schemas. See
+[browser and agent checks](../README.md#browser-and-agent-checks) for commands.
