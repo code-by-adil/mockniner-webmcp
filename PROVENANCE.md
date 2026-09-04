@@ -38,28 +38,21 @@ browser-compatible weights.
 Transformers.js is licensed under Apache-2.0. Its license is included with the
 installed package.
 
-Generated Listening and examiner audio use `kokoro-js` with
+Generated Listening and examiner audio use
+[`kokoro-js@1.2.1`](https://github.com/hexgrad/kokoro/tree/main/kokoro.js) by
+hexgrad, with contributions from Xenova, and
 [`onnx-community/Kokoro-82M-v1.0-ONNX`](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX).
-The model card lists Apache-2.0. Speech models are downloaded at runtime and are
-not included in this repository. Audio generation and transcription run in the
-browser.
+Kokoro's code and model weights use Apache-2.0. The ONNX conversion is provided
+by onnx-community. The app uses model revision
+`1939ad2a8e416c0acfeecc08a694d14ef25f2231`.
 
-## Speech dependency licensing
+The [Apache-2.0 license](./public/licenses/kokoro-apache-2.0.txt) and
+[audio asset notices](./public/licenses/audio-assets-notice.txt) are included
+in the repository and deployed under `/licenses/`. The notices describe the
+local voice-loading adaptation and model delivery format.
 
-`phonemizer@1.2.1` declares Apache-2.0, but its distributed JavaScript embeds
-eSpeak NG. The app imports `phonemizer` directly in
-`src/infrastructure/media/kokoroScript.ts`, and `kokoro-js` also uses it.
-
-[Phonemizer's source](https://github.com/xenova/phonemizer.js/blob/main/src/phonemizer.js)
-loads the eSpeak NG runtime. [eSpeak NG's license
-information](https://github.com/espeak-ng/espeak-ng#license-information) specifies
-GPL-3.0-or-later. The wrapper's Apache-2.0 metadata does not resolve the embedded
-component's licensing.
-
-Before distributing a production build, resolve the applicable GPL obligations,
-including corresponding source, build instructions, and notices, or replace
-this dependency with a verified alternative. Adding MIT to this repository or
-generating a package-license list does not resolve this issue.
+Speech models are downloaded at runtime and are not included in this
+repository. Audio generation and transcription run in the browser.
 
 ## Trademarks
 

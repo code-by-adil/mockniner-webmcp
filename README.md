@@ -164,9 +164,7 @@ Cross-Origin-Embedder-Policy: require-corp
 
 SQLocal needs these headers for persistent storage. See its
 [setup guide](https://sqlocal.dev/guide/setup) and the project's
-[deployment notes](./docs/LOCAL_DATA.md#deployment). Review the
-[speech dependency licensing notes](./PROVENANCE.md#speech-dependency-licensing)
-before distributing a build.
+[deployment notes](./docs/LOCAL_DATA.md#deployment).
 
 ## Developer documentation
 
@@ -185,9 +183,9 @@ rules, and rubrics. New subjects do not require a new exam-specific runtime.
 
 MockNiner's original code, documentation, and bundled practice content are
 licensed under the [MIT License](./LICENSE), copyright 2026 Mohammad Adil.
-Third-party packages and speech models retain their own licenses. See
-[Attribution and content sources](./PROVENANCE.md), including the unresolved
-eSpeak NG licensing issue in the speech dependency.
+Kokoro's code and model weights use Apache-2.0. Third-party packages and speech
+models retain their own licenses. See [Attribution and content sources](./PROVENANCE.md)
+and the included [audio asset notices](./public/licenses/audio-assets-notice.txt).
 
 IELTS, SAT, and GRE are trademarks of their respective owners. MockNiner is
 an independent practice application and is not affiliated with or endorsed by
