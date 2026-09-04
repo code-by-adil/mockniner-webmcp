@@ -25,7 +25,7 @@ export function createSpeakingInterviewToolDefinition(configure: (input: Speakin
   return {
     name: 'set_ielts_speaking_interview',
     title: 'Set the complete Speaking interview',
-    description: 'Save all 10–12 original questions with the visible Speaking draft before reporting success; the plan survives reload and section switching. Include Parts 1 and 3 and one Part 2 long turn with 60s preparation, 120s speaking and 3–4 cue points. Questions lock when the learner starts. Audio and progression run locally. Retrieve transcripts only after submission.',
+    description: 'Call prepare_practice_audio before authoring to download examiner voices. Save all 10–12 original questions with the visible Speaking draft before reporting success; the plan survives reload and section switching. Include Parts 1 and 3 and one Part 2 long turn with 60s preparation, 120s speaking and 3–4 cue points. Questions lock when the learner starts. Audio and progression run locally. Retrieve transcripts only after submission.',
     inputSchema: z.toJSONSchema(speakingPlanSchema, { target: 'draft-07' }),
     annotations: { readOnlyHint: false, untrustedContentHint: true },
     execute: async (input, options) => {

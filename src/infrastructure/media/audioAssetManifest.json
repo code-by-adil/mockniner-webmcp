@@ -1,0 +1,108 @@
+{
+  "version": "kokoro-v1-1939ad2-transformers-3.8.1",
+  "modelRevision": "1939ad2a8e416c0acfeecc08a694d14ef25f2231",
+  "assets": [
+    {
+      "path": "config.json",
+      "bytes": 44,
+      "sha256": "df34b4f930b23447cd4dc410fabfb42eb3f24e803e6c3f97d618fb359380a36f",
+      "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/config.json"
+    },
+    {
+      "path": "tokenizer.json",
+      "bytes": 3497,
+      "sha256": "77a02c8e164413299b4b4c403b14f8e0e1c1b727db4d46a09d6327b861060a34",
+      "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/tokenizer.json"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "bytes": 113,
+      "sha256": "be1cb066d6ef6b074b3f15e6a6dd21ac88ff3cdaedf325f0aaed686c70f75d20",
+      "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/tokenizer_config.json"
+    },
+    {
+      "path": "onnx/model.onnx.part0",
+      "bytes": 67108864,
+      "sha256": "61f11e4f45abb2076a538fe7c3b1eb692bed436b3ef68145b96f5404180bd0ec",
+      "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/onnx/model.onnx",
+      "offset": 0
+    },
+    {
+      "path": "onnx/model.onnx.part1",
+      "bytes": 67108864,
+      "sha256": "08b5c13871a3e20310ce4a27a829a130290074963d4e746aa37cee27cb818795",
+      "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/onnx/model.onnx",
+      "offset": 67108864
+    },
+    {
+      "path": "onnx/model.onnx.part2",
+      "bytes": 67108864,
+      "sha256": "099af466f5deb5a5f4f8031d62a5c37aed2c9d55d72b98ef24a5da072ba1292e",
+      "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/onnx/model.onnx",
+      "offset": 134217728
+    },
+    {
+      "path": "onnx/model.onnx.part3",
+      "bytes": 67108864,
+      "sha256": "b80d330e9ed93d91baa347c3713327fd8d850b43046ab8ac855c198484ce9650",
+      "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/onnx/model.onnx",
+      "offset": 201326592
+    },
+    {
+      "path": "onnx/model.onnx.part4",
+      "bytes": 57096776,
+      "sha256": "5a4dd962c5fa35faac13385462289265b67fcf7c032084a3c8eebc39ef7589e2",
+      "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/onnx/model.onnx",
+      "offset": 268435456
+    },
+    {
+      "path": "voices/af_heart.bin",
+      "bytes": 522240,
+      "sha256": "d583ccff3cdca2f7fae535cb998ac07e9fcb90f09737b9a41fa2734ec44a8f0b",
+      "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/voices/af_heart.bin"
+    },
+    {
+      "path": "voices/am_fenrir.bin",
+      "bytes": 522240,
+      "sha256": "c27989f741f7ee34d273a39d8a595cc0837d35f5ced9a29b7cc162614616df43",
+      "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/voices/am_fenrir.bin"
+    },
+    {
+      "path": "voices/bf_emma.bin",
+      "bytes": 522240,
+      "sha256": "669fe0647f9dd04fcab92f1439a40eeb4c8b4ab1f82e4996fe3d918ce4a63b73",
+      "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/voices/bf_emma.bin"
+    },
+    {
+      "path": "voices/bm_george.bin",
+      "bytes": 522240,
+      "sha256": "c4b235a4c1f2cd3b939fed08b899ce9385638b763f7b73a59616c4fc9bd6c9bc",
+      "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/voices/bm_george.bin"
+    },
+    {
+      "path": "runtime/ort-wasm-simd-threaded.jsep.mjs",
+      "bytes": 44484,
+      "sha256": "08fb86ec433c78bfb032c5d84a68b8e8e5a8d81268fa39e24314179a5767a5b9",
+      "source": "node_modules/@huggingface/transformers/dist/ort-wasm-simd-threaded.jsep.mjs"
+    },
+    {
+      "path": "runtime/ort-wasm-simd-threaded.jsep.wasm",
+      "bytes": 21596019,
+      "sha256": "c46655e8a94afc45338d4cb2b840475f88e5012d524509916e505079c00bfa39",
+      "source": "node_modules/@huggingface/transformers/dist/ort-wasm-simd-threaded.jsep.wasm"
+    }
+  ],
+  "model": {
+    "path": "onnx/model.onnx",
+    "bytes": 325532232,
+    "sha256": "8fbea51ea711f2af382e88c833d9e288c6dc82ce5e98421ea61c058ce21a34cb",
+    "source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/onnx/model.onnx",
+    "parts": [
+      "onnx/model.onnx.part0",
+      "onnx/model.onnx.part1",
+      "onnx/model.onnx.part2",
+      "onnx/model.onnx.part3",
+      "onnx/model.onnx.part4"
+    ]
+  }
+}

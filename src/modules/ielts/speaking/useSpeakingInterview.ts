@@ -79,14 +79,14 @@ export function useSpeakingInterview({ bindSpeakingInterview, onComplete, initia
 
   useEffect(() => {
     mounted.current = true
-    player.current = new KokoroSpeakingPlayer()
+    player.current = new KokoroSpeakingPlayer(audioPreparation => updateDiagnostics({ audioPreparation }))
     return () => {
       mounted.current = false
       operation.current?.abort()
       player.current?.dispose()
       player.current = null
     }
-  }, [])
+  }, [updateDiagnostics])
 
   useEffect(() => bindSpeakingInterview({
     configure(next) {

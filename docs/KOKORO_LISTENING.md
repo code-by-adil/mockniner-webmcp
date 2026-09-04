@@ -94,14 +94,16 @@ questions are installed together.
 
 ## Runtime
 
-The first active Kokoro Listening document lazily downloads the official
-`onnx-community/Kokoro-82M-v1.0-ONNX` model through `kokoro-js`. Subsequent
-generation reuses the downloaded model while it remains in the browser cache.
-Playing saved audio does not require a model download.
+The first active Kokoro Listening document prepares pinned model, voice and
+runtime files from the app's origin. Agents can start the download earlier with
+`prepare_practice_audio`, while authoring. Subsequent generation reuses verified
+files. Playing saved audio needs no model download. See
+[audio assets and release checks](./AUDIO_ASSETS.md).
 
 Generation follows the official browser setup:
 
-- `KokoroTTS.from_pretrained(...)`
+- `StyleTextToSpeech2Model` and `AutoTokenizer` with a verified local asset cache
+- Kokoro generation with a local voice-file loader
 - `TextSplitterStream` for sentence-sized chunks
 - `device: "webgpu"`
 - `dtype: "fp32"`

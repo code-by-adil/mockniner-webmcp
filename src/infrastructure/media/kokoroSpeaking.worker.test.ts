@@ -7,9 +7,7 @@ import type {
 const mocked = vi.hoisted(() => ({ fromPretrained: vi.fn(), split: vi.fn(async () => ['Where do you live?']) }))
 vi.mock('./kokoroScript', () => ({ splitKokoroSpeech: mocked.split }))
 
-vi.mock('kokoro-js', () => ({
-  KokoroTTS: { from_pretrained: mocked.fromPretrained },
-}))
+vi.mock('./kokoroModel', () => ({ loadKokoroModel: mocked.fromPretrained }))
 
 let handleMessage: ((event: MessageEvent<KokoroSpeakingWorkerRequest>) => void) | null
 let posted: ReturnType<typeof vi.fn<(message: KokoroSpeakingWorkerResponse) => void>>

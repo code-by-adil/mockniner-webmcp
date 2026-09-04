@@ -1,0 +1,20 @@
+MockNiner audio asset notices
+
+Kokoro-82M model and voice files
+https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX
+Revision: 1939ad2a8e416c0acfeecc08a694d14ef25f2231
+Model authors: hexgrad. ONNX conversion: onnx-community.
+License: Apache-2.0. See kokoro-apache-2.0.txt in this directory.
+The model is delivered in five parts; its contents are unchanged.
+
+kokoro-js 1.2.1
+https://github.com/hexgrad/kokoro/tree/main/kokoro.js
+License: Apache-2.0. See kokoro-apache-2.0.txt.
+MockNiner's LocalKokoroTTS adapts generate_from_ids to load pinned local voice
+files instead of downloading voices from the Hugging Face main branch.
+
+ONNX Runtime Web
+Copyright (c) Microsoft Corporation. All rights reserved.
+Runtime files distributed with @huggingface/transformers 3.8.1.
+ONNX Runtime commit: 89f8206ba4f1c22c39e0297fb55272e8ce8cd7d0
+License: MIT. See onnxruntime-mit.txt in this directory.

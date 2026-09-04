@@ -7,7 +7,10 @@ import type {
 } from "@/infrastructure/media/kokoroListening.worker";
 import { KOKORO_CACHE_VERSION } from "@/infrastructure/media/kokoroConfig";
 
+import { initialAudioPreparation, type AudioPreparation } from "@/infrastructure/media/audioAssets";
+
 type ListeningAudioState = {
+  preparation?: AudioPreparation;
   contentKey: string;
   phase: "loading" | "generating" | "ready" | "error";
   hydrated: boolean;
@@ -115,8 +118,12 @@ export function useListeningAudio(
             }));
             return;
           }
+          if (response.type === "preparation") {
+            update(value => ({ ...value, preparation: response.progress }));
+            return;
+          }
           if (response.type === "ready") {
-            update((value) => ({ ...value, phase: "generating" }));
+            update((value) => ({ ...value, phase: "generating", preparation: value.preparation ? { ...value.preparation, stage: "ready" } : undefined }));
             return;
           }
           if (response.type === "chunk") {
@@ -164,6 +171,7 @@ export function useListeningAudio(
             }, fail);
             return;
           }
+          if (response.failure) update(value => ({ ...value, preparation: { ...(value.preparation ?? initialAudioPreparation()), stage: "error", error: response.failure } }));
           fail(new Error(response.message));
         },
       );
@@ -186,13 +194,14 @@ export function useListeningAudio(
 
   const retry = useCallback(() => {
     setState((value) => value.contentKey === document.contentKey
-      ? { ...value, phase: "loading", error: null }
+      ? { ...value, phase: "loading", error: null, preparation: undefined }
       : value);
     setRun((value) => value + 1);
   }, [document.contentKey]);
 
   return {
     phase: current.phase,
+    preparation: current.preparation,
     hydrated: current.hydrated,
     chunks: current.chunks,
     totalChunks: current.totalChunks,

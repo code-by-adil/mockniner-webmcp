@@ -1,4 +1,6 @@
-import { KokoroTTS } from "kokoro-js";
+import type { KokoroTTS } from "kokoro-js";
+import { loadKokoroModel } from "./kokoroModel";
+import { audioPreparationFailure, withAudioTimeout, type AudioPreparation } from "./audioAssets";
 import type { KokoroListeningAudio } from "@/domain/objectiveContent";
 import { KOKORO_RUNTIME } from "./kokoroConfig";
 import { createKokoroPlan, type KokoroPlanChunk } from "./kokoroScript";
@@ -21,13 +23,10 @@ type GeneratedKokoroChunk =
 export type KokoroListeningWorkerResponse =
   | { type: "planned"; totalChunks: number }
   | { type: "ready" }
+  | { type: "preparation"; progress: AudioPreparation }
   | { type: "chunk"; chunk: GeneratedKokoroChunk }
   | { type: "complete" }
-  | { type: "error"; message: string };
-
-type WebGpuNavigator = Navigator & {
-  gpu?: { requestAdapter: () => Promise<unknown | null> };
-};
+  | { type: "error"; message: string; failure?: AudioPreparation["error"] };
 
 type WorkerPort = {
   addEventListener: (
@@ -47,16 +46,7 @@ function errorMessage(error: unknown): string {
 }
 
 async function loadModel(): Promise<KokoroTTS> {
-  const gpu = (navigator as WebGpuNavigator).gpu;
-  if (!gpu || !(await gpu.requestAdapter())) {
-    throw new Error(
-      "WebGPU is unavailable in this browser. Open the app in a current WebGPU-capable Chrome or Edge browser.",
-    );
-  }
-  const model = await KokoroTTS.from_pretrained(
-    KOKORO_RUNTIME.modelId,
-    { dtype: KOKORO_RUNTIME.dtype, device: KOKORO_RUNTIME.device },
-  );
+  const model = await loadKokoroModel(progress => port.postMessage({ type: "preparation", progress }));
   port.postMessage({ type: "ready" });
   return model;
 }
@@ -98,10 +88,10 @@ port.addEventListener("message", (event) => {
       }
 
       if (!tts) throw new Error("Kokoro did not initialize.");
-      const audio = await tts.generate(chunk.text, {
+      const audio = await withAudioTimeout(tts.generate(chunk.text, {
         voice: chunk.voice,
         speed: KOKORO_RUNTIME.speed,
-      });
+      }));
       const durationMs = Math.round(
         (audio.audio.length / audio.sampling_rate) * 1000,
       );
@@ -117,6 +107,7 @@ port.addEventListener("message", (event) => {
     port.postMessage({
       type: "error",
       message: errorMessage(error),
+      failure: audioPreparationFailure(error),
     });
   });
 });

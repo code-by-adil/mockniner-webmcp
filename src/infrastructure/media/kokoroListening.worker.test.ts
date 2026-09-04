@@ -12,9 +12,7 @@ const mocked = vi.hoisted(() => ({
   fromPretrained: vi.fn(),
 }));
 
-vi.mock("kokoro-js", () => ({
-  KokoroTTS: { from_pretrained: mocked.fromPretrained },
-}));
+vi.mock("./kokoroModel", () => ({ loadKokoroModel: mocked.fromPretrained }));
 vi.mock("./kokoroScript", () => ({
   createKokoroPlan: mocked.createPlan,
 }));
@@ -122,8 +120,7 @@ describe("Kokoro worker protocol", () => {
     });
 
     expect(mocked.fromPretrained).toHaveBeenCalledWith(
-      KOKORO_RUNTIME.modelId,
-      { dtype: KOKORO_RUNTIME.dtype, device: KOKORO_RUNTIME.device },
+      expect.any(Function),
     );
     expect(generate).toHaveBeenCalledTimes(1);
     expect(generate).toHaveBeenCalledWith("Welcome to the listening test.", {

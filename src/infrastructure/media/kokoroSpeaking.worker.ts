@@ -1,4 +1,6 @@
-import { KokoroTTS } from 'kokoro-js'
+import type { KokoroTTS } from 'kokoro-js'
+import { loadKokoroModel } from './kokoroModel'
+import type { AudioPreparation } from './audioAssets'
 import { RawAudio } from '@huggingface/transformers'
 import { KOKORO_RUNTIME } from './kokoroConfig'
 import { splitKokoroSpeech } from './kokoroScript'
@@ -10,11 +12,8 @@ export type KokoroSpeakingWorkerRequest = {
 
 export type KokoroSpeakingWorkerResponse =
   | { id: string; type: 'audio'; audio: Blob }
+  | { id: string; type: 'preparation'; progress: AudioPreparation }
   | { id: string; type: 'error'; message: string }
-
-type WebGpuNavigator = Navigator & {
-  gpu?: { requestAdapter: () => Promise<unknown | null> }
-}
 
 type WorkerPort = {
   addEventListener: (
@@ -33,22 +32,9 @@ function errorMessage(error: unknown): string {
     : 'Kokoro could not generate the examiner voice.'
 }
 
-async function loadModel(): Promise<KokoroTTS> {
-  const gpu = (navigator as WebGpuNavigator).gpu
-  if (!gpu || !(await gpu.requestAdapter())) {
-    throw new Error(
-      'WebGPU is unavailable. Open the app in a current WebGPU-capable Chrome or Edge browser.',
-    )
-  }
-  return KokoroTTS.from_pretrained(KOKORO_RUNTIME.modelId, {
-    dtype: KOKORO_RUNTIME.dtype,
-    device: KOKORO_RUNTIME.device,
-  })
-}
-
-function getModel(): Promise<KokoroTTS> {
+function getModel(id: string): Promise<KokoroTTS> {
   if (!modelPromise) {
-    modelPromise = loadModel().catch((error) => {
+    modelPromise = loadKokoroModel(progress => port.postMessage({ id, type: 'preparation', progress })).catch((error) => {
       modelPromise = null
       throw error
     })
@@ -59,7 +45,7 @@ function getModel(): Promise<KokoroTTS> {
 port.addEventListener('message', (event) => {
   const request = event.data
   void (async () => {
-    const tts = await getModel()
+    const tts = await getModel(request.id)
     const chunks = await splitKokoroSpeech(request.text, 'bm_george')
     if (!chunks.length) throw new Error('The examiner question is empty.')
     const audioChunks = []

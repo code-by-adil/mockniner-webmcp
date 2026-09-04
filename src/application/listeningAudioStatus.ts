@@ -1,7 +1,9 @@
+import type { AudioPreparation } from '@/infrastructure/media/audioAssets'
 import type { ListeningContentDocument } from '@/domain/objectiveContent'
 import type { ListeningAudioSession } from './useListeningAudio'
 
 export type ListeningAudioStatus = {
+  preparation?: AudioPreparation
   contentKey: string
   source: 'bundled' | 'kokoro'
   phase: 'loading' | 'generating' | 'ready' | 'error'
@@ -14,7 +16,7 @@ export type ListeningAudioStatus = {
 
 // Public metadata only. No scripts, answer keys, audio blobs or cache paths.
 export function getListeningAudioStatus(document: ListeningContentDocument, audio: ListeningAudioSession): ListeningAudioStatus {
-  return { contentKey: document.contentKey, source: document.audio.type, phase: audio.phase,
+  return { preparation: audio.preparation, contentKey: document.contentKey, source: document.audio.type, phase: audio.phase,
     readyToPlay: audio.readyToPlay, completedChunks: audio.completedChunks, totalChunks: audio.totalChunks,
     error: audio.error, canRetry: document.audio.type === 'kokoro' && audio.phase === 'error' }
 }

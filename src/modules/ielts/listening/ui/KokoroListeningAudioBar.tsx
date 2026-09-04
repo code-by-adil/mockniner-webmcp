@@ -1,3 +1,4 @@
+import { AudioPreparationProgress } from '@/shared/ui/AudioPreparationProgress';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ListeningAudioActions, ListeningPlayButton, ListeningSkipPrompt } from "./ListeningAudioControls";
 import { formatTime } from "@/shared/time";
@@ -380,7 +381,8 @@ export const KokoroListeningAudioBar: React.FC<Props> = ({
           Jump audio to Part {currentPart}
         </ListeningSkipPrompt>
       ) : null}
-      {isLoading && !sourceError ? (
+      {audioSession.phase === "loading" && audioSession.preparation && !sourceError ? <AudioPreparationProgress progress={audioSession.preparation} /> : null}
+      {isLoading && !sourceError && (audioSession.phase !== "loading" || !audioSession.preparation) ? (
         <span className="exam-subtle-text text-[10px] font-bold">
           {audioSession.phase === "loading"
             ? "Preparing the listening voice…"

@@ -2,7 +2,7 @@
 
 <img src="./public/mockniner-logo.svg" alt="MockNiner M9 logo" width="104" height="72" />
 
-[Open MockNiner](https://assessment-lab.dgkhan08.workers.dev)
+[Open MockNiner](https://mockniner-webmcp.dgkhan08.workers.dev)
 
 Prepare for your next exam with the AI agent you already use. No extra exam-prep
 subscription.
@@ -131,6 +131,7 @@ Use Node.js 20.19+ or 22.12+, as required by
 
 ```bash
 npm ci
+npm run audio:prepare
 npm run dev
 ```
 
@@ -150,8 +151,10 @@ headers required for persistence.
 
 ### Hosting
 
-The build is in `dist/`. Use a static HTTPS host that supports custom response
-headers. The included `public/_headers` supplies them for Cloudflare hosting.
+The build is in `dist/`. Generated speech also needs the pinned audio assets
+served on the same origin. The Cloudflare deployment streams those files from
+R2 through a small Worker. See [audio setup and release checks](./docs/AUDIO_ASSETS.md).
+Use an HTTPS host that supports custom response headers. The included `public/_headers` supplies them for Cloudflare hosting.
 Other hosts must return equivalent headers:
 
 ```text

@@ -20,6 +20,7 @@ const schemas = {
 
 const rules: Record<IeltsAuthoringSection, string[]> = {
   listening: [
+    "Call prepare_practice_audio before writing the new script. It downloads voices in the page while you author; do not wait for it to finish before installing.",
     "Create four ordered parts with exactly ten answer slots each and question IDs 1 through 40.",
     "Use audio.type=kokoro for agent-created audio. The application generates and stores the speech locally.",
     KOKORO_LISTENING_AUTHORING_GUIDANCE,

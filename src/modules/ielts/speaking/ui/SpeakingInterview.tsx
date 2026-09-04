@@ -1,3 +1,4 @@
+import { AudioPreparationProgress } from '@/shared/ui/AudioPreparationProgress'
 import { useEffect, useState } from 'react'
 import { Headphones, Loader2, Mic, RotateCcw, SkipForward, Square } from 'lucide-react'
 import type { CompleteSpeakingAttemptInput } from '@/application/attemptWriter'
@@ -51,6 +52,7 @@ export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPl
       {phase === 'preparing' ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
       {phase === 'preparing' ? 'Preparing your interview…' : interview.recorded ? 'Resume interview' : 'Start interview'}
     </button>
+    {phase === 'preparing' && <AudioPreparationProgress progress={interview.audioPreparation} />}
     <p role="status" className="mt-3 text-center text-xs leading-5 text-[var(--exam-text-muted)]">{phase === 'preparing' ? preparationMessage : interview.recorded ? `${interview.recorded} of ${plan.questions.length} answers saved on this device.` : 'Ask your agent to create an interview on a topic you want to practise before you start.'}</p>
   </main>
 
@@ -66,6 +68,7 @@ export function SpeakingInterview({ bindSpeakingInterview, onComplete, initialPl
       <div className="text-4xl font-semibold tabular-nums text-[var(--exam-text)]" aria-label={phase === 'thinking' ? `${secondsLeft} seconds preparation remaining` : `${phase === 'recording' ? secondsLeft : question.responseSeconds} seconds answer time`}>{formatMinutesAndSeconds(['thinking', 'recording'].includes(phase) ? secondsLeft : question.responseSeconds)}</div>
       <canvas ref={canvasRef} width={320} height={36} aria-hidden="true" className={phase === 'recording' ? 'h-9 w-full max-w-xs' : 'hidden'} />
     </div>
+    {phase === 'buffering' && <AudioPreparationProgress progress={interview.audioPreparation} />}
     {error ? <p role="alert" className="mb-5 rounded-lg bg-red-50 p-4 text-sm leading-6 text-red-800">{error}</p> : null}
     {!['error', 'save-error', 'saving'].includes(phase) ? <button type="button" disabled={!canRecord && phase !== 'recording'} onClick={() => phase === 'recording' ? void completeAnswer() : void startRecording()} className="flex min-h-14 items-center justify-center gap-3 rounded-lg bg-[var(--exam-accent)] px-6 py-4 text-lg font-semibold text-white disabled:cursor-default disabled:opacity-50">
       {phase === 'recording' || phase === 'stopping' ? <Square size={18} fill="currentColor" /> : <Mic size={18} />}{phase === 'recording' || phase === 'stopping' ? 'Submit answer' : 'Record answer'}

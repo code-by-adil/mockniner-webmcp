@@ -1,5 +1,10 @@
 # WebMCP tool reference
 
+`prepare_practice_audio` starts the shared Listening/Speaking voice download
+without waiting for it. Call it before authoring new spoken practice. Progress
+is visible in the page and exposed as `audioPreparation` by
+`get_practice_context`. See [audio downloads](./AUDIO_ASSETS.md).
+
 The top-level application registers semantic tools through
 `document.modelContext`. React and WebMCP call the same application commands and
 operate on the same local state. The tool catalog is registered once per loaded

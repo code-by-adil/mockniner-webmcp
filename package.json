@@ -15,7 +15,11 @@
     "eval:agent:local": "node scripts/agent-evals/run.mjs local",
     "eval:agent:browser": "node scripts/agent-evals/run.mjs browser",
     "eval:agent:release": "node scripts/agent-evals/run.mjs browser --release",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "audio:prepare": "node scripts/audio-assets/prepare.mjs",
+    "audio:upload": "node scripts/audio-assets/prepare.mjs --upload",
+    "typecheck:worker": "wrangler types && tsc --ignoreConfig --noEmit --strict --skipLibCheck --target ES2023 --module ESNext --moduleResolution Bundler --resolveJsonModule --types node worker-configuration.d.ts worker/audioAssets.ts",
+    "audio:verify": "node scripts/audio-assets/verify.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "3.8.1",

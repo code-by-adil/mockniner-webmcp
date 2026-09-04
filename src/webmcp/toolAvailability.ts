@@ -33,6 +33,7 @@ export function getToolAvailability(
   const blockedSections = authoringSections.filter(section => findContentBlockingDraft(workspace.native, section));
   const unlockedSections = authoringSections.filter(section => !blockedSections.includes(section));
   return {
+    prepare_practice_audio: available,
     begin_submission_evaluation: leaveBlocker ? blocked(leaveBlocker.code, leaveBlocker.message) : conditional('Call first when asked to evaluate. Opens and reads the saved submission and shows progress. Supply kind plus an exact attemptId, or omit IDs for the visible submission.'),
     get_practice_context: available,
     get_practice_library: available,

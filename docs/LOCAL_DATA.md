@@ -79,11 +79,17 @@ retry and revision handling.
 
 ## Deployment
 
-Live site: [assessment-lab.dgkhan08.workers.dev](https://assessment-lab.dgkhan08.workers.dev).
+Live site: [mockniner-webmcp.dgkhan08.workers.dev](https://mockniner-webmcp.dgkhan08.workers.dev).
+
+The previous `assessment-lab.dgkhan08.workers.dev` deployment has been removed.
+Storage is scoped to each origin, so saved work does not automatically transfer
+to the new address. Previously exported backups can be imported through Local data.
 
 The project deploys to Cloudflare Workers Static Assets using `wrangler.jsonc`.
-Only the Vite output in `dist` is uploaded. No server-side Worker script,
-database, application credentials, or custom domain is needed. The configuration
+The Vite output in `dist` provides the application. A small Worker streams
+pinned audio assets from a private R2 bucket on the same origin; it does not run
+AI models or handle learner data. See [audio assets](./AUDIO_ASSETS.md).
+No application database, model API credentials, or custom domain is needed. The configuration
 enables the Worker's `workers.dev` address, disables preview URLs, and declares
 no custom-domain routes. Missing navigation paths serve the SPA's `index.html`.
 
@@ -92,12 +98,17 @@ To deploy from an authenticated Cloudflare account:
 ```bash
 npm ci
 npx wrangler login
+# Once per account, create the audio bucket:
+npx wrangler r2 bucket create mockniner-audio-assets
+npm run audio:prepare
+npm run audio:upload
 npm run deploy
 ```
 
-Wrangler prints the deployed `https://assessment-lab.<account-subdomain>.workers.dev`
+Wrangler prints the deployed `https://mockniner-webmcp.<account-subdomain>.workers.dev`
 address. Check `npx wrangler whoami` before deploying to confirm the account.
-To preview the production build with Cloudflare's asset routing and headers:
+To preview the production build with Cloudflare's asset routing and headers,
+using the authenticated account's R2 audio assets:
 
 ```bash
 npm run preview:workers

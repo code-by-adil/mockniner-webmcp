@@ -1,3 +1,4 @@
+import type { AudioPreparation } from './audioAssets'
 import type {
   KokoroSpeakingWorkerRequest,
   KokoroSpeakingWorkerResponse,
@@ -37,7 +38,9 @@ export class KokoroSpeakingPlayer {
   private audio = new Map<string, Promise<AudioBuffer>>()
   private generationQueue: Promise<unknown> = Promise.resolve()
 
-  constructor() {
+  private onPreparation: (progress: AudioPreparation) => void
+  constructor(onPreparation: (progress: AudioPreparation) => void = () => {}) {
+    this.onPreparation = onPreparation
     this.worker = this.createWorker()
   }
 
@@ -149,12 +152,18 @@ export class KokoroSpeakingPlayer {
       }
       const handleMessage = (event: MessageEvent<KokoroSpeakingWorkerResponse>) => {
         if (event.data.id !== id) return
+        if (event.data.type === 'preparation') {
+          clearTimeout(timeout)
+          timeout = setTimeout(() => cancel(new Error('Examiner audio preparation stopped. Retry this question.')), 180_000)
+          this.onPreparation(event.data.progress)
+          return
+        }
         if (event.data.type === 'error') finish({ error: new Error(event.data.message) })
         else finish({ audio: event.data.audio })
       }
 
       this.cancelGeneration = cancel
-      const timeout = setTimeout(() => cancel(new Error('Examiner audio preparation timed out. Retry this question.')), 180_000)
+      let timeout = setTimeout(() => cancel(new Error('Examiner audio preparation timed out. Retry this question.')), 180_000)
       signal.addEventListener('abort', handleAbort, { once: true })
       worker.addEventListener('message', handleMessage)
       worker.addEventListener('error', handleWorkerError)

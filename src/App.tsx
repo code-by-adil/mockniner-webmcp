@@ -1,3 +1,5 @@
+import { useAudioPreparation } from '@/application/useAudioPreparation';
+import { AudioPreparationProgress } from '@/shared/ui/AudioPreparationProgress';
 import { EvaluationActivityProvider } from '@/application/EvaluationActivity';
 import { EvaluationProgress } from '@/shared/ui/EvaluationProgress';
 import {
@@ -239,6 +241,7 @@ export default function App() {
 function PracticeApp() {
   const { state, content, contentReady, loadError, commands, loadPracticeContent } = useIeltsApplication();
   const assessmentApplication = useAssessmentApplication();
+  const audioPreparation = useAudioPreparation();
   const listeningAudio = useListeningAudio(content.listening);
   const webMcp = useWebMcpTools({
     commands,
@@ -246,6 +249,7 @@ function PracticeApp() {
     context: getPracticeContext(state, assessmentApplication.state),
     workspace: { native: state, assessment: assessmentApplication.state, content, assessments: assessmentApplication.assessments, listeningAudio: getListeningAudioStatus(content.listening, listeningAudio) },
     retryListeningAudio: listeningAudio.retry,
+    audioPreparation,
     loadPracticeContent,
     enabled: contentReady && assessmentApplication.assessmentReady,
   });
@@ -317,6 +321,8 @@ function PracticeApp() {
 
   if (state.view === "home" || !section) {
     return (
+      <>
+      {audioPreparation.progress && <div className="mx-auto max-w-3xl px-6 pt-5"><AudioPreparationProgress progress={audioPreparation.progress} retry={audioPreparation.start} /></div>}
       <Home
         onStart={uiCommands.start}
         onResume={uiCommands.resume}
@@ -336,6 +342,7 @@ function PracticeApp() {
           onDeleteAssessment: assessmentApplication.commands.deleteAssessment,
         }}
       />
+      </>
     );
   }
 

@@ -13,6 +13,8 @@ dist-ssr
 *.local
 .evals
 .wrangler/
+.audio-assets/
+worker-configuration.d.ts
 .dev.vars
 .dev.vars.*
 

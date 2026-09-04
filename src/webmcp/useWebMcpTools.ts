@@ -1,3 +1,5 @@
+import { createAudioPreparationTool } from './audioPreparationTool';
+import type { AudioPreparation } from '@/infrastructure/media/audioAssets';
 import { useEvaluationActivity, type EvaluationKind } from '@/application/evaluationActivityContext';
 import { createEvaluationStartTool, evaluationTools } from './evaluationStartTool';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -40,6 +42,7 @@ export type WebMcpToolOptions = {
   workspace: PracticeWorkspace;
   loadPracticeContent: (key: string) => Promise<PracticeContentDocument | null>;
   retryListeningAudio: () => void;
+  audioPreparation: { progress: AudioPreparation | null; start: () => void };
   enabled: boolean;
 };
 
@@ -94,11 +97,12 @@ export function useWebMcpTools(options: WebMcpToolOptions) {
     const readAvailability = () => getToolAvailability(latest.current, interview.read(), interview.canLeave());
     const readContext = () => {
       const speaking = interview.read();
-      return { ...latest.current.context, evaluationActivity: evaluationRef.current?.activity ?? null, listeningAudio: latest.current.workspace.listeningAudio,
+      return { ...latest.current.context, audioPreparation: latest.current.audioPreparation.progress ?? null, evaluationActivity: evaluationRef.current?.activity ?? null, listeningAudio: latest.current.workspace.listeningAudio,
         capabilities: summarizeToolAvailability(readAvailability(), includeAuthoringExamples(latest.current.workspace)),
         progress: getPracticeProgress(latest.current.workspace, 'currentQuestion' in speaking ? speaking : undefined) };
     };
     const readListeningAudio = () => latest.current.workspace.listeningAudio;
+    tools.push(createAudioPreparationTool(() => latest.current.audioPreparation.progress ?? null, () => flushSync(() => latest.current.audioPreparation.start())));
     tools.push(createPracticeContextTool(readContext), createListeningAudioRetryTool(readListeningAudio, () => flushSync(() => latest.current.retryListeningAudio())));
     tools.push(createPracticeActivityTool(async input => {
       const [{ getLocalDatabase }, { readPracticeActivity }] = await Promise.all([

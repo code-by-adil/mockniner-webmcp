@@ -1,7 +1,9 @@
+import type { AudioPreparation } from '@/infrastructure/media/audioAssets'
 import { ApplicationError } from '@/domain/errors'
 import { speakingPlanSchema, type SpeakingPlan } from '@/domain/speakingPlan'
 
 export type SpeakingDiagnostics = {
+  audioPreparation?: AudioPreparation
   preparationStage: 'saving_plan' | 'microphone_access' | 'voice_and_recognition' | null
   error: string | null
   recoveryAction: string | null
